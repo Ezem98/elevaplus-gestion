@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+
+  --color-marca: #1e4fa8;
+  --color-marca-oscuro: #163b7d;
+  --color-marca-suave: #e6edf9;
+
+  --color-fondo: #f5f7fa;
+  --color-superficie: #ffffff;
+  --color-borde: #d9e0e8;
+
+  --color-tinta: #17212b;
+  --color-tinta-suave: #5b6b7b;
+  --color-tinta-tenue: #8d9aa8;
+
+  --color-ok: #15803d;
+  --color-ok-suave: #e4f5ea;
+  --color-alerta: #b45309;
+  --color-alerta-suave: #fdf0e0;
+  --color-peligro: #b91c1c;
+  --color-peligro-suave: #fbe9e9;
+
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  @apply bg-fondo text-tinta font-sans antialiased;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Foco visible y consistente */
+:focus-visible {
+  outline: 2px solid var(--color-marca);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
