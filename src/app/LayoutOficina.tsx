@@ -2,6 +2,14 @@ import { NavLink, Outlet } from "react-router-dom";
 import { LayoutDashboard, Truck, Calculator, Users, Wallet, LogOut } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
 
+import type { Rol } from "@/lib/tipos";
+
+const etiquetasRol: Record<Rol, string> = {
+  admin: "Administración",
+  oficina: "Oficina",
+  chofer: "Chofer",
+};
+
 const enlaces = [
   { a: "/", texto: "Hoy", Icono: LayoutDashboard },
   { a: "/servicios", texto: "Servicios", Icono: Truck },
@@ -36,9 +44,19 @@ export function LayoutOficina() {
             </NavLink>
           ))}
         </nav>
-        <div className="flex items-center gap-3 text-sm md:mt-auto md:border-t md:border-borde md:px-2 md:pt-4">
-          <span className="hidden truncate text-tinta-suave md:block">{perfil?.nombre}</span>
-          <button onClick={salir} className="ml-auto text-tinta-suave hover:text-tinta" aria-label="Salir">
+        <div className="flex items-center justify-between gap-3 text-sm md:mt-auto md:border-t md:border-borde md:px-2 md:pt-4">
+          <div className="hidden min-w-0 flex-col md:flex">
+            <span className="truncate font-medium text-tinta">{perfil?.nombre}</span>
+            {perfil?.rol && (
+              <span className="truncate text-xs text-tinta-suave">{etiquetasRol[perfil.rol]}</span>
+            )}
+          </div>
+          <button
+            onClick={salir}
+            className="ml-auto rounded-md p-2 text-tinta-suave transition-colors hover:bg-peligro-suave hover:text-peligro md:ml-0"
+            aria-label="Salir"
+            title="Cerrar sesión"
+          >
             <LogOut className="h-4 w-4" />
           </button>
         </div>

@@ -6,6 +6,20 @@ import { ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearPesos } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
+import { Aviso } from "@/components/ui/Aviso";
+
+const formateadorFecha = new Intl.DateTimeFormat("es-AR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+function obtenerFechaHoyLarga(): string {
+  const formateada = formateadorFecha.format(new Date());
+  const conMayuscula = formateada.charAt(0).toUpperCase() + formateada.slice(1);
+  return conMayuscula.replace(",", "");
+}
 
 export function PaginaHoy() {
   const [hoy, setHoy] = useState<Servicio[]>([]);
@@ -36,27 +50,35 @@ export function PaginaHoy() {
       .then(({ data }) => setSaldo((data ?? []).reduce((acc, r) => acc + Number(r.saldo), 0)));
   }, []);
 
+  const fechaHoy = obtenerFechaHoyLarga();
+
   return (
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Hoy</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-tinta">Hoy</h1>
+          <p className="text-sm text-tinta-suave">{fechaHoy}</p>
+        </div>
         <div className="text-right">
           <div className="text-sm text-tinta-suave">Total a cobrar</div>
-          <div className="text-2xl font-semibold">{formatearPesos(saldo)}</div>
+          <div className="text-3xl font-semibold tracking-tight">{formatearPesos(saldo)}</div>
         </div>
       </header>
 
       {sinCerrar.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-medium text-alerta">
+          <Aviso className="mb-3">
             {sinCerrar.length} {sinCerrar.length === 1 ? "servicio de días anteriores sin cerrar" : "servicios de días anteriores sin cerrar"}
-          </h2>
+          </Aviso>
           <ListaServicios servicios={sinCerrar} />
         </section>
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-tinta-suave">Servicios de hoy</h2>
+        <div className="mb-3 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-tinta">Servicios de hoy</h2>
+          <span className="text-lg font-semibold text-tinta-suave">({hoy.length})</span>
+        </div>
         {hoy.length === 0 ? (
           <Tarjeta className="p-8 text-center text-tinta-suave">
             No hay servicios programados para hoy.{" "}
@@ -74,17 +96,29 @@ function ListaServicios({ servicios }: { servicios: Servicio[] }) {
   return (
     <Tarjeta className="divide-y divide-borde">
       {servicios.map((s) => (
-        <Link key={s.id} to={`/servicios/${s.id}`} className="flex items-center gap-4 p-4 hover:bg-fondo">
-          <div className="w-14 shrink-0 text-sm text-tinta-suave">{s.hora_programada?.slice(0, 5) ?? "—"}</div>
+        <Link
+          key={s.id}
+          to={`/servicios/${s.id}`}
+          className="flex items-center gap-4 px-4 py-4 hover:bg-fondo transition-colors"
+        >
+          <div className="w-[60px] shrink-0 text-sm text-tinta-suave tabular-nums">
+            {s.hora_programada?.slice(0, 5) ?? "—"}
+          </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate font-medium">{s.clientes?.nombre ?? "Sin cliente"}</div>
-            <div className="truncate text-sm text-tinta-suave">
+            <div className="truncate text-sm font-semibold text-tinta">
+              {s.clientes?.nombre ?? "Sin cliente"}
+            </div>
+            <div className="truncate text-[13px] leading-[18px] text-tinta-suave">
               {ETIQUETA_TIPO[s.tipo]}
               {s.origen && s.destino ? ` · ${s.origen} → ${s.destino}` : s.descripcion ? ` · ${s.descripcion}` : ""}
             </div>
           </div>
-          <div className="hidden text-sm sm:block">{formatearPesos(s.monto)}</div>
-          <ChipEstado estado={s.estado} />
+          <div className="hidden w-28 shrink-0 text-right text-sm font-semibold tabular-nums sm:block">
+            {formatearPesos(s.monto)}
+          </div>
+          <div className="flex w-28 shrink-0 justify-end">
+            <ChipEstado estado={s.estado} />
+          </div>
         </Link>
       ))}
     </Tarjeta>
