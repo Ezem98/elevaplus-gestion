@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import type { Cliente, CuentaCorrienteCliente, Servicio } from "@/lib/tipos";
@@ -7,6 +7,8 @@ import { formatearPesos, formatearFecha } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
+import { Aviso } from "@/components/ui/Aviso";
+import { FormularioCobro, type ServicioCobroItem } from "@/features/cobros/FormularioCobro";
 
 export function PaginaCliente() {
   const { id } = useParams<{ id: string }>();
@@ -14,28 +16,49 @@ export function PaginaCliente() {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [cc, setCc] = useState<CuentaCorrienteCliente | null>(null);
   const [movimientos, setMovimientos] = useState<Servicio[]>([]);
+  const [serviciosPendientes, setServiciosPendientes] = useState<ServicioCobroItem[]>([]);
+  const [mostrarCobro, setMostrarCobro] = useState(false);
   const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
+  const cargarDatos = useCallback(async () => {
     if (!id) return;
     setCargando(true);
 
-    Promise.all([
+    const [clienteRes, ccRes, serviciosRes, pendientesRes] = await Promise.all([
       supabase.from("clientes").select("*").eq("id", id).single(),
-      supabase.from("cuenta_corriente").select("total_servicios, total_cobrado, saldo").eq("cliente_id", id).maybeSingle(),
+      supabase
+        .from("cuenta_corriente")
+        .select("total_servicios, total_cobrado, saldo")
+        .eq("cliente_id", id)
+        .maybeSingle(),
       supabase
         .from("servicios")
         .select("*")
         .eq("cliente_id", id)
         .not("estado", "in", '("consulta","presupuestado","cancelado")')
         .order("fecha_programada", { ascending: false }),
-    ]).then(([clienteRes, ccRes, serviciosRes]) => {
-      setCliente((clienteRes.data as Cliente) ?? null);
-      setCc((ccRes.data as CuentaCorrienteCliente) ?? null);
-      setMovimientos((serviciosRes.data as Servicio[]) ?? []);
-      setCargando(false);
-    });
+      supabase
+        .from("servicios")
+        .select("id, numero, descripcion, fecha_programada, monto, monto_cobrado")
+        .eq("cliente_id", id)
+        .in("estado", ["terminado", "cobrado", "programado", "en_curso"])
+        .order("fecha_programada", { ascending: true }),
+    ]);
+
+    setCliente((clienteRes.data as Cliente) ?? null);
+    setCc((ccRes.data as CuentaCorrienteCliente) ?? null);
+    setMovimientos((serviciosRes.data as Servicio[]) ?? []);
+
+    const pendientes = ((pendientesRes.data as ServicioCobroItem[]) ?? []).filter(
+      (s) => s.monto != null && Number(s.monto_cobrado) < Number(s.monto)
+    );
+    setServiciosPendientes(pendientes);
+    setCargando(false);
   }, [id]);
+
+  useEffect(() => {
+    cargarDatos();
+  }, [cargarDatos]);
 
   if (cargando) {
     return (
@@ -67,14 +90,35 @@ export function PaginaCliente() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Boton onClick={() => setMostrarCobro((prev) => !prev)}>Registrar cobro</Boton>
           <Link to={`/cotizador?cliente=${id}`}>
-            <Boton>Nuevo presupuesto</Boton>
+            <Boton variante="secundario">Nuevo presupuesto</Boton>
           </Link>
           <Link to={`/clientes/${id}/editar`}>
             <Boton variante="secundario">Editar</Boton>
           </Link>
         </div>
       </header>
+
+      {/* Formulario Registrar cobro o aviso de sin pendientes */}
+      {mostrarCobro && (
+        serviciosPendientes.length === 0 ? (
+          <Aviso variante="alerta">
+            Este cliente no tiene servicios con saldo pendiente.
+          </Aviso>
+        ) : (
+          <FormularioCobro
+            clienteId={id!}
+            servicios={serviciosPendientes}
+            onGuardado={() => {
+              setMostrarCobro(false);
+              cargarDatos();
+            }}
+            onCancelar={() => setMostrarCobro(false)}
+          />
+        )
+      )}
+
 
       <Tarjeta className="grid grid-cols-1 divide-y divide-borde sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
         <div className="p-5">

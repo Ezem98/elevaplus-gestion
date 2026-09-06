@@ -129,6 +129,51 @@ export interface ServicioChofer {
   perfiles?: { nombre: string } | { nombre: string }[] | null;
 }
 
+export type EstadoCobro = "pendiente" | "acreditado" | "rechazado";
+export type TipoCheque = "recibido" | "emitido";
+export type EstadoCheque = "en_cartera" | "depositado" | "acreditado" | "rechazado" | "endosado";
+
+export interface Cobro {
+  id: string;
+  cliente_id: string | null;
+  fecha: string;
+  fecha_acreditacion: string | null;
+  monto: number;
+  medio: MedioPago;
+  estado: EstadoCobro;
+  referencia: string | null;
+  cheque_id: string | null;
+  registrado_por: string | null;
+  notas: string | null;
+  created_at: string;
+  clientes?: { nombre: string } | null;
+  cheques?: Cheque | null;
+}
+
+export interface Cheque {
+  id: string;
+  tipo: TipoCheque;
+  es_echeq: boolean;
+  numero: string | null;
+  banco: string | null;
+  emisor: string | null;
+  fecha_emision: string | null;
+  fecha_pago: string;
+  monto: number;
+  estado: EstadoCheque;
+  cliente_id: string | null;
+  notas: string | null;
+  created_at: string;
+  clientes?: { nombre: string } | null;
+}
+
+export interface CobroAplicacion {
+  cobro_id: string;
+  servicio_id: string;
+  monto: number;
+  cobros?: Cobro | null;
+}
+
 export const ETIQUETA_ESTADO: Record<EstadoServicio, string> = {
   consulta: "Consulta",
   presupuestado: "Presupuestado",
@@ -176,4 +221,27 @@ export const ETIQUETA_TIPO_MAQUINA: Record<TipoMaquina, string> = {
   escalera: "Escalera",
   otro: "Otro",
 };
+
+export const ETIQUETA_MEDIO_PAGO: Record<MedioPago, string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  cheque: "Cheque",
+  echeq: "E-cheq",
+  otro: "Otro",
+};
+
+export const ETIQUETA_ESTADO_COBRO: Record<EstadoCobro, string> = {
+  pendiente: "Pendiente",
+  acreditado: "Acreditado",
+  rechazado: "Rechazado",
+};
+
+export const ETIQUETA_ESTADO_CHEQUE: Record<EstadoCheque, string> = {
+  en_cartera: "En cartera",
+  depositado: "Depositado",
+  acreditado: "Acreditado",
+  rechazado: "Rechazado",
+  endosado: "Endosado",
+};
+
 

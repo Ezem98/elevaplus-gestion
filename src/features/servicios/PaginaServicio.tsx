@@ -3,8 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, FileText, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
-import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina } from "@/lib/tipos";
-import { ETIQUETA_TIPO, ETIQUETA_TIPO_MAQUINA } from "@/lib/tipos";
+import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro } from "@/lib/tipos";
+import { ETIQUETA_TIPO, ETIQUETA_TIPO_MAQUINA, ETIQUETA_MEDIO_PAGO } from "@/lib/tipos";
 import { formatearPesos, formatearFecha } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
@@ -12,6 +12,17 @@ import { Boton } from "@/components/ui/Boton";
 import { Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
 import { LineaTiempo, type EventoLineaTiempo } from "@/components/ui/LineaTiempo";
+import { FormularioCobro } from "@/features/cobros/FormularioCobro";
+
+interface CobroAplicadoItem {
+  monto: number;
+  cobros: {
+    fecha: string;
+    medio: MedioPago;
+    estado: EstadoCobro;
+    referencia: string | null;
+  } | null;
+}
 
 interface AdjuntoItem {
   id: string;
@@ -65,6 +76,8 @@ export function PaginaServicio() {
 
   const [mostrarProgramar, setMostrarProgramar] = useState(false);
   const [guardandoProg, setGuardandoProg] = useState(false);
+  const [mostrarCobro, setMostrarCobro] = useState(false);
+  const [cobrosAplicados, setCobrosAplicados] = useState<CobroAplicadoItem[]>([]);
 
   const [fechaProg, setFechaProg] = useState("");
   const [horaProg, setHoraProg] = useState("");
@@ -114,24 +127,33 @@ export function PaginaServicio() {
   const cargarDatos = useCallback(async () => {
     if (!id) return;
     setCargando(true);
-    const [{ data: sData, error: sError }, { data: eData }, { data: scData }, adjuntosLista] =
-      await Promise.all([
-        supabase
-          .from("servicios")
-          .select("*, clientes(nombre), vehiculos(nombre), maquinas(codigo_interno, tipo)")
-          .eq("id", id)
-          .single(),
-        supabase
-          .from("servicio_eventos")
-          .select("*, perfiles(nombre)")
-          .eq("servicio_id", id)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("servicio_choferes")
-          .select("chofer_id, perfiles(nombre)")
-          .eq("servicio_id", id),
-        cargarAdjuntos(id),
-      ]);
+    const [
+      { data: sData, error: sError },
+      { data: eData },
+      { data: scData },
+      { data: caData },
+      adjuntosLista,
+    ] = await Promise.all([
+      supabase
+        .from("servicios")
+        .select("*, clientes(nombre), vehiculos(nombre), maquinas(codigo_interno, tipo)")
+        .eq("id", id)
+        .single(),
+      supabase
+        .from("servicio_eventos")
+        .select("*, perfiles(nombre)")
+        .eq("servicio_id", id)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("servicio_choferes")
+        .select("chofer_id, perfiles(nombre)")
+        .eq("servicio_id", id),
+      supabase
+        .from("cobro_aplicaciones")
+        .select("monto, cobros(fecha, medio, estado, referencia)")
+        .eq("servicio_id", id),
+      cargarAdjuntos(id),
+    ]);
 
     if (sError || !sData) {
       setServicio(null);
@@ -150,9 +172,11 @@ export function PaginaServicio() {
       }))
     );
     setChoferes((scData as unknown as ServicioChofer[]) ?? []);
+    setCobrosAplicados((caData as any) ?? []);
     setAdjuntos(adjuntosLista);
     setCargando(false);
   }, [id, cargarAdjuntos]);
+
 
   useEffect(() => {
     cargarDatos();
@@ -446,8 +470,31 @@ export function PaginaServicio() {
         )}
       </header>
 
+      {/* Formulario inline Registrar cobro */}
+      {mostrarCobro && (
+        <FormularioCobro
+          clienteId={servicio.cliente_id}
+          servicios={[
+            {
+              id: servicio.id,
+              numero: servicio.numero,
+              descripcion: servicio.descripcion,
+              fecha_programada: servicio.fecha_programada,
+              monto: servicio.monto,
+              monto_cobrado: servicio.monto_cobrado,
+            },
+          ]}
+          onGuardado={() => {
+            setMostrarCobro(false);
+            cargarDatos();
+          }}
+          onCancelar={() => setMostrarCobro(false)}
+        />
+      )}
+
       {/* Formulario inline Programar */}
       {mostrarProgramar && (
+
         <Tarjeta className="p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-tinta">Programar servicio</h2>
@@ -665,8 +712,29 @@ export function PaginaServicio() {
                     {cobroPillTexto}
                   </span>
                 </div>
+                {cobrosAplicados.length > 0 && (
+                  <div className="mt-2.5 space-y-1">
+                    {cobrosAplicados.map((ca, idx) => {
+                      const c = ca.cobros;
+                      if (!c) return null;
+                      const fechaObj = new Date(c.fecha.length === 10 ? `${c.fecha}T00:00:00` : c.fecha);
+                      const diaMes = `${String(fechaObj.getDate()).padStart(2, "0")}/${String(fechaObj.getMonth() + 1).padStart(2, "0")}`;
+                      const medioTexto = ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio;
+
+                      return (
+                        <div key={idx} className="text-xs text-tinta-suave">
+                          {diaMes} · {medioTexto} · {formatearPesos(ca.monto)}
+                          {c.estado === "pendiente" && (
+                            <span className="text-alerta"> · pendiente</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
+
 
             {/* Sección Adjuntos (N) */}
             <div className="pt-5 border-t border-borde">
@@ -766,6 +834,9 @@ export function PaginaServicio() {
                     <Boton onClick={() => ejecutarCambioEstado("en_curso", "Iniciado")}>
                       Iniciar
                     </Boton>
+                    <Boton variante="secundario" onClick={() => setMostrarCobro(true)}>
+                      Registrar cobro
+                    </Boton>
                     <Boton variante="secundario" onClick={abrirProgramar}>
                       Programar de nuevo
                     </Boton>
@@ -773,14 +844,19 @@ export function PaginaServicio() {
                 )}
 
                 {servicio.estado === "en_curso" && (
-                  <Boton onClick={() => ejecutarCambioEstado("terminado", "Terminado")}>
-                    Terminé
-                  </Boton>
+                  <>
+                    <Boton onClick={() => ejecutarCambioEstado("terminado", "Terminado")}>
+                      Terminé
+                    </Boton>
+                    <Boton variante="secundario" onClick={() => setMostrarCobro(true)}>
+                      Registrar cobro
+                    </Boton>
+                  </>
                 )}
 
                 {servicio.estado === "terminado" && (
                   <>
-                    <Boton disabled title="Próximamente">
+                    <Boton onClick={() => setMostrarCobro(true)}>
                       Registrar cobro
                     </Boton>
                     {facturando ? (
@@ -816,6 +892,9 @@ export function PaginaServicio() {
 
                 {servicio.estado === "cobrado" && (
                   <>
+                    <Boton variante="secundario" onClick={() => setMostrarCobro(true)}>
+                      Registrar cobro
+                    </Boton>
                     {facturando ? (
                       <form onSubmit={handleGuardarFactura} className="flex flex-wrap items-center gap-2">
                         <div className="w-48">
@@ -846,6 +925,7 @@ export function PaginaServicio() {
                     )}
                   </>
                 )}
+
 
                 {servicio.estado !== "cancelado" && servicio.estado !== "facturado" && (
                   <Boton

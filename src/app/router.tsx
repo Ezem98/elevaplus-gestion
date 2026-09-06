@@ -10,6 +10,7 @@ import { PaginaCotizador } from "@/features/cotizador/PaginaCotizador";
 import { PaginaClientes } from "@/features/clientes/PaginaClientes";
 import { FormularioCliente } from "@/features/clientes/FormularioCliente";
 import { PaginaCliente } from "@/features/clientes/PaginaCliente";
+import { PaginaCobros } from "@/features/cobros/PaginaCobros";
 import { PaginaChoferHoy } from "@/features/chofer/PaginaChoferHoy";
 import { Pendiente } from "./Pendiente";
 
@@ -30,11 +31,12 @@ export const router = createBrowserRouter([
           { path: "/clientes/nuevo", element: <FormularioCliente /> },
           { path: "/clientes/:id", element: <PaginaCliente /> },
           { path: "/clientes/:id/editar", element: <FormularioCliente /> },
-          { path: "/cobros", element: <Pendiente nombre="Cobros" /> },
+          { path: "/cobros", element: <PaginaCobros /> },
         ],
       },
     ],
   },
+
   {
     element: <RutaProtegida roles={["chofer", "admin"]} />,
     children: [
