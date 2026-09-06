@@ -5,6 +5,7 @@ import { LayoutOficina } from "./LayoutOficina";
 import { LayoutChofer } from "./LayoutChofer";
 import { PaginaHoy } from "@/features/dashboard/PaginaHoy";
 import { PaginaServicios } from "@/features/servicios/PaginaServicios";
+import { FormularioServicio } from "@/features/servicios/FormularioServicio";
 import { PaginaServicio } from "@/features/servicios/PaginaServicio";
 import { PaginaCotizador } from "@/features/cotizador/PaginaCotizador";
 import { PaginaClientes } from "@/features/clientes/PaginaClientes";
@@ -12,7 +13,6 @@ import { FormularioCliente } from "@/features/clientes/FormularioCliente";
 import { PaginaCliente } from "@/features/clientes/PaginaCliente";
 import { PaginaCobros } from "@/features/cobros/PaginaCobros";
 import { PaginaChoferHoy } from "@/features/chofer/PaginaChoferHoy";
-import { Pendiente } from "./Pendiente";
 
 export const router = createBrowserRouter([
   { path: "/ingresar", element: <PaginaIngresar /> },
@@ -24,7 +24,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "/", element: <PaginaHoy /> },
           { path: "/servicios", element: <PaginaServicios /> },
-          { path: "/servicios/nuevo", element: <Pendiente nombre="Nuevo servicio" /> },
+          { path: "/servicios/nuevo", element: <FormularioServicio /> },
           { path: "/servicios/:id", element: <PaginaServicio /> },
           { path: "/cotizador", element: <PaginaCotizador /> },
           { path: "/clientes", element: <PaginaClientes /> },

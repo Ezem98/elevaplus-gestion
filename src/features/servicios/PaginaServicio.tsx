@@ -3,8 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, FileText, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
-import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro } from "@/lib/tipos";
-import { ETIQUETA_TIPO, ETIQUETA_TIPO_MAQUINA, ETIQUETA_MEDIO_PAGO } from "@/lib/tipos";
+import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro, Alquiler } from "@/lib/tipos";
+import { ETIQUETA_TIPO, ETIQUETA_TIPO_MAQUINA, ETIQUETA_MEDIO_PAGO, formatearUnidadPlural } from "@/lib/tipos";
 import { formatearPesos, formatearFecha } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
@@ -78,6 +78,7 @@ export function PaginaServicio() {
   const [guardandoProg, setGuardandoProg] = useState(false);
   const [mostrarCobro, setMostrarCobro] = useState(false);
   const [cobrosAplicados, setCobrosAplicados] = useState<CobroAplicadoItem[]>([]);
+  const [alquiler, setAlquiler] = useState<Alquiler | null>(null);
 
   const [fechaProg, setFechaProg] = useState("");
   const [horaProg, setHoraProg] = useState("");
@@ -132,6 +133,7 @@ export function PaginaServicio() {
       { data: eData },
       { data: scData },
       { data: caData },
+      { data: alqData },
       adjuntosLista,
     ] = await Promise.all([
       supabase
@@ -152,6 +154,11 @@ export function PaginaServicio() {
         .from("cobro_aplicaciones")
         .select("monto, cobros(fecha, medio, estado, referencia)")
         .eq("servicio_id", id),
+      supabase
+        .from("alquileres")
+        .select("*")
+        .eq("servicio_id", id)
+        .maybeSingle(),
       cargarAdjuntos(id),
     ]);
 
@@ -162,6 +169,7 @@ export function PaginaServicio() {
     }
 
     setServicio(sData as Servicio);
+    setAlquiler((alqData as Alquiler) ?? null);
     setEventos(
       (eData ?? []).map((e: any) => ({
         id: e.id,
@@ -415,6 +423,26 @@ export function PaginaServicio() {
   const monto = Number(servicio.monto) || 0;
   const cobrado = Number(servicio.monto_cobrado) || 0;
 
+  const mostrarAvisoVencimiento = Boolean(
+    servicio.tipo === "alquiler_periodo" &&
+    servicio.estado === "en_curso" &&
+    alquiler?.fecha_hasta &&
+    (() => {
+      const partes = alquiler.fecha_hasta.split("-").map(Number);
+      if (partes.length !== 3) return false;
+      const [y, m, d] = partes;
+      const hastaUtc = Date.UTC(y, m - 1, d);
+      const ahora = new Date();
+      const hoyUtc = Date.UTC(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      const diffDias = Math.round((hastaUtc - hoyUtc) / (1000 * 60 * 60 * 24));
+      return diffDias <= (alquiler.alertar_dias_antes ?? 5);
+    })()
+  );
+
+  const fechaHastaDdMm = alquiler?.fecha_hasta
+    ? `${alquiler.fecha_hasta.split("-")[2]}/${alquiler.fecha_hasta.split("-")[1]}`
+    : "";
+
   let cobroPillTexto = "Pendiente de cobro";
   let cobroPillClase = "bg-alerta-suave text-alerta";
   let cobroColor = "text-alerta";
@@ -466,6 +494,11 @@ export function PaginaServicio() {
         {servicio.no_planificado && (
           <Aviso variante="alerta" className="mt-2">
             Cargado por el chofer en la calle. Completá cliente y monto.
+          </Aviso>
+        )}
+        {mostrarAvisoVencimiento && (
+          <Aviso variante="alerta" className="mt-2">
+            Este alquiler vence el {fechaHastaDdMm}. ¿Renovar?
           </Aviso>
         )}
       </header>
@@ -688,6 +721,38 @@ export function PaginaServicio() {
                 <span className="text-xs font-medium text-tinta-suave block">Orden de compra</span>
                 <div className="text-tinta font-medium mt-0.5 tabular-nums">{servicio.orden_compra || "—"}</div>
               </div>
+
+              {servicio.tipo === "alquiler_periodo" && alquiler && (
+                <>
+                  <div>
+                    <span className="text-xs font-medium text-tinta-suave block">Período</span>
+                    <div className="text-tinta font-medium mt-0.5">
+                      {formatearFecha(alquiler.fecha_desde)} → {formatearFecha(alquiler.fecha_hasta)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-xs font-medium text-tinta-suave block">Unidad y cantidad</span>
+                    <div className="text-tinta font-medium mt-0.5">
+                      {alquiler.cantidad} {formatearUnidadPlural(alquiler.unidad, alquiler.cantidad)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-xs font-medium text-tinta-suave block">Precio por unidad</span>
+                    <div className="text-tinta font-medium mt-0.5 tabular-nums">
+                      {formatearPesos(alquiler.precio_unidad)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-xs font-medium text-tinta-suave block">Renovación automática</span>
+                    <div className="text-tinta font-medium mt-0.5">
+                      {alquiler.renovacion_automatica ? "Sí" : "No"}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="md:col-span-2">
                 <span className="text-xs font-medium text-tinta-suave block">Descripción</span>

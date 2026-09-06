@@ -94,6 +94,9 @@ export function PaginaCliente() {
           <Link to={`/cotizador?cliente=${id}`}>
             <Boton variante="secundario">Nuevo presupuesto</Boton>
           </Link>
+          <Link to={`/servicios/nuevo?cliente=${id}`}>
+            <Boton variante="secundario">Nuevo servicio</Boton>
+          </Link>
           <Link to={`/clientes/${id}/editar`}>
             <Boton variante="secundario">Editar</Boton>
           </Link>

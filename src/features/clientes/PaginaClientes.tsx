@@ -159,6 +159,7 @@ export function PaginaClientes() {
               const acciones = [
                 { texto: "Ver ficha", onClick: () => navigate(`/clientes/${c.id}`) },
                 { texto: "Nuevo presupuesto", onClick: () => navigate(`/cotizador?cliente=${c.id}`) },
+                { texto: "Nuevo servicio", onClick: () => navigate(`/servicios/nuevo?cliente=${c.id}`) },
                 { texto: "Editar", onClick: () => navigate(`/clientes/${c.id}/editar`) },
                 { separador: true as const },
                 c.activo

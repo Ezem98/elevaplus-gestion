@@ -244,4 +244,40 @@ export const ETIQUETA_ESTADO_CHEQUE: Record<EstadoCheque, string> = {
   endosado: "Endosado",
 };
 
+export type UnidadAlquiler = "dia" | "semana" | "quincena" | "mes";
+
+export interface Alquiler {
+  servicio_id: string;
+  fecha_desde: string;
+  fecha_hasta: string;
+  unidad: UnidadAlquiler;
+  cantidad: number;
+  precio_unidad: number;
+  renovacion_automatica: boolean;
+  alertar_dias_antes: number;
+  renovado_de?: string | null;
+}
+
+export const ETIQUETA_UNIDAD_ALQUILER: Record<UnidadAlquiler, string> = {
+  dia: "Día",
+  semana: "Semana",
+  quincena: "Quincena",
+  mes: "Mes",
+};
+
+export const ETIQUETA_UNIDAD_ALQUILER_PLURAL: Record<UnidadAlquiler, string> = {
+  dia: "días",
+  semana: "semanas",
+  quincena: "quincenas",
+  mes: "meses",
+};
+
+export function formatearUnidadPlural(unidad: UnidadAlquiler, cantidad: number): string {
+  if (cantidad === 1) {
+    return ETIQUETA_UNIDAD_ALQUILER[unidad].toLowerCase();
+  }
+  return ETIQUETA_UNIDAD_ALQUILER_PLURAL[unidad];
+}
+
+
 
