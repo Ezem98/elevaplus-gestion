@@ -7,7 +7,7 @@ import { formatearPesos } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Entrada } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
-import { MenuAcciones } from "@/components/ui/MenuAcciones";
+import { MenuAcciones, ConMenuContextual } from "@/components/ui/MenuAcciones";
 
 interface ClienteFila {
   id: string;
@@ -26,7 +26,6 @@ export function PaginaClientes() {
   const [busqueda, setBusqueda] = useState("");
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [cargando, setCargando] = useState(true);
-  const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null);
 
   const cargarClientes = useCallback(async () => {
     setCargando(true);
@@ -156,64 +155,59 @@ export function PaginaClientes() {
             </tr>
           </thead>
           <tbody>
-            {clientesFiltrados.map((c) => (
-              <tr
-                key={c.id}
-                onClick={() => navigate(`/clientes/${c.id}`)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setMenuAbiertoId(c.id);
-                }}
-                className="border-b border-borde last:border-0 hover:bg-fondo cursor-pointer"
-              >
-                <td className="px-4 py-3 font-medium text-tinta">
-                  <Link
-                    to={`/clientes/${c.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="hover:underline"
+            {clientesFiltrados.map((c) => {
+              const acciones = [
+                { texto: "Ver ficha", onClick: () => navigate(`/clientes/${c.id}`) },
+                { texto: "Nuevo presupuesto", onClick: () => navigate(`/cotizador?cliente=${c.id}`) },
+                { texto: "Editar", onClick: () => navigate(`/clientes/${c.id}/editar`) },
+                { separador: true as const },
+                c.activo
+                  ? {
+                      texto: "Desactivar",
+                      onClick: () => handleToggleActivo(c),
+                      peligro: true,
+                    }
+                  : {
+                      texto: "Reactivar",
+                      onClick: () => handleToggleActivo(c),
+                    },
+              ];
+
+              return (
+                <ConMenuContextual key={c.id} acciones={acciones}>
+                  <tr
+                    onClick={() => navigate(`/clientes/${c.id}`)}
+                    className="border-b border-borde last:border-0 hover:bg-fondo cursor-pointer"
                   >
-                    {c.nombre}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-tinta-suave">{c.localidad ?? "—"}</td>
-                <td className="px-4 py-3 text-tinta-suave">
-                  {ETIQUETA_CONDICION_PAGO[c.condicion_pago] ?? c.condicion_pago}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatearPesos(c.total_servicios)}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatearPesos(c.total_cobrado)}</td>
-                <td
-                  className={`px-4 py-3 text-right font-semibold tabular-nums ${
-                    c.saldo > 0 ? "text-alerta" : "text-tinta-suave"
-                  }`}
-                >
-                  {formatearPesos(c.saldo)}
-                </td>
-                <td className="w-12 px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                  <MenuAcciones
-                    abierto={menuAbiertoId === c.id}
-                    onAbiertoChange={(abierto) => {
-                      setMenuAbiertoId(abierto ? c.id : null);
-                    }}
-                    acciones={[
-                      { texto: "Ver ficha", onClick: () => navigate(`/clientes/${c.id}`) },
-                      { texto: "Nuevo presupuesto", onClick: () => navigate(`/cotizador?cliente=${c.id}`) },
-                      { texto: "Editar", onClick: () => navigate(`/clientes/${c.id}/editar`) },
-                      { separador: true },
-                      c.activo
-                        ? {
-                            texto: "Desactivar",
-                            onClick: () => handleToggleActivo(c),
-                            peligro: true,
-                          }
-                        : {
-                            texto: "Reactivar",
-                            onClick: () => handleToggleActivo(c),
-                          },
-                    ]}
-                  />
-                </td>
-              </tr>
-            ))}
+                    <td className="px-4 py-3 font-medium text-tinta">
+                      <Link
+                        to={`/clientes/${c.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:underline"
+                      >
+                        {c.nombre}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-tinta-suave">{c.localidad ?? "—"}</td>
+                    <td className="px-4 py-3 text-tinta-suave">
+                      {ETIQUETA_CONDICION_PAGO[c.condicion_pago] ?? c.condicion_pago}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatearPesos(c.total_servicios)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatearPesos(c.total_cobrado)}</td>
+                    <td
+                      className={`px-4 py-3 text-right font-semibold tabular-nums ${
+                        c.saldo > 0 ? "text-alerta" : "text-tinta-suave"
+                      }`}
+                    >
+                      {formatearPesos(c.saldo)}
+                    </td>
+                    <td className="w-12 px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <MenuAcciones acciones={acciones} />
+                    </td>
+                  </tr>
+                </ConMenuContextual>
+              );
+            })}
             {!cargando && clientesFiltrados.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-tinta-suave">

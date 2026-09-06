@@ -1,40 +1,154 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import type { Servicio, EstadoServicio } from "@/lib/tipos";
-import { ETIQUETA_TIPO, ETIQUETA_ESTADO } from "@/lib/tipos";
+import { ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearPesos, formatearFecha } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
-import { Selector } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
+import { MenuAcciones, ConMenuContextual, type AccionMenu } from "@/components/ui/MenuAcciones";
 
-const ESTADOS = Object.keys(ETIQUETA_ESTADO) as EstadoServicio[];
+type ClaveFiltro = "todos" | "presupuestos" | "en_curso" | "cobrados" | "cancelados";
+
+interface PestanaFiltro {
+  id: ClaveFiltro;
+  etiqueta: string;
+  estados: EstadoServicio[];
+}
+
+const PESTANAS: PestanaFiltro[] = [
+  { id: "todos", etiqueta: "Todos", estados: [] },
+  { id: "presupuestos", etiqueta: "Presupuestos", estados: ["consulta", "presupuestado"] },
+  { id: "en_curso", etiqueta: "En curso", estados: ["aceptado", "programado", "en_curso", "terminado"] },
+  { id: "cobrados", etiqueta: "Cobrados", estados: ["cobrado", "facturado"] },
+  { id: "cancelados", etiqueta: "Cancelados", estados: ["cancelado"] },
+];
+
+function normalizarFiltro(param: string | null): ClaveFiltro {
+  if (!param) return "en_curso";
+  const p = param.toLowerCase().replace("-", "_");
+  if (p === "todos" || p === "presupuestos" || p === "en_curso" || p === "cobrados" || p === "cancelados") {
+    return p;
+  }
+  return "en_curso";
+}
 
 export function PaginaServicios() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtroActivo = normalizarFiltro(searchParams.get("filtro"));
+
   const [servicios, setServicios] = useState<Servicio[]>([]);
-  const [estado, setEstado] = useState<EstadoServicio | "">("");
+  const [conteos, setConteos] = useState<Record<ClaveFiltro, number>>({
+    todos: 0,
+    presupuestos: 0,
+    en_curso: 0,
+    cobrados: 0,
+    cancelados: 0,
+  });
+
+  const cambiarFiltro = (nuevo: ClaveFiltro) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("filtro", nuevo);
+      return next;
+    });
+  };
+
+  const cargarConteos = useCallback(async () => {
+    const { data } = await supabase.from("servicios").select("estado");
+    const nuevos: Record<ClaveFiltro, number> = {
+      todos: 0,
+      presupuestos: 0,
+      en_curso: 0,
+      cobrados: 0,
+      cancelados: 0,
+    };
+    if (data) {
+      nuevos.todos = data.length;
+      for (const item of data) {
+        const e = item.estado as EstadoServicio;
+        if (e === "consulta" || e === "presupuestado") {
+          nuevos.presupuestos++;
+        } else if (e === "aceptado" || e === "programado" || e === "en_curso" || e === "terminado") {
+          nuevos.en_curso++;
+        } else if (e === "cobrado" || e === "facturado") {
+          nuevos.cobrados++;
+        } else if (e === "cancelado") {
+          nuevos.cancelados++;
+        }
+      }
+    }
+    setConteos(nuevos);
+  }, []);
+
+  const cargarServicios = useCallback(async () => {
+    let q = supabase
+      .from("servicios")
+      .select("*, clientes(nombre)")
+      .order("fecha_programada", { ascending: false })
+      .limit(100);
+
+    const pestana = PESTANAS.find((p) => p.id === filtroActivo);
+    if (pestana && pestana.estados.length > 0) {
+      q = q.in("estado", pestana.estados);
+    }
+
+    const { data } = await q;
+    setServicios((data as Servicio[]) ?? []);
+  }, [filtroActivo]);
 
   useEffect(() => {
-    let q = supabase.from("servicios").select("*, clientes(nombre)").order("fecha_programada", { ascending: false }).limit(100);
-    if (estado) q = q.eq("estado", estado);
-    q.then(({ data }) => setServicios((data as Servicio[]) ?? []));
-  }, [estado]);
+    cargarConteos();
+  }, [cargarConteos]);
+
+  useEffect(() => {
+    cargarServicios();
+  }, [cargarServicios]);
+
+  const handleCancelar = async (s: Servicio) => {
+    const confirmado = window.confirm(`¿Seguro que querés cancelar el servicio #${s.numero}?`);
+    if (!confirmado) return;
+
+    await supabase.rpc("cambiar_estado", {
+      p_servicio_id: s.id,
+      p_nuevo: "cancelado",
+      p_nota: "Cancelado desde la lista",
+    });
+
+    await Promise.all([cargarServicios(), cargarConteos()]);
+  };
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Servicios</h1>
-        <div className="flex gap-2">
-          <Selector value={estado} onChange={(e) => setEstado(e.target.value as EstadoServicio | "")} className="w-44">
-            <option value="">Todos los estados</option>
-            {ESTADOS.map((e) => (
-              <option key={e} value={e}>{ETIQUETA_ESTADO[e]}</option>
-            ))}
-          </Selector>
-          <Link to="/servicios/nuevo"><Boton>Nuevo servicio</Boton></Link>
-        </div>
+        <Link to="/servicios/nuevo">
+          <Boton>Nuevo servicio</Boton>
+        </Link>
       </header>
+
+      <div className="flex flex-wrap gap-2">
+        {PESTANAS.map((p) => {
+          const activa = filtroActivo === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => cambiarFiltro(p.id)}
+              aria-pressed={activa}
+              className={`h-10 px-4 rounded-md border text-sm font-medium transition-colors ${
+                activa
+                  ? "border-marca bg-marca-suave text-marca"
+                  : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+              }`}
+            >
+              {p.etiqueta} <span className="text-tinta-suave">({conteos[p.id]})</span>
+            </button>
+          );
+        })}
+      </div>
 
       <Tarjeta className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -47,22 +161,63 @@ export function PaginaServicios() {
               <th className="px-4 py-3 text-right font-medium">Monto</th>
               <th className="px-4 py-3 text-right font-medium">Cobrado</th>
               <th className="px-4 py-3 font-medium">Estado</th>
+              <th className="w-12 px-2 py-3"></th>
             </tr>
           </thead>
           <tbody>
-            {servicios.map((s) => (
-              <tr key={s.id} className="border-b border-borde last:border-0 hover:bg-fondo">
-                <td className="px-4 py-3 text-tinta-suave">{s.numero}</td>
-                <td className="px-4 py-3">{formatearFecha(s.fecha_programada)}</td>
-                <td className="px-4 py-3 font-medium"><Link to={`/servicios/${s.id}`}>{s.clientes?.nombre ?? "—"}</Link></td>
-                <td className="px-4 py-3 text-tinta-suave">{ETIQUETA_TIPO[s.tipo]}</td>
-                <td className="px-4 py-3 text-right">{formatearPesos(s.monto)}</td>
-                <td className="px-4 py-3 text-right">{formatearPesos(s.monto_cobrado)}</td>
-                <td className="px-4 py-3"><ChipEstado estado={s.estado} /></td>
-              </tr>
-            ))}
+            {servicios.map((s) => {
+              const acciones: AccionMenu[] = [
+                {
+                  texto: "Ver detalle",
+                  onClick: () => navigate(`/servicios/${s.id}`),
+                },
+                ...(s.estado !== "cancelado"
+                  ? [
+                      {
+                        texto: "Cancelar",
+                        peligro: true,
+                        onClick: () => handleCancelar(s),
+                      },
+                    ]
+                  : []),
+              ];
+
+              return (
+                <ConMenuContextual key={s.id} acciones={acciones}>
+                  <tr
+                    onClick={() => navigate(`/servicios/${s.id}`)}
+                    className="border-b border-borde last:border-0 hover:bg-fondo cursor-pointer"
+                  >
+                    <td className="px-4 py-3 text-tinta-suave">{s.numero}</td>
+                    <td className="px-4 py-3">{formatearFecha(s.fecha_programada)}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <Link
+                        to={`/servicios/${s.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:underline"
+                      >
+                        {s.clientes?.nombre ?? "—"}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-tinta-suave">{ETIQUETA_TIPO[s.tipo]}</td>
+                    <td className="px-4 py-3 text-right">{formatearPesos(s.monto)}</td>
+                    <td className="px-4 py-3 text-right">{formatearPesos(s.monto_cobrado)}</td>
+                    <td className="px-4 py-3">
+                      <ChipEstado estado={s.estado} />
+                    </td>
+                    <td className="w-12 px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <MenuAcciones acciones={acciones} />
+                    </td>
+                  </tr>
+                </ConMenuContextual>
+              );
+            })}
             {servicios.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-tinta-suave">No hay servicios con ese filtro.</td></tr>
+              <tr>
+                <td colSpan={8} className="px-4 py-10 text-center text-tinta-suave">
+                  No hay servicios con ese filtro.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

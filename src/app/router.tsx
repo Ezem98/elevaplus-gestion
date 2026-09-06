@@ -5,6 +5,7 @@ import { LayoutOficina } from "./LayoutOficina";
 import { LayoutChofer } from "./LayoutChofer";
 import { PaginaHoy } from "@/features/dashboard/PaginaHoy";
 import { PaginaServicios } from "@/features/servicios/PaginaServicios";
+import { PaginaServicio } from "@/features/servicios/PaginaServicio";
 import { PaginaCotizador } from "@/features/cotizador/PaginaCotizador";
 import { PaginaClientes } from "@/features/clientes/PaginaClientes";
 import { FormularioCliente } from "@/features/clientes/FormularioCliente";
@@ -23,7 +24,7 @@ export const router = createBrowserRouter([
           { path: "/", element: <PaginaHoy /> },
           { path: "/servicios", element: <PaginaServicios /> },
           { path: "/servicios/nuevo", element: <Pendiente nombre="Nuevo servicio" /> },
-          { path: "/servicios/:id", element: <Pendiente nombre="Detalle de servicio" /> },
+          { path: "/servicios/:id", element: <PaginaServicio /> },
           { path: "/cotizador", element: <PaginaCotizador /> },
           { path: "/clientes", element: <PaginaClientes /> },
           { path: "/clientes/nuevo", element: <FormularioCliente /> },

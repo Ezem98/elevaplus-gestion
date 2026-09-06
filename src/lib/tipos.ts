@@ -68,6 +68,21 @@ export interface ParametrosCotizador {
   precio_gasoil: number | null;
 }
 
+export type TipoMaquina = "autoelevador" | "plataforma" | "zorra" | "apilador" | "escalera" | "otro";
+export type EstadoMaquina = "disponible" | "alquilada" | "taller" | "baja";
+
+export interface Maquina {
+  id: string;
+  codigo_interno: string | null;
+  tipo: TipoMaquina;
+  marca: string | null;
+  modelo: string | null;
+  capacidad: string | null;
+  estado: EstadoMaquina;
+  activo: boolean;
+  notas: string | null;
+}
+
 export interface Servicio {
   id: string;
   numero: number;
@@ -82,15 +97,36 @@ export interface Servicio {
   ida_y_vuelta: boolean;
   fecha_programada: string | null;
   hora_programada: string | null;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
   vehiculo_id: string | null;
   maquina_id: string | null;
   monto: number | null;
   monto_cobrado: number;
   remito: string | null;
   orden_compra: string | null;
+  notas: string | null;
   no_planificado: boolean;
   created_at: string;
   clientes?: { nombre: string } | null;
+  vehiculos?: { nombre: string } | null;
+  maquinas?: { codigo_interno: string | null; tipo: TipoMaquina } | null;
+}
+
+export interface ServicioEvento {
+  id: number;
+  servicio_id: string;
+  estado_anterior: EstadoServicio | null;
+  estado_nuevo: EstadoServicio;
+  usuario_id: string | null;
+  nota: string | null;
+  created_at: string;
+  perfiles?: { nombre: string } | null;
+}
+
+export interface ServicioChofer {
+  chofer_id: string;
+  perfiles?: { nombre: string } | { nombre: string }[] | null;
 }
 
 export const ETIQUETA_ESTADO: Record<EstadoServicio, string> = {
@@ -130,5 +166,14 @@ export const ETIQUETA_CONDICION_PAGO: Record<CondicionPago, string> = {
   contado: "Contado",
   transferencia_diferida: "Transferencia diferida",
   cuenta_corriente: "Cuenta corriente",
+};
+
+export const ETIQUETA_TIPO_MAQUINA: Record<TipoMaquina, string> = {
+  autoelevador: "Autoelevador",
+  plataforma: "Plataforma",
+  zorra: "Zorra",
+  apilador: "Apilador",
+  escalera: "Escalera",
+  otro: "Otro",
 };
 

@@ -1,0 +1,757 @@
+<!doctype html>
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @layer base {
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          overscroll-behavior: none;
+        }
+        main > :first-child {
+          margin-top: 0 !important;
+        }
+        main > :last-child {
+          margin-bottom: 0 !important;
+        }
+      }
+      ::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-primary-fixed-variant": "#04429b",
+              primary: "#003887",
+              "inverse-on-surface": "#e8f2ff",
+              outline: "#737783",
+              tinta: "#17212B",
+              "on-tertiary": "#ffffff",
+              "surface-bright": "#f7f9ff",
+              "ok-suave": "#E4F5EA",
+              "primary-fixed": "#d9e2ff",
+              "tertiary-container": "#8b3c00",
+              "surface-container-low": "#edf4ff",
+              "on-tertiary-fixed": "#331200",
+              superficie: "#FFFFFF",
+              "primary-container": "#1e4fa8",
+              "surface-container-highest": "#d9e3f1",
+              "secondary-fixed-dim": "#b8c8db",
+              "on-primary-fixed": "#001945",
+              "error-container": "#ffdad6",
+              "alerta-suave": "#FDF0E0",
+              "tinta-suave": "#5B6B7B",
+              "surface-container": "#e4effd",
+              alerta: "#B45309",
+              "on-primary-container": "#b2c7ff",
+              "surface-container-lowest": "#ffffff",
+              "marca-suave": "#E6EDF9",
+              "on-background": "#121c26",
+              "on-surface": "#121c26",
+              marca: "#1E4FA8",
+              tertiary: "#672b00",
+              fondo: "#F5F7FA",
+              "on-error-container": "#93000a",
+              "marca-oscuro": "#163B7D",
+              peligro: "#B91C1C",
+              "peligro-suave": "#FBE9E9",
+              error: "#ba1a1a",
+              surface: "#f7f9ff",
+              "on-tertiary-fixed-variant": "#773200",
+              "primary-fixed-dim": "#b0c6ff",
+              "on-primary": "#ffffff",
+              "on-error": "#ffffff",
+              "tertiary-fixed": "#ffdbca",
+              "on-surface-variant": "#434652",
+              secondary: "#506070",
+              "inverse-surface": "#27313c",
+              "secondary-container": "#d1e1f4",
+              "inverse-primary": "#b0c6ff",
+              "surface-tint": "#2d5bb4",
+              "on-secondary-fixed": "#0c1d2a",
+              "surface-container-high": "#dfe9f7",
+              "tinta-tenue": "#8D9AA8",
+              "on-secondary-container": "#546474",
+              ok: "#15803D",
+              "surface-dim": "#d1dbe9",
+              "tertiary-fixed-dim": "#ffb68f",
+              "on-secondary": "#ffffff",
+              borde: "#D9E0E8",
+              "outline-variant": "#c3c6d4",
+              "on-tertiary-container": "#ffb892",
+              "secondary-fixed": "#d4e4f7",
+              background: "#f7f9ff",
+              "on-secondary-fixed-variant": "#394857",
+              "surface-variant": "#d9e3f1",
+            },
+            borderRadius: {
+              DEFAULT: "0.125rem",
+              lg: "0.25rem",
+              xl: "0.5rem",
+              full: "0.75rem",
+            },
+            spacing: {
+              "space-16": "1rem",
+              "page-padding-mobile": "1rem",
+              "space-12": "0.75rem",
+              "max-width-desktop": "1280px",
+              "space-8": "0.5rem",
+              "space-20": "1.25rem",
+              "page-padding-desktop": "2rem",
+              "space-32": "2rem",
+              "space-4": "0.25rem",
+              "space-48": "3rem",
+              "space-24": "1.5rem",
+            },
+            fontFamily: {
+              "headline-md": ["IBM Plex Sans"],
+              "headline-lg": ["IBM Plex Sans"],
+              caption: ["IBM Plex Sans"],
+              "body-default": ["IBM Plex Sans"],
+              "headline-xl": ["IBM Plex Sans"],
+              "caption-medium": ["IBM Plex Sans"],
+              "body-md": ["IBM Plex Sans"],
+              "label-mobile-nav": ["IBM Plex Sans"],
+            },
+            fontSize: {
+              "headline-md": [
+                "18px",
+                { lineHeight: "24px", fontWeight: "600" },
+              ],
+              "headline-lg": [
+                "24px",
+                { lineHeight: "32px", fontWeight: "600" },
+              ],
+              caption: ["12px", { lineHeight: "16px", fontWeight: "400" }],
+              "body-default": [
+                "14px",
+                { lineHeight: "20px", fontWeight: "400" },
+              ],
+              "headline-xl": [
+                "30px",
+                { lineHeight: "38px", fontWeight: "600" },
+              ],
+              "caption-medium": [
+                "12px",
+                { lineHeight: "16px", fontWeight: "500" },
+              ],
+              "body-md": ["14px", { lineHeight: "20px", fontWeight: "500" }],
+              "label-mobile-nav": [
+                "11px",
+                { lineHeight: "14px", fontWeight: "500" },
+              ],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-fondo font-body-default text-tinta min-h-screen">
+    <aside
+      class="fixed left-0 top-0 h-full w-[240px] bg-superficie border-r border-borde z-50 flex flex-col justify-between select-none"
+    >
+      <div class="flex flex-col">
+        <div class="h-16 px-space-20 flex items-center border-b border-borde">
+          <img
+            alt="ELEVAPLUS Logo"
+            class="h-8 w-auto object-contain"
+            src="https://lh3.googleusercontent.com/aida/AEtjO1W90fa3U6s2VQkNz3JufHW8h11M989zxY4b__Dbtz1YzpoFpIIyeB-riwve4w73HU_HdMV_pVFItkoor0UC3nmJISsUH0IOcfwr2HlKOZt7DblnR_zpoexGEzZtvUAQlEzGq6hg8AEVSXI3aislc5DvWg6TrLQeR6GjcMIWznmnLhbhwZae4OW03eUx6Xdelye1PM--M5VQEGPdGMPAQWKxLlPuBI0vZei46DxtksuOrYF7NPi0YCT0wsy0"
+          /><span
+            class="ml-space-8 font-headline-md text-headline-md text-tinta tracking-tight"
+            >ELEVAPLUS</span
+          >
+        </div>
+        <div class="px-space-20 pt-space-16 pb-space-8">
+          <span
+            class="font-caption-medium text-caption-medium text-tinta-tenue uppercase tracking-wider"
+            >Operaciones</span
+          >
+        </div>
+        <nav
+          class="flex flex-col px-space-12 gap-space-4"
+          data-active-classes="bg-marca-suave text-marca font-body-md"
+        >
+          <a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded-lg text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors font-body-md text-body-md"
+            data-path="hoy"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]">dashboard</span
+            >Hoy</a
+          ><a
+            aria-current="page"
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded-lg transition-colors bg-marca-suave text-marca font-body-md"
+            data-path="servicios"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]"
+              >local_shipping</span
+            >Servicios</a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded-lg text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors font-body-md text-body-md"
+            data-path="cotizador"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]">calculate</span
+            >Cotizador</a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded-lg text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors font-body-md text-body-md"
+            data-path="clientes"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]">group</span
+            >Clientes</a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded-lg text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors font-body-md text-body-md"
+            data-path="cobros"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]"
+              >account_balance_wallet</span
+            >Cobros</a
+          >
+        </nav>
+      </div>
+      <div class="p-space-16 border-t border-borde bg-superficie">
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col min-w-0 pr-space-8">
+            <span class="font-body-md text-body-md text-tinta truncate"
+              >Ana</span
+            ><span class="font-caption text-caption text-tinta-suave truncate"
+              >Administración</span
+            >
+          </div>
+          <a
+            class="flex items-center justify-center p-space-8 rounded-lg text-tinta-suave hover:text-peligro hover:bg-peligro-suave transition-colors"
+            data-path="login"
+            href="#"
+            title="Cerrar sesión"
+            ><span class="material-symbols-outlined text-[18px]"
+              >logout</span
+            ></a
+          >
+        </div>
+      </div>
+    </aside>
+    <div class="pl-[240px]">
+      <header
+        class="fixed top-0 left-[240px] right-0 h-16 bg-superficie border-b border-borde z-40 px-space-32 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-space-8">
+          <span class="font-caption-medium text-caption-medium text-tinta-suave"
+            >Sistema de Gestión Logística y Alquiler</span
+          >
+        </div>
+        <div class="flex items-center gap-space-16">
+          <div
+            class="flex items-center gap-space-8 pl-space-16 border-l border-borde"
+          >
+            <div
+              class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"
+            >
+              <span
+                class="material-symbols-outlined text-on-primary text-[18px]"
+                >person</span
+              >
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="pt-16 bg-fondo min-h-screen">
+        <div class="w-full max-w-[1280px] p-space-32">
+          <div class="flex flex-col w-full">
+            <!-- Navegación secundaria / Migas de pan -->
+            <div class="mb-space-16">
+              <a
+                class="inline-flex items-center gap-space-4 font-body-md text-body-md text-marca hover:text-marca-oscuro transition-colors"
+                data-path="servicios"
+                href="#"
+              >
+                <span class="material-symbols-outlined text-[18px]"
+                  >arrow_back</span
+                >
+                <span>Volver a Servicios</span>
+              </a>
+            </div>
+            <!-- Encabezado Principal -->
+            <div
+              class="flex flex-wrap items-center justify-between gap-space-16 pb-space-24 border-b border-borde"
+            >
+              <div class="flex flex-wrap items-center gap-space-12">
+                <h1
+                  class="font-headline-lg text-headline-lg text-tinta tracking-tight"
+                >
+                  Servicio #1042
+                </h1>
+                <span class="text-tinta-tenue font-body-default">·</span>
+                <span
+                  class="font-headline-md text-headline-md text-tinta-suave font-medium"
+                  >Huma S.A.</span
+                >
+                <span
+                  class="inline-flex items-center px-[10px] py-[2px] rounded-full bg-alerta-suave text-alerta font-caption-medium text-caption-medium border border-alerta/20"
+                >
+                  Terminado
+                </span>
+              </div>
+              <!-- Quick stats badge strip -->
+              <div class="flex items-center gap-space-16 text-right">
+                <div>
+                  <div
+                    class="font-caption text-caption text-tinta-suave uppercase tracking-wider"
+                  >
+                    Estado de cuenta
+                  </div>
+                  <div
+                    class="font-body-md text-body-md text-alerta font-medium"
+                  >
+                    Pendiente de facturación
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Contenido de 2 Columnas (65% / 35%) -->
+            <div
+              class="grid grid-cols-1 lg:grid-cols-12 gap-space-24 mt-space-24 items-start"
+            >
+              <!-- Columna Izquierda (65% -> col-span-8) -->
+              <div class="lg:col-span-8 flex flex-col gap-space-24">
+                <section
+                  class="bg-superficie border border-borde rounded-[10px] p-space-24"
+                >
+                  <div
+                    class="flex items-center justify-between pb-space-16 border-b border-borde"
+                  >
+                    <h2 class="font-headline-md text-headline-md text-tinta">
+                      Datos del servicio
+                    </h2>
+                    <span class="font-caption text-caption text-tinta-suave"
+                      >Registrado el 02/09/2026</span
+                    >
+                  </div>
+                  <!-- Grilla de Pares Label / Valor -->
+                  <div
+                    class="grid grid-cols-1 sm:grid-cols-2 gap-x-space-24 gap-y-space-20 py-space-20"
+                  >
+                    <div class="flex flex-col">
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Tipo de servicio</span
+                      >
+                      <span
+                        class="font-body-default text-body-default text-tinta font-medium"
+                        >Alquiler por hora</span
+                      >
+                    </div>
+                    <div class="flex flex-col">
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Fecha de ejecución</span
+                      >
+                      <span
+                        class="font-body-default text-body-default text-tinta tabular-nums"
+                        >04/09/2026</span
+                      >
+                    </div>
+                    <div class="flex flex-col sm:col-span-2">
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Recorrido</span
+                      >
+                      <div
+                        class="flex items-center gap-space-8 text-tinta font-body-default"
+                      >
+                        <span class="font-medium">Base Adrogué</span>
+                        <span
+                          class="material-symbols-outlined text-[16px] text-tinta-suave"
+                          >arrow_forward</span
+                        >
+                        <span class="font-medium"
+                          >Parque Industrial Burzaco</span
+                        >
+                      </div>
+                    </div>
+                    <div class="flex flex-col">
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Carga / Maquinaria</span
+                      >
+                      <span
+                        class="font-body-default text-body-default text-tinta"
+                        >Autoelevador 2,5 t Toyota</span
+                      >
+                    </div>
+                    <div class="flex flex-col">
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Vehículo asignado</span
+                      >
+                      <span
+                        class="font-body-default text-body-default text-tinta"
+                        >Ford Cargo
+                        <span class="text-tinta-suave font-normal"
+                          >(Dominio AA 924 CD)</span
+                        ></span
+                      >
+                    </div>
+                    <div class="flex flex-col">
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Chofer</span
+                      >
+                      <span
+                        class="font-body-default text-body-default text-tinta"
+                        >Mauro Gómez</span
+                      >
+                    </div>
+                    <div class="flex flex-col">
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Nº Remito</span
+                      >
+                      <span
+                        class="font-body-default text-body-default text-tinta font-mono tabular-nums"
+                        >R-0002-00014829</span
+                      >
+                    </div>
+                    <div class="flex flex-col">
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Orden de compra</span
+                      >
+                      <span
+                        class="font-body-default text-body-default text-tinta font-mono tabular-nums"
+                        >OC-2026-8812</span
+                      >
+                    </div>
+                    <div
+                      class="flex flex-col pt-space-12 border-t border-borde"
+                    >
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Monto total</span
+                      >
+                      <span
+                        class="text-[16px] leading-[24px] font-semibold text-tinta tabular-nums tracking-tight"
+                        >$ 320.000</span
+                      >
+                    </div>
+                    <div
+                      class="flex flex-col pt-space-12 border-t border-borde"
+                    >
+                      <span
+                        class="font-caption-medium text-caption-medium text-tinta-suave mb-space-4"
+                        >Cobrado</span
+                      >
+                      <div class="flex items-baseline gap-space-8">
+                        <span
+                          class="text-[16px] leading-[24px] font-semibold text-alerta tabular-nums tracking-tight"
+                          >$ 0</span
+                        >
+                        <span
+                          class="font-caption text-caption text-alerta bg-alerta-suave px-space-8 py-[1px] rounded-lg"
+                          >Pendiente de cobro</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Divisor de línea -->
+                  <hr class="border-t border-borde my-space-8" />
+                  <!-- Comprobantes y remitos -->
+                  <div class="pt-space-16">
+                    <div class="flex items-center justify-between mb-space-12">
+                      <span class="font-body-md text-body-md text-tinta-suave"
+                        >Fotos del remito y firma (2 adjuntos)</span
+                      >
+                      <span class="font-caption text-caption text-tinta-tenue"
+                        >Subido desde la app de chofer</span
+                      >
+                    </div>
+                    <div class="flex flex-wrap gap-space-16">
+                      <!-- Miniatura 1 -->
+                      <div
+                        class="group relative flex flex-col w-[96px] cursor-pointer"
+                      >
+                        <div
+                          class="w-[96px] h-[96px] rounded-[6px] border border-borde bg-fondo flex flex-col items-center justify-center overflow-hidden transition-all group-hover:border-marca"
+                        >
+                          <img
+                            class="w-full h-full object-cover"
+                            data-alt="Close up photograph of a signed physical paper transport remito receipt document with official stamp, company header ELEVAPLUS and hand signature in black ink, industrial office lighting"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCD4kcGvWWWyvZBXBFmH-38j-YoMUbOTgFNYPQf40scbYULbPEfemeKfMM5FcK42aOPuTQ50YS91qtjYjRdop9GpHczyo-LeqvVyFLMBtJk6r8vdER4NaX1M7JQL3yg532Tr8l43zTpOKshbEQVsbbrdUqdQdOaCWo5d74kdKRLss4UD8rgaPGZXY6Yjfnr6tqRTn4IsNyjvMFroYiKv7YclnrRaT9l-lYxF4kMMsp5L-r0qkW44gfyKA"
+                          />
+                          <div
+                            class="absolute inset-0 bg-tinta/10 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                          >
+                            <span
+                              class="material-symbols-outlined text-superficie text-[20px]"
+                              >zoom_in</span
+                            >
+                          </div>
+                        </div>
+                        <span
+                          class="mt-space-4 font-caption text-caption text-tinta truncate text-center w-full"
+                          title="Remito firmado.jpg"
+                        >
+                          Remito firmado.jpg
+                        </span>
+                      </div>
+                      <!-- Miniatura 2 -->
+                      <div
+                        class="group relative flex flex-col w-[96px] cursor-pointer"
+                      >
+                        <div
+                          class="w-[96px] h-[96px] rounded-[6px] border border-borde bg-fondo flex flex-col items-center justify-center overflow-hidden transition-all group-hover:border-marca"
+                        >
+                          <img
+                            class="w-full h-full object-cover"
+                            data-alt="Industrial yard setting with a yellow Toyota forklift machine tied down securely on a heavy duty flatbed Ford Cargo transport truck, overcast midday light"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDldWkkyG55LLCR7CsUIeH27yFx8CK9ySp9IX36xi2sdwuQsWVoZ6GweAx4uIdPC7fkO0ARz_KE92Hq3WP4mfW88XnepfR24SRCTZmPnlaguPcm8mArpG-EVSbLMETte6NQn05wTS2ufXImlZnHZGpBEbckSdlo5b4Zg0SD9mOqJ64fetAqx5gVDRr2lcz44-BIcSYinJlWNURR8mZ8_OcgLdmru4ME_7FHcovCM0dqNSmtPMEcsDqIbw"
+                          />
+                          <div
+                            class="absolute inset-0 bg-tinta/10 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                          >
+                            <span
+                              class="material-symbols-outlined text-superficie text-[20px]"
+                              >zoom_in</span
+                            >
+                          </div>
+                        </div>
+                        <span
+                          class="mt-space-4 font-caption text-caption text-tinta truncate text-center w-full"
+                          title="Carga en playón.jpg"
+                        >
+                          Carga en playón.jpg
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Barra de acciones al pie -->
+                  <div
+                    class="flex flex-wrap items-center justify-between gap-space-12 pt-space-24 mt-space-24 border-t border-borde"
+                  >
+                    <div class="flex flex-wrap items-center gap-space-12">
+                      <button
+                        class="h-[40px] px-space-20 rounded-[6px] bg-marca hover:bg-marca-oscuro text-superficie font-body-md text-body-md transition-colors flex items-center gap-space-8 focus:outline-none focus:ring-2 focus:ring-marca focus:ring-offset-2"
+                        type="button"
+                      >
+                        <span class="material-symbols-outlined text-[18px]"
+                          >payments</span
+                        >
+                        <span>Registrar cobro</span>
+                      </button>
+                      <button
+                        class="h-[40px] px-space-16 rounded-[6px] bg-superficie border border-borde hover:bg-fondo text-tinta font-body-md text-body-md transition-colors flex items-center gap-space-8"
+                        type="button"
+                      >
+                        <span
+                          class="material-symbols-outlined text-[18px] text-tinta-suave"
+                          >receipt_long</span
+                        >
+                        <span>Marcar facturado</span>
+                      </button>
+                    </div>
+                    <button
+                      class="h-[40px] px-space-12 text-marca hover:bg-marca-suave rounded-[6px] font-body-md text-body-md transition-colors flex items-center gap-space-8"
+                      type="button"
+                    >
+                      <span class="material-symbols-outlined text-[18px]"
+                        >print</span
+                      >
+                      <span>Imprimir remito</span>
+                    </button>
+                  </div>
+                </section>
+                <!-- Notas operativas adicionales -->
+                <section
+                  class="bg-superficie border border-borde rounded-[10px] p-space-20"
+                >
+                  <div
+                    class="flex items-center gap-space-8 text-tinta mb-space-8"
+                  >
+                    <span
+                      class="material-symbols-outlined text-tinta-suave text-[18px]"
+                      >notes</span
+                    >
+                    <span class="font-body-md text-body-md"
+                      >Observaciones de campo</span
+                    >
+                  </div>
+                  <p
+                    class="font-body-default text-body-default text-tinta-suave bg-fondo p-space-12 rounded-lg border border-borde"
+                  >
+                    Cliente solicitó descarga en Nave B del predio. Recepción
+                    conforme por Ing. Soria. Sin roturas ni demoras en acceso
+                    vehicular.
+                  </p>
+                </section>
+              </div>
+              <!-- Columna Derecha (35% -> col-span-4) -->
+              <div class="lg:col-span-4 flex flex-col gap-space-24">
+                <section
+                  class="bg-superficie border border-borde rounded-[10px] p-space-20"
+                >
+                  <div
+                    class="flex items-center justify-between pb-space-16 border-b border-borde mb-space-20"
+                  >
+                    <h2 class="font-headline-md text-headline-md text-tinta">
+                      Línea de tiempo
+                    </h2>
+                    <span
+                      class="font-caption-medium text-caption-medium text-ok bg-ok-suave px-space-8 py-[2px] rounded-full border border-ok/20"
+                    >
+                      Completado
+                    </span>
+                  </div>
+                  <!-- Timeline vertical -->
+                  <div class="relative pl-space-20">
+                    <!-- Línea continua vertical de 1px -->
+                    <div
+                      class="absolute left-[3px] top-[8px] bottom-[16px] w-[1px] bg-borde"
+                    ></div>
+                    <div class="flex flex-col gap-space-24">
+                      <!-- Evento 1: Presupuestado -->
+                      <div class="relative flex flex-col">
+                        <div
+                          class="absolute -left-[20px] top-[5px] w-[8px] h-[8px] rounded-full bg-marca"
+                        ></div>
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Presupuestado</span
+                        >
+                        <span
+                          class="text-[13px] leading-[18px] text-tinta-suave mt-[2px] tabular-nums"
+                          >2/9 10:14 · Ana</span
+                        >
+                      </div>
+                      <!-- Evento 2: Aceptado -->
+                      <div class="relative flex flex-col">
+                        <div
+                          class="absolute -left-[20px] top-[5px] w-[8px] h-[8px] rounded-full bg-marca"
+                        ></div>
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Aceptado</span
+                        >
+                        <span
+                          class="text-[13px] leading-[18px] text-tinta-suave mt-[2px] tabular-nums"
+                          >2/9 15:30 · Ana</span
+                        >
+                      </div>
+                      <!-- Evento 3: Programado -->
+                      <div class="relative flex flex-col">
+                        <div
+                          class="absolute -left-[20px] top-[5px] w-[8px] h-[8px] rounded-full bg-marca"
+                        ></div>
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Programado</span
+                        >
+                        <span
+                          class="text-[13px] leading-[18px] text-tinta-suave mt-[2px] tabular-nums"
+                          >3/9 17:00 · Ana</span
+                        >
+                      </div>
+                      <!-- Evento 4: Iniciado -->
+                      <div class="relative flex flex-col">
+                        <div
+                          class="absolute -left-[20px] top-[5px] w-[8px] h-[8px] rounded-full bg-marca"
+                        ></div>
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Iniciado</span
+                        >
+                        <span
+                          class="text-[13px] leading-[18px] text-tinta-suave mt-[2px] tabular-nums"
+                          >4/9 08:12 · Mauro</span
+                        >
+                      </div>
+                      <!-- Evento 5: Terminado (Activo / resaltado) -->
+                      <div
+                        class="relative flex flex-col bg-fondo p-space-12 rounded-lg -ml-space-12 pl-space-12 border border-borde"
+                      >
+                        <div
+                          class="absolute -left-[8px] top-[18px] w-[8px] h-[8px] rounded-full bg-marca ring-4 ring-marca-suave"
+                        ></div>
+                        <div class="flex items-center justify-between">
+                          <span
+                            class="font-body-md text-body-md font-semibold text-tinta"
+                            >Terminado</span
+                          >
+                          <span
+                            class="material-symbols-outlined text-ok text-[16px]"
+                            >check_circle</span
+                          >
+                        </div>
+                        <span
+                          class="text-[13px] leading-[18px] text-tinta-suave mt-[2px] tabular-nums"
+                          >4/9 11:47 · Mauro</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </section>
+                <!-- Resumen operativo del chofer -->
+                <section
+                  class="bg-superficie border border-borde rounded-[10px] p-space-20"
+                >
+                  <div class="flex items-center gap-space-12 mb-space-16">
+                    <div
+                      class="w-10 h-10 rounded-full bg-marca-suave flex items-center justify-center text-marca font-body-md"
+                    >
+                      MG
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="font-body-md text-body-md text-tinta"
+                        >Mauro Gómez</span
+                      >
+                      <span class="font-caption text-caption text-tinta-suave"
+                        >Chofer asignado</span
+                      >
+                    </div>
+                  </div>
+                  <div
+                    class="flex flex-col gap-space-8 border-t border-borde pt-space-12 text-[13px]"
+                  >
+                    <div class="flex justify-between text-tinta-suave">
+                      <span>Tiempo en viaje:</span>
+                      <span class="font-medium text-tinta tabular-nums"
+                        >1 h 15 min</span
+                      >
+                    </div>
+                    <div class="flex justify-between text-tinta-suave">
+                      <span>Tiempo de maniobra:</span>
+                      <span class="font-medium text-tinta tabular-nums"
+                        >2 h 20 min</span
+                      >
+                    </div>
+                    <div class="flex justify-between text-tinta-suave">
+                      <span>Total operativo:</span>
+                      <span class="font-medium text-tinta tabular-nums"
+                        >3 h 35 min</span
+                      >
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

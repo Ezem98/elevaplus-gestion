@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as ContextMenu from "@radix-ui/react-context-menu";
 import { MoreHorizontal } from "lucide-react";
 
 export type AccionMenu =
@@ -19,6 +21,47 @@ export interface MenuAccionesProps {
   acciones: AccionMenu[];
   abierto?: boolean;
   onAbiertoChange?: (abierto: boolean) => void;
+}
+
+export interface ConMenuContextualProps {
+  acciones: AccionMenu[];
+  children: ReactNode;
+}
+
+interface ListaAccionesProps {
+  acciones: AccionMenu[];
+  ItemComponent: typeof DropdownMenu.Item | typeof ContextMenu.Item;
+  SeparatorComponent: typeof DropdownMenu.Separator | typeof ContextMenu.Separator;
+}
+
+function ListaAcciones({ acciones, ItemComponent, SeparatorComponent }: ListaAccionesProps) {
+  const Item = ItemComponent as any;
+  const Separator = SeparatorComponent as any;
+
+  return (
+    <>
+      {acciones.map((accion, i) =>
+        accion.separador ? (
+          <Separator key={i} className="my-1 h-px bg-borde" />
+        ) : (
+          <Item
+            key={i}
+            onSelect={(e: Event) => {
+              e.stopPropagation();
+              accion.onClick();
+            }}
+            className={`px-3 py-2 text-sm cursor-pointer outline-none select-none transition-colors ${
+              accion.peligro
+                ? "text-peligro data-[highlighted]:bg-peligro-suave"
+                : "text-tinta data-[highlighted]:bg-fondo"
+            }`}
+          >
+            {accion.texto}
+          </Item>
+        ),
+      )}
+    </>
+  );
 }
 
 export function MenuAcciones({ acciones, abierto, onAbiertoChange }: MenuAccionesProps) {
@@ -43,28 +86,35 @@ export function MenuAcciones({ acciones, abierto, onAbiertoChange }: MenuAccione
           onClick={(e) => e.stopPropagation()}
           className="z-50 min-w-44 rounded-lg border border-borde bg-superficie py-1 shadow-[0_8px_24px_rgba(23,33,43,0.10)] focus:outline-none"
         >
-          {acciones.map((accion, i) =>
-            accion.separador ? (
-              <DropdownMenu.Separator key={i} className="my-1 h-px bg-borde" />
-            ) : (
-              <DropdownMenu.Item
-                key={i}
-                onSelect={(e) => {
-                  e.stopPropagation();
-                  accion.onClick();
-                }}
-                className={`px-3 py-2 text-sm cursor-pointer outline-none select-none transition-colors ${
-                  accion.peligro
-                    ? "text-peligro data-[highlighted]:bg-peligro-suave"
-                    : "text-tinta data-[highlighted]:bg-fondo"
-                }`}
-              >
-                {accion.texto}
-              </DropdownMenu.Item>
-            ),
-          )}
+          <ListaAcciones
+            acciones={acciones}
+            ItemComponent={DropdownMenu.Item}
+            SeparatorComponent={DropdownMenu.Separator}
+          />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
+  );
+}
+
+export function ConMenuContextual({ acciones, children }: ConMenuContextualProps) {
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger asChild>
+        {children}
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content
+          onClick={(e) => e.stopPropagation()}
+          className="z-50 min-w-44 rounded-lg border border-borde bg-superficie py-1 shadow-[0_8px_24px_rgba(23,33,43,0.10)] focus:outline-none"
+        >
+          <ListaAcciones
+            acciones={acciones}
+            ItemComponent={ContextMenu.Item}
+            SeparatorComponent={ContextMenu.Separator}
+          />
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
   );
 }
