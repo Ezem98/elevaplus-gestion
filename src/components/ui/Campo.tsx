@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes, ReactNode } from "react";
+import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 
 const base =
@@ -14,6 +14,15 @@ export function Etiqueta({ children, htmlFor }: { children: ReactNode; htmlFor?:
 
 export function Entrada({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${base} ${className}`} {...props} />;
+}
+
+export function AreaTexto({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      className={`h-24 w-full rounded-md border border-borde bg-superficie px-3 py-2 text-sm text-tinta placeholder:text-tinta-tenue focus:border-marca ${className}`}
+      {...props}
+    />
+  );
 }
 
 export function Selector({ className = "", children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {

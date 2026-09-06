@@ -19,17 +19,33 @@ export interface Perfil {
   activo: boolean;
 }
 
+export type TipoCliente = "empresa" | "particular" | "municipio";
+export type CondicionIva = "responsable_inscripto" | "monotributo" | "exento" | "consumidor_final";
+export type CondicionPago = "contado" | "transferencia_diferida" | "cuenta_corriente";
+
 export interface Cliente {
   id: string;
   nombre: string;
-  tipo: "empresa" | "particular" | "municipio";
+  tipo: TipoCliente;
   cuit: string | null;
+  condicion_iva: CondicionIva | null;
   telefono: string | null;
   email: string | null;
+  direccion: string | null;
   localidad: string | null;
-  condicion_pago: "contado" | "transferencia_diferida" | "cuenta_corriente";
+  condicion_pago: CondicionPago;
   dias_pago: number;
+  notas: string | null;
   activo: boolean;
+  created_at?: string;
+}
+
+export interface CuentaCorrienteCliente {
+  cliente_id: string;
+  nombre: string;
+  total_servicios: number;
+  total_cobrado: number;
+  saldo: number;
 }
 
 export interface Vehiculo {
@@ -96,3 +112,23 @@ export const ETIQUETA_TIPO: Record<TipoServicio, string> = {
   mantenimiento: "Mantenimiento",
   otro: "Otro",
 };
+
+export const ETIQUETA_TIPO_CLIENTE: Record<TipoCliente, string> = {
+  empresa: "Empresa",
+  particular: "Particular",
+  municipio: "Municipio",
+};
+
+export const ETIQUETA_CONDICION_IVA: Record<CondicionIva, string> = {
+  responsable_inscripto: "Responsable inscripto",
+  monotributo: "Monotributo",
+  exento: "Exento",
+  consumidor_final: "Consumidor final",
+};
+
+export const ETIQUETA_CONDICION_PAGO: Record<CondicionPago, string> = {
+  contado: "Contado",
+  transferencia_diferida: "Transferencia diferida",
+  cuenta_corriente: "Cuenta corriente",
+};
+
