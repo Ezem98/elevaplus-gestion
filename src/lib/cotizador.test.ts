@@ -47,4 +47,9 @@ describe("cotizar", () => {
     expect(b.coefCarga).toBe(1.5);
     expect(b.importe).toBeGreaterThan(a.importe);
   });
+
+  it("la suma de base + deltaVehiculo + deltaCarga es igual a subtotal", () => {
+    const r = cotizar({ km: 30, vehiculo: fordCargo, cargaMayor50: true, idaYVuelta: true }, params);
+    expect(r.base + r.deltaVehiculo + r.deltaCarga).toBeCloseTo(r.subtotal, 5);
+  });
 });

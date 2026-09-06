@@ -46,6 +46,8 @@ export interface DesgloseCotizacion {
   subtotal: number;
   aplicoMinimo: boolean;
   importe: number;
+  deltaVehiculo: number;
+  deltaCarga: number;
 }
 
 export function cotizar(e: EntradaCotizacion, p: ParametrosCotizacion): DesgloseCotizacion {
@@ -55,7 +57,20 @@ export function cotizar(e: EntradaCotizacion, p: ParametrosCotizacion): Desglose
   const coefVehiculo = e.vehiculo.coef_precio;
   const coefCarga = e.cargaMayor50 ? e.vehiculo.coef_carga_mayor_50 : e.vehiculo.coef_carga_menor_50;
   const subtotal = base * coefVehiculo * coefCarga;
+  const deltaVehiculo = base * (coefVehiculo - 1);
+  const deltaCarga = base * coefVehiculo * (coefCarga - 1);
   const aplicoMinimo = subtotal < p.monto_minimo;
   const importe = Math.round(Math.max(subtotal, p.monto_minimo));
-  return { kmFacturables, base, coefVehiculo, coefCarga, factorIdaVuelta, subtotal, aplicoMinimo, importe };
+  return {
+    kmFacturables,
+    base,
+    coefVehiculo,
+    coefCarga,
+    factorIdaVuelta,
+    subtotal,
+    aplicoMinimo,
+    importe,
+    deltaVehiculo,
+    deltaCarga,
+  };
 }
