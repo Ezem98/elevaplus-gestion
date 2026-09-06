@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
 import type { Vehiculo, ParametrosCotizador } from "@/lib/tipos";
@@ -16,6 +16,8 @@ interface ClienteOpcion {
 
 export function PaginaCotizador() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const clienteParam = searchParams.get("cliente");
   const { session } = useAuth();
 
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
@@ -55,7 +57,13 @@ export function PaginaCotizador() {
       .select("id, nombre")
       .eq("activo", true)
       .order("nombre")
-      .then(({ data }) => setClientes((data as ClienteOpcion[]) ?? []));
+      .then(({ data }) => {
+        const lista = (data as ClienteOpcion[]) ?? [];
+        setClientes(lista);
+        if (clienteParam && lista.some((c) => c.id === clienteParam)) {
+          setClienteId(clienteParam);
+        }
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -119,11 +127,20 @@ export function PaginaCotizador() {
     }
   };
 
+  const clientePreseleccionado = useMemo(() => {
+    if (!clienteParam) return null;
+    return clientes.find((c) => c.id === clienteParam) ?? null;
+  }, [clienteParam, clientes]);
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Cotizador</h1>
-        <p className="text-sm text-tinta-suave">Cálculo de tarifas de traslado</p>
+        <p className="text-sm text-tinta-suave">
+          {clientePreseleccionado
+            ? `Presupuesto para ${clientePreseleccionado.nombre}`
+            : "Cálculo de tarifas de traslado"}
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">

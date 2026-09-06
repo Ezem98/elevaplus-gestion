@@ -66,9 +66,14 @@ export function PaginaCliente() {
             {cliente.condicion_pago !== "contado" && cliente.dias_pago > 0 ? ` (${cliente.dias_pago} días)` : ""}
           </p>
         </div>
-        <Link to={`/clientes/${id}/editar`}>
-          <Boton variante="secundario">Editar</Boton>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to={`/cotizador?cliente=${id}`}>
+            <Boton>Nuevo presupuesto</Boton>
+          </Link>
+          <Link to={`/clientes/${id}/editar`}>
+            <Boton variante="secundario">Editar</Boton>
+          </Link>
+        </div>
       </header>
 
       <Tarjeta className="grid grid-cols-1 divide-y divide-borde sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
