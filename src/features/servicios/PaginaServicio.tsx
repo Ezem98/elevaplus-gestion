@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
 import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro, Alquiler } from "@/lib/tipos";
 import { ETIQUETA_TIPO, ETIQUETA_TIPO_MAQUINA, ETIQUETA_MEDIO_PAGO, formatearUnidadPlural } from "@/lib/tipos";
-import { formatearPesos, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
+import { formatearPesos, formatearFecha, formatearNumeroFactura, proximoCuartoDeHora } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
@@ -214,8 +214,13 @@ export function PaginaServicio() {
 
   const abrirProgramar = () => {
     if (!servicio) return;
-    setFechaProg(servicio.fecha_programada ?? "");
-    setHoraProg(servicio.hora_programada ? servicio.hora_programada.slice(0, 5) : "");
+    if (servicio.fecha_programada) {
+      setFechaProg(servicio.fecha_programada);
+      setHoraProg(servicio.hora_programada ? servicio.hora_programada.slice(0, 5) : "");
+    } else {
+      setFechaProg(new Date().toISOString().slice(0, 10));
+      setHoraProg(proximoCuartoDeHora(new Date()));
+    }
     setVehiculoId(servicio.vehiculo_id ?? "");
     setMaquinaId(servicio.maquina_id ?? "");
     setChoferesSeleccionados(choferes.map((c) => c.chofer_id));

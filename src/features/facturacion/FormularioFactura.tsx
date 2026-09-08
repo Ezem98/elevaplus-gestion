@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Copy, Check } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { PUNTO_VENTA_DEFAULT } from "@/lib/config";
 import { formatearPesos, formatearNumeroFactura } from "@/lib/formato";
@@ -32,12 +33,45 @@ export function FormularioFactura({
   const [tipo, setTipo] = useState<"A" | "B">(() => sugerirTipoFactura(cliente.condicion_iva));
   const [puntoVenta, setPuntoVenta] = useState<number>(PUNTO_VENTA_DEFAULT);
   const [numero, setNumero] = useState<string>("");
+  const [numeroModificadoManualmente, setNumeroModificadoManualmente] = useState(false);
+  const [esNumeroSugerido, setEsNumeroSugerido] = useState(false);
   const [fecha, setFecha] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [notas, setNotas] = useState<string>("");
 
   const [copiado, setCopiado] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (numeroModificadoManualmente) return;
+
+    let cancelado = false;
+    async function consultarUltimoNumero() {
+      const { data } = await supabase
+        .from("facturas")
+        .select("numero")
+        .eq("tipo", tipo)
+        .eq("punto_venta", puntoVenta)
+        .order("numero", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelado) return;
+
+      if (data && data.numero != null) {
+        setNumero(String(data.numero + 1));
+        setEsNumeroSugerido(true);
+      } else {
+        setNumero("");
+        setEsNumeroSugerido(false);
+      }
+    }
+
+    consultarUltimoNumero();
+    return () => {
+      cancelado = true;
+    };
+  }, [tipo, puntoVenta, numeroModificadoManualmente]);
 
   const totales = useMemo(() => calcularTotales(servicios), [servicios]);
 
@@ -149,7 +183,7 @@ export function FormularioFactura({
     <form onSubmit={handleGuardar} className="mt-4 border-t border-borde pt-4 space-y-4">
       {/* Resumen de los servicios incluidos */}
       <div className="rounded-md border border-borde bg-fondo p-3 space-y-2">
-        <span className="text-xs font-semibold text-tinta-suave uppercase tracking-wider block">
+        <span className="text-sm font-medium text-tinta-suave block">
           Servicios a incluir ({servicios.length})
         </span>
         <div className="divide-y divide-borde text-sm">
@@ -236,11 +270,20 @@ export function FormularioFactura({
             type="number"
             min={1}
             value={numero}
-            onChange={(e) => setNumero(e.target.value)}
+            onChange={(e) => {
+              setNumero(e.target.value);
+              setNumeroModificadoManualmente(true);
+              setEsNumeroSugerido(false);
+            }}
             placeholder="1234"
             required
             autoFocus
           />
+          {esNumeroSugerido && (
+            <p className="mt-1 text-xs text-tinta-suave">
+              Sugerido según la última factura registrada. Verificá con ARCA.
+            </p>
+          )}
         </div>
         <div>
           <Etiqueta htmlFor="fecha_factura">Fecha</Etiqueta>
@@ -272,11 +315,21 @@ export function FormularioFactura({
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <Boton
           type="button"
-          variante="fantasma"
+          variante="secundario"
           onClick={handleCopiarArca}
           title="Copia los datos de facturación para cargar en el portal de ARCA"
         >
-          {copiado ? "Copiado" : "Copiar datos para ARCA"}
+          {copiado ? (
+            <>
+              <Check className="size-4" />
+              Copiado
+            </>
+          ) : (
+            <>
+              <Copy className="size-4" />
+              Copiar datos para ARCA
+            </>
+          )}
         </Boton>
 
         <div className="flex items-center gap-2">

@@ -41,3 +41,24 @@ export function formatearNumeroFactura(
   }
   return `${prefijo} ${pv}-${num}`.trim();
 }
+
+export function proximoCuartoDeHora(fecha: Date): string {
+  const d = new Date(fecha.getTime());
+  const minutos = d.getMinutes();
+  const segundos = d.getSeconds();
+  const ms = d.getMilliseconds();
+
+  const restoMinutos = minutos % 15;
+  let minutosParaSumar = 0;
+
+  if (restoMinutos === 0 && segundos === 0 && ms === 0) {
+    minutosParaSumar = 0;
+  } else {
+    minutosParaSumar = 15 - restoMinutos;
+  }
+
+  d.setMinutes(minutos + minutosParaSumar, 0, 0);
+  const horas = String(d.getHours()).padStart(2, "0");
+  const minFinal = String(d.getMinutes()).padStart(2, "0");
+  return `${horas}:${minFinal}`;
+}

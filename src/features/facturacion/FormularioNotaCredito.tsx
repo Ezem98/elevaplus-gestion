@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Factura, TipoFactura } from "@/lib/tipos";
 import { Boton } from "@/components/ui/Boton";
@@ -20,12 +20,45 @@ export function FormularioNotaCredito({
 
   const [puntoVenta, setPuntoVenta] = useState<number>(facturaOriginal.punto_venta);
   const [numero, setNumero] = useState<string>("");
+  const [numeroModificadoManualmente, setNumeroModificadoManualmente] = useState(false);
+  const [esNumeroSugerido, setEsNumeroSugerido] = useState(false);
   const [fecha, setFecha] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [monto, setMonto] = useState<number>(facturaOriginal.total);
   const [motivo, setMotivo] = useState<string>("");
 
   const [guardando, setGuardando] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (numeroModificadoManualmente) return;
+
+    let cancelado = false;
+    async function consultarUltimoNumero() {
+      const { data } = await supabase
+        .from("facturas")
+        .select("numero")
+        .eq("tipo", tipoNC)
+        .eq("punto_venta", puntoVenta)
+        .order("numero", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelado) return;
+
+      if (data && data.numero != null) {
+        setNumero(String(data.numero + 1));
+        setEsNumeroSugerido(true);
+      } else {
+        setNumero("");
+        setEsNumeroSugerido(false);
+      }
+    }
+
+    consultarUltimoNumero();
+    return () => {
+      cancelado = true;
+    };
+  }, [tipoNC, puntoVenta, numeroModificadoManualmente]);
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,11 +198,20 @@ export function FormularioNotaCredito({
             type="number"
             min={1}
             value={numero}
-            onChange={(e) => setNumero(e.target.value)}
+            onChange={(e) => {
+              setNumero(e.target.value);
+              setNumeroModificadoManualmente(true);
+              setEsNumeroSugerido(false);
+            }}
             placeholder="1234"
             required
             autoFocus
           />
+          {esNumeroSugerido && (
+            <p className="mt-1 text-xs text-tinta-suave">
+              Sugerido según la última factura registrada. Verificá con ARCA.
+            </p>
+          )}
         </div>
 
         <div>

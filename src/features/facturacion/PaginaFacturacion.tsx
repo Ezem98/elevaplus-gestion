@@ -499,7 +499,7 @@ export function PaginaFacturacion() {
             <Tarjeta className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-borde text-xs font-semibold text-tinta-suave uppercase tracking-wider bg-fondo/50">
+                  <tr className="border-b border-borde text-xs font-semibold text-tinta-suave bg-fondo/50">
                     <th className="p-3.5">Fecha</th>
                     <th className="p-3.5">Comprobante</th>
                     <th className="p-3.5">Cliente</th>
@@ -582,7 +582,7 @@ export function PaginaFacturacion() {
                           {/* Lista expandida de servicios vinculados */}
                           {expandido && (
                             <div className="border-t border-borde bg-fondo/80 px-6 py-3 space-y-2">
-                              <span className="text-xs font-semibold text-tinta-suave uppercase tracking-wider block">
+                              <span className="text-xs font-semibold text-tinta-suave block">
                                 Servicios vinculados a esta factura:
                               </span>
                               {servsDeEstaFactura.length === 0 ? (
@@ -653,7 +653,7 @@ export function PaginaFacturacion() {
             <Tarjeta className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-borde text-xs font-semibold text-tinta-suave uppercase tracking-wider bg-fondo/50">
+                  <tr className="border-b border-borde text-xs font-semibold text-tinta-suave bg-fondo/50">
                     <th className="p-3.5">Fecha</th>
                     <th className="p-3.5">Comprobante</th>
                     <th className="p-3.5">Cliente</th>
