@@ -12,6 +12,7 @@ import { PaginaClientes } from "@/features/clientes/PaginaClientes";
 import { FormularioCliente } from "@/features/clientes/FormularioCliente";
 import { PaginaCliente } from "@/features/clientes/PaginaCliente";
 import { PaginaCobros } from "@/features/cobros/PaginaCobros";
+import { PaginaFacturacion } from "@/features/facturacion/PaginaFacturacion";
 import { PaginaChoferHoy } from "@/features/chofer/PaginaChoferHoy";
 
 export const router = createBrowserRouter([
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
           { path: "/clientes/:id", element: <PaginaCliente /> },
           { path: "/clientes/:id/editar", element: <FormularioCliente /> },
           { path: "/cobros", element: <PaginaCobros /> },
+          { path: "/facturacion", element: <PaginaFacturacion /> },
         ],
       },
     ],

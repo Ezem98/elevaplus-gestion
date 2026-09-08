@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
 import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro, Alquiler } from "@/lib/tipos";
 import { ETIQUETA_TIPO, ETIQUETA_TIPO_MAQUINA, ETIQUETA_MEDIO_PAGO, formatearUnidadPlural } from "@/lib/tipos";
-import { formatearPesos, formatearFecha } from "@/lib/formato";
+import { formatearPesos, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
@@ -71,9 +71,6 @@ export function PaginaServicio() {
   const [cargando, setCargando] = useState(true);
   const [errorEstado, setErrorEstado] = useState<string | null>(null);
 
-  const [facturando, setFacturando] = useState(false);
-  const [numeroFactura, setNumeroFactura] = useState("");
-
   const [mostrarProgramar, setMostrarProgramar] = useState(false);
   const [guardandoProg, setGuardandoProg] = useState(false);
   const [mostrarCobro, setMostrarCobro] = useState(false);
@@ -138,7 +135,7 @@ export function PaginaServicio() {
     ] = await Promise.all([
       supabase
         .from("servicios")
-        .select("*, clientes(nombre), vehiculos(nombre), maquinas(codigo_interno, tipo)")
+        .select("*, clientes(nombre), vehiculos(nombre), maquinas(codigo_interno, tipo), facturas(id, tipo, punto_venta, numero, fecha)")
         .eq("id", id)
         .single(),
       supabase
@@ -306,14 +303,6 @@ export function PaginaServicio() {
     await cargarDatos();
   };
 
-  const handleGuardarFactura = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!numeroFactura.trim()) return;
-    await ejecutarCambioEstado("facturado", `Factura ${numeroFactura.trim()}`);
-    setFacturando(false);
-    setNumeroFactura("");
-  };
-
   const handleSeleccionarArchivos = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !servicio) return;
@@ -479,6 +468,11 @@ export function PaginaServicio() {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold text-tinta">Servicio #{servicio.numero}</h1>
           <ChipEstado estado={servicio.estado} />
+          {servicio.no_facturable && (
+            <span className="rounded-full bg-fondo px-2.5 py-0.5 text-xs font-medium text-tinta-suave border border-borde">
+              No se factura
+            </span>
+          )}
         </div>
         <div className="text-sm text-tinta-suave">
           {servicio.cliente_id ? (
@@ -722,6 +716,27 @@ export function PaginaServicio() {
                 <div className="text-tinta font-medium mt-0.5 tabular-nums">{servicio.orden_compra || "—"}</div>
               </div>
 
+              {servicio.factura_id && (
+                <div>
+                  <span className="text-xs font-medium text-tinta-suave block">Factura</span>
+                  <div className="text-tinta font-medium mt-0.5">
+                    <Link
+                      to="/facturacion?tab=facturas"
+                      className="text-marca hover:underline"
+                    >
+                      Factura:{" "}
+                      {servicio.facturas
+                        ? `${formatearNumeroFactura(
+                            servicio.facturas.tipo,
+                            servicio.facturas.punto_venta,
+                            servicio.facturas.numero
+                          )} · ${formatearFecha(servicio.facturas.fecha)}`
+                        : "Ver en facturación"}
+                    </Link>
+                  </div>
+                </div>
+              )}
+
               {servicio.tipo === "alquiler_periodo" && alquiler && (
                 <>
                   <div>
@@ -924,33 +939,10 @@ export function PaginaServicio() {
                     <Boton onClick={() => setMostrarCobro(true)}>
                       Registrar cobro
                     </Boton>
-                    {facturando ? (
-                      <form onSubmit={handleGuardarFactura} className="flex flex-wrap items-center gap-2">
-                        <div className="w-48">
-                          <Entrada
-                            placeholder="Número de factura"
-                            value={numeroFactura}
-                            onChange={(e) => setNumeroFactura(e.target.value)}
-                            autoFocus
-                            required
-                          />
-                        </div>
-                        <Boton type="submit">Guardar</Boton>
-                        <Boton
-                          type="button"
-                          variante="secundario"
-                          onClick={() => {
-                            setFacturando(false);
-                            setNumeroFactura("");
-                          }}
-                        >
-                          Cancelar
-                        </Boton>
-                      </form>
-                    ) : (
-                      <Boton onClick={() => setFacturando(true)}>
-                        Marcar facturado
-                      </Boton>
+                    {!servicio.factura_id && !servicio.no_facturable && (
+                      <Link to="/facturacion">
+                        <Boton variante="secundario">Facturar</Boton>
+                      </Link>
                     )}
                   </>
                 )}
@@ -960,35 +952,29 @@ export function PaginaServicio() {
                     <Boton variante="secundario" onClick={() => setMostrarCobro(true)}>
                       Registrar cobro
                     </Boton>
-                    {facturando ? (
-                      <form onSubmit={handleGuardarFactura} className="flex flex-wrap items-center gap-2">
-                        <div className="w-48">
-                          <Entrada
-                            placeholder="Número de factura"
-                            value={numeroFactura}
-                            onChange={(e) => setNumeroFactura(e.target.value)}
-                            autoFocus
-                            required
-                          />
-                        </div>
-                        <Boton type="submit">Guardar</Boton>
-                        <Boton
-                          type="button"
-                          variante="secundario"
-                          onClick={() => {
-                            setFacturando(false);
-                            setNumeroFactura("");
-                          }}
-                        >
-                          Cancelar
-                        </Boton>
-                      </form>
-                    ) : (
-                      <Boton onClick={() => setFacturando(true)}>
-                        Marcar facturado
-                      </Boton>
+                    {!servicio.factura_id && !servicio.no_facturable && (
+                      <Link to="/facturacion">
+                        <Boton variante="secundario">Facturar</Boton>
+                      </Link>
                     )}
                   </>
+                )}
+
+                {servicio.no_facturable && (
+                  <Boton
+                    variante="secundario"
+                    onClick={async () => {
+                      const { error } = await supabase
+                        .from("servicios")
+                        .update({ no_facturable: false })
+                        .eq("id", servicio.id);
+                      if (!error) {
+                        await cargarDatos();
+                      }
+                    }}
+                  >
+                    Volver a facturable
+                  </Boton>
                 )}
 
 

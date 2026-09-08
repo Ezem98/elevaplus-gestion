@@ -31,3 +31,5 @@ dist-ssr
 # supabase local
 supabase/.branches
 supabase/.temp
+
+.tmp

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Truck, Calculator, Users, Wallet, LogOut } from "lucide-react";
+import { LayoutDashboard, Truck, Calculator, Users, Wallet, Receipt, LogOut } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
 
 import type { Rol } from "@/lib/tipos";
@@ -10,12 +10,21 @@ const etiquetasRol: Record<Rol, string> = {
   chofer: "Chofer",
 };
 
-const enlaces = [
+const enlacesSidebar = [
   { a: "/", texto: "Hoy", Icono: LayoutDashboard },
   { a: "/servicios", texto: "Servicios", Icono: Truck },
   { a: "/cotizador", texto: "Cotizador", Icono: Calculator },
   { a: "/clientes", texto: "Clientes", Icono: Users },
   { a: "/cobros", texto: "Cobros", Icono: Wallet },
+  { a: "/facturacion", texto: "Facturación", Icono: Receipt },
+];
+
+const enlacesMovil = [
+  { a: "/", texto: "Hoy", Icono: LayoutDashboard },
+  { a: "/servicios", texto: "Servicios", Icono: Truck },
+  { a: "/clientes", texto: "Clientes", Icono: Users },
+  { a: "/cobros", texto: "Cobros", Icono: Wallet },
+  { a: "/facturacion", texto: "Facturación", Icono: Receipt },
 ];
 
 export function LayoutOficina() {
@@ -28,7 +37,7 @@ export function LayoutOficina() {
           <span className="font-semibold">ELEVAPLUS</span>
         </div>
         <nav className="hidden flex-1 flex-col gap-1 md:flex">
-          {enlaces.map(({ a, texto, Icono }) => (
+          {enlacesSidebar.map(({ a, texto, Icono }) => (
             <NavLink
               key={a}
               to={a}
@@ -68,7 +77,7 @@ export function LayoutOficina() {
 
       {/* Navegación inferior en celular */}
       <nav className="sticky bottom-0 flex border-t border-borde bg-superficie md:hidden">
-        {enlaces.map(({ a, texto, Icono }) => (
+        {enlacesMovil.map(({ a, texto, Icono }) => (
           <NavLink
             key={a}
             to={a}

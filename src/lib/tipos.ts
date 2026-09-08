@@ -102,15 +102,19 @@ export interface Servicio {
   vehiculo_id: string | null;
   maquina_id: string | null;
   monto: number | null;
+  aplica_iva: boolean;
   monto_cobrado: number;
   remito: string | null;
   orden_compra: string | null;
+  factura_id: string | null;
+  no_facturable: boolean;
   notas: string | null;
   no_planificado: boolean;
   created_at: string;
-  clientes?: { nombre: string } | null;
+  clientes?: { nombre: string; cuit?: string | null; condicion_iva?: CondicionIva | null } | null;
   vehiculos?: { nombre: string } | null;
   maquinas?: { codigo_interno: string | null; tipo: TipoMaquina } | null;
+  facturas?: { id?: string; tipo: TipoFactura; punto_venta: number; numero: number; fecha?: string } | null;
 }
 
 export interface ServicioEvento {
@@ -279,5 +283,34 @@ export function formatearUnidadPlural(unidad: UnidadAlquiler, cantidad: number):
   return ETIQUETA_UNIDAD_ALQUILER_PLURAL[unidad];
 }
 
+export type TipoFactura = "A" | "B" | "C" | "NC_A" | "NC_B" | "ND_A" | "ND_B";
 
+export interface Factura {
+  id: string;
+  tipo: TipoFactura;
+  punto_venta: number;
+  numero: number;
+  fecha: string;
+  cliente_id: string | null;
+  neto: number;
+  iva: number;
+  total: number;
+  cae?: string | null;
+  pdf_path?: string | null;
+  notas?: string | null;
+  created_at?: string;
+  factura_asociada_id: string | null;
+  anulada: boolean;
+  clientes?: { nombre: string; cuit?: string | null; condicion_iva?: CondicionIva | null } | null;
+  factura_asociada?: { tipo: TipoFactura; punto_venta: number; numero: number } | null;
+}
 
+export const ETIQUETA_TIPO_FACTURA: Record<TipoFactura, string> = {
+  A: "Factura A",
+  B: "Factura B",
+  C: "Factura C",
+  NC_A: "Nota de crédito A",
+  NC_B: "Nota de crédito B",
+  ND_A: "Nota de débito A",
+  ND_B: "Nota de débito B",
+};

@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import type { Cliente, CuentaCorrienteCliente, Servicio } from "@/lib/tipos";
 import { ETIQUETA_TIPO, ETIQUETA_TIPO_CLIENTE, ETIQUETA_CONDICION_IVA, ETIQUETA_CONDICION_PAGO } from "@/lib/tipos";
-import { formatearPesos, formatearFecha } from "@/lib/formato";
+import { formatearPesos, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
@@ -33,7 +33,7 @@ export function PaginaCliente() {
         .maybeSingle(),
       supabase
         .from("servicios")
-        .select("*")
+        .select("*, facturas(tipo, punto_venta, numero)")
         .eq("cliente_id", id)
         .not("estado", "in", '("consulta","presupuestado","cancelado")')
         .order("fecha_programada", { ascending: false }),
@@ -186,8 +186,17 @@ export function PaginaCliente() {
                       </div>
                     )}
                   </div>
-                  <div className="shrink-0 flex justify-end">
+                  <div className="shrink-0 flex flex-col items-end gap-1">
                     <ChipEstado estado={s.estado} />
+                    {(() => {
+                      const fac = Array.isArray(s.facturas) ? s.facturas[0] : s.facturas;
+                      if (!fac) return null;
+                      return (
+                        <span className="text-xs text-tinta-suave tabular-nums">
+                          {formatearNumeroFactura(fac.tipo, fac.punto_venta, fac.numero)}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </Link>
               ))}

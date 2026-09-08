@@ -25,6 +25,7 @@ export function PaginaHoy() {
   const [hoy, setHoy] = useState<Servicio[]>([]);
   const [sinCerrar, setSinCerrar] = useState<Servicio[]>([]);
   const [saldo, setSaldo] = useState<number | null>(null);
+  const [sinFacturar, setSinFacturar] = useState<number>(0);
 
   useEffect(() => {
     const fecha = new Date().toISOString().slice(0, 10);
@@ -48,6 +49,14 @@ export function PaginaHoy() {
       .from("cuenta_corriente")
       .select("saldo")
       .then(({ data }) => setSaldo((data ?? []).reduce((acc, r) => acc + Number(r.saldo), 0)));
+
+    supabase
+      .from("servicios")
+      .select("id", { count: "exact", head: true })
+      .in("estado", ["terminado", "cobrado"])
+      .is("factura_id", null)
+      .eq("no_facturable", false)
+      .then(({ count }) => setSinFacturar(count ?? 0));
   }, []);
 
   const fechaHoy = obtenerFechaHoyLarga();
@@ -62,6 +71,13 @@ export function PaginaHoy() {
         <div className="text-right">
           <div className="text-sm text-tinta-suave">Total a cobrar</div>
           <div className="text-3xl font-semibold tracking-tight">{formatearPesos(saldo)}</div>
+          {sinFacturar > 0 && (
+            <div className="text-sm text-tinta-suave mt-1">
+              <Link to="/facturacion" className="hover:underline">
+                {sinFacturar} {sinFacturar === 1 ? "servicio sin facturar" : "servicios sin facturar"}
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 

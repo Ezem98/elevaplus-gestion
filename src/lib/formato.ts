@@ -24,3 +24,20 @@ export function formatearFechaHoraCorta(iso: string | null | undefined): string 
   const minutos = String(d.getMinutes()).padStart(2, "0");
   return `${dia}/${mes} ${horas}:${minutos}`;
 }
+
+export function formatearNumeroFactura(
+  tipo: string | null | undefined,
+  puntoVenta: number | null | undefined,
+  numero: number | string | null | undefined
+): string {
+  const pv = String(puntoVenta ?? 0).padStart(4, "0");
+  const num = String(numero ?? 0).padStart(8, "0");
+  const t = tipo ?? "";
+  let prefijo = t;
+  if (t.startsWith("NC_")) {
+    prefijo = `NC ${t.slice(3)}`;
+  } else if (t.startsWith("ND_")) {
+    prefijo = `ND ${t.slice(3)}`;
+  }
+  return `${prefijo} ${pv}-${num}`.trim();
+}
