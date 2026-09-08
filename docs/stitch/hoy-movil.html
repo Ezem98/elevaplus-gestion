@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Hoy — Ana — ELEVAPLUS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        background-color: #f5f7fa;
+        font-family:
+          "IBM Plex Sans",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        color: #17212b;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mobile-frame {
+        width: 100%;
+        max-width: 390px;
+        background-color: #ffffff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        border-left: 1px solid #d9e0e8;
+        border-right: 1px solid #d9e0e8;
+      }
+      /* Header Superior */
+      .top-header {
+        height: 56px;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #d9e0e8;
+        background: #ffffff;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+      .logo-container {
+        display: flex;
+        align-items: center;
+      }
+      .logo-container img {
+        height: 24px;
+        width: auto;
+      }
+      .user-greeting {
+        font-size: 14px;
+        font-weight: 600;
+        color: #17212b;
+      }
+
+      .main-content {
+        flex: 1;
+        padding: 16px;
+        padding-bottom: 90px;
+        background: #f5f7fa;
+      }
+
+      /* Bloque Total a cobrar */
+      .metric-card {
+        background: #ffffff;
+        border: 1px solid #d9e0e8;
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 12px;
+      }
+      .metric-label {
+        font-size: 13px;
+        color: #5b6b7b;
+        margin-bottom: 4px;
+      }
+      .metric-amount {
+        font-size: 28px;
+        font-weight: 700;
+        color: #17212b;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+        margin-bottom: 8px;
+      }
+      .metric-link {
+        font-size: 13px;
+        font-weight: 500;
+        color: #1e4fa8;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* Aviso ámbar sin cerrar */
+      .warning-card {
+        background: #fdf0e0;
+        border: 1px solid rgba(180, 83, 9, 0.2);
+        border-radius: 8px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        font-size: 13px;
+        color: #b45309;
+        font-weight: 500;
+      }
+      .warning-link {
+        font-size: 12px;
+        font-weight: 600;
+        color: #b45309;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      /* Lista de Servicios */
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #17212b;
+      }
+      .section-date {
+        font-size: 12px;
+        color: #5b6b7b;
+      }
+
+      .services-list {
+        background: #ffffff;
+        border: 1px solid #d9e0e8;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .service-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid #d9e0e8;
+      }
+      .service-row:last-child {
+        border-bottom: none;
+      }
+      .service-info {
+        flex: 1;
+        padding-right: 12px;
+      }
+      .service-client {
+        font-size: 15px;
+        font-weight: 600;
+        color: #17212b;
+        line-height: 1.2;
+        margin-bottom: 4px;
+      }
+      .service-meta {
+        font-size: 13px;
+        color: #5b6b7b;
+      }
+
+      /* Chips de estado redondos */
+      .chip {
+        font-size: 12px;
+        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        white-space: nowrap;
+        border: 1px solid transparent;
+      }
+      .chip-programado {
+        background: #e6edf9;
+        color: #1e4fa8;
+        border-color: rgba(30, 79, 168, 0.2);
+      }
+      .chip-encurso {
+        background: #fdf0e0;
+        color: #b45309;
+        border-color: rgba(180, 83, 9, 0.2);
+      }
+      .chip-terminado {
+        background: #fdf0e0;
+        color: #b45309;
+        border-color: rgba(180, 83, 9, 0.2);
+      }
+      .chip-cobrado {
+        background: #e4f5ea;
+        color: #15803d;
+        border-color: rgba(21, 128, 61, 0.2);
+      }
+
+      /* FAB Botón flotante redondo */
+      .fab-btn {
+        position: fixed;
+        bottom: 74px;
+        right: calc(50% - 195px + 16px);
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        background: #1e4fa8;
+        color: #ffffff;
+        border: none;
+        box-shadow: 0 4px 14px rgba(30, 79, 168, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 30;
+      }
+      .fab-btn svg {
+        width: 26px;
+        height: 26px;
+        stroke: #ffffff;
+        stroke-width: 2.5;
+      }
+      .fab-btn:active {
+        background: #163b7d;
+        transform: scale(0.96);
+      }
+
+      /* Barra de navegación inferior fija */
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 390px;
+        height: 60px;
+        background: #ffffff;
+        border-top: 1px solid #d9e0e8;
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        z-index: 20;
+      }
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #5b6b7b;
+        text-decoration: none;
+        font-size: 11px;
+        font-weight: 500;
+        gap: 3px;
+        width: 20%;
+        height: 100%;
+      }
+      .nav-item.active {
+        color: #1e4fa8;
+      }
+      .nav-item svg {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mobile-frame">
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="logo-container">
+          <img
+            src="https://lh3.googleusercontent.com/aida/AEtjO1UbwPALaybP5OWGrXKb2YHJy8ESopKeol500G6nCnYiNz-3nzrXCVMBozlrcMrwwpf2yc5siBMGxRFqnxslO4RRIv8kigG_YHBNFD2O9YSQPVgRMvA1eVRMEFF_0KCeyTZuU1CxOJqQtfF1As-d0hqCrG4R0HeSGDCNY1LxE61Qc-ecRDs6gWtDRXS3oOKI5WjWUSS4dyrWW63UyLQ1sYia_Jo21x86yUUcU7n6FzUc9oo78il4MA898wzD"
+            alt="ELEVAPLUS"
+          />
+        </div>
+        <div class="user-greeting">Hola, Ana</div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Cifra destacada ancho completo -->
+        <div class="metric-card">
+          <div class="metric-label">Total a cobrar</div>
+          <div class="metric-amount">$ 4.820.000</div>
+          <a href="#" class="metric-link">
+            3 servicios sin facturar
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </a>
+        </div>
+
+        <!-- Aviso ámbar sin cerrar -->
+        <div class="warning-card">
+          <span>2 servicios de días anteriores sin cerrar</span>
+          <a href="#" class="warning-link">Revisar</a>
+        </div>
+
+        <!-- Sección Servicios de hoy -->
+        <div class="section-header">
+          <div class="section-title">Servicios de hoy (5)</div>
+          <div class="section-date">Viernes 4 de sept.</div>
+        </div>
+
+        <!-- Lista compacta (sin montos) -->
+        <div class="services-list">
+          <!-- Fila 1 -->
+          <div class="service-row">
+            <div class="service-info">
+              <div class="service-client">Frigorífico Santa Giulia</div>
+              <div class="service-meta">
+                08:00 · Traslado Alejandro Korn → Hurlingham
+              </div>
+            </div>
+            <span class="chip chip-programado">Programado</span>
+          </div>
+
+          <!-- Fila 2 -->
+          <div class="service-row">
+            <div class="service-info">
+              <div class="service-client">Huma S.A.</div>
+              <div class="service-meta">
+                09:30 · Alquiler por hora · autoelevador 2,5 t
+              </div>
+            </div>
+            <span class="chip chip-encurso">En curso</span>
+          </div>
+
+          <!-- Fila 3 -->
+          <div class="service-row">
+            <div class="service-info">
+              <div class="service-client">Carpas D'Angiola</div>
+              <div class="service-meta">11:15 · Traslado Ezeiza → Lanús</div>
+            </div>
+            <span class="chip chip-terminado">Terminado</span>
+          </div>
+
+          <!-- Fila 4 -->
+          <div class="service-row">
+            <div class="service-info">
+              <div class="service-client">Baco</div>
+              <div class="service-meta">
+                13:00 · Traslado Burzaco → Avellaneda
+              </div>
+            </div>
+            <span class="chip chip-cobrado">Cobrado</span>
+          </div>
+
+          <!-- Fila 5 -->
+          <div class="service-row">
+            <div class="service-info">
+              <div class="service-client">Almatec</div>
+              <div class="service-meta">
+                15:30 · Mantenimiento autoelevador 3 t
+              </div>
+            </div>
+            <span class="chip chip-programado">Programado</span>
+          </div>
+        </div>
+      </main>
+
+      <!-- FAB Botón flotante redondo -->
+      <button class="fab-btn" title="Nuevo servicio">
+        <svg viewBox="0 0 24 24">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+
+      <!-- Nav inferior fija de 5 ítems -->
+      <nav class="bottom-nav">
+        <a href="#" class="nav-item active">
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="9" />
+            <rect x="14" y="3" width="7" height="5" />
+            <rect x="14" y="12" width="7" height="9" />
+            <rect x="3" y="16" width="7" height="5" />
+          </svg>
+          <span>Hoy</span>
+        </a>
+        <a href="#" class="nav-item">
+          <svg viewBox="0 0 24 24">
+            <rect x="1" y="3" width="15" height="13" />
+            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+            <circle cx="5.5" cy="18.5" r="2.5" />
+            <circle cx="18.5" cy="18.5" r="2.5" />
+          </svg>
+          <span>Servicios</span>
+        </a>
+        <a href="#" class="nav-item">
+          <svg viewBox="0 0 24 24">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <span>Clientes</span>
+        </a>
+        <a href="#" class="nav-item">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+            <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+            <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+          </svg>
+          <span>Cobros</span>
+        </a>
+        <a href="#" class="nav-item">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"
+            />
+            <line x1="8" y1="7" x2="16" y2="7" />
+            <line x1="8" y1="11" x2="16" y2="11" />
+            <line x1="8" y1="15" x2="12" y2="15" />
+          </svg>
+          <span>Facturación</span>
+        </a>
+      </nav>
+    </div>
+  </body>
+</html>

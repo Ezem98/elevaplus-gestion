@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Truck, Calculator, Users, Wallet, Receipt, LogOut } from "lucide-react";
+import { Link, NavLink, Outlet } from "react-router-dom";
+import { LayoutDashboard, Truck, Calculator, Users, Wallet, Receipt, LogOut, Plus } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
 
 import type { Rol } from "@/lib/tipos";
@@ -29,6 +29,8 @@ const enlacesMovil = [
 
 export function LayoutOficina() {
   const { perfil, salir } = useAuth();
+  const primerNombre = perfil?.nombre ? perfil.nombre.trim().split(/\s+/)[0] : "";
+
   return (
     <div className="flex min-h-full flex-col md:flex-row">
       <aside className="flex items-center justify-between border-b border-borde bg-superficie px-4 py-3 md:w-60 md:flex-col md:items-stretch md:justify-start md:border-b-0 md:border-r md:px-3 md:py-5">
@@ -54,6 +56,11 @@ export function LayoutOficina() {
           ))}
         </nav>
         <div className="flex items-center justify-between gap-3 text-sm md:mt-auto md:border-t md:border-borde md:px-2 md:pt-4">
+          {primerNombre && (
+            <span className="text-sm font-semibold text-tinta md:hidden">
+              Hola, {primerNombre}
+            </span>
+          )}
           <div className="hidden min-w-0 flex-col md:flex">
             <span className="truncate font-medium text-tinta">{perfil?.nombre}</span>
             {perfil?.rol && (
@@ -71,9 +78,18 @@ export function LayoutOficina() {
         </div>
       </aside>
 
-      <main className="flex-1 p-4 md:p-8">
+      <main className="flex-1 p-4 pb-24 md:p-8">
         <Outlet />
       </main>
+
+      {/* Botón flotante nuevo servicio en celular */}
+      <Link
+        to="/servicios/nuevo"
+        aria-label="Nuevo servicio"
+        className="fixed right-4 bottom-[76px] z-30 h-14 w-14 rounded-full bg-marca text-white grid place-items-center hover:bg-marca-oscuro active:scale-95 transition-transform md:hidden"
+      >
+        <Plus className="h-[26px] w-[26px]" strokeWidth={2.5} />
+      </Link>
 
       {/* Navegación inferior en celular */}
       <nav className="sticky bottom-0 flex border-t border-borde bg-superficie md:hidden">
