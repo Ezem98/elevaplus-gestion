@@ -6,11 +6,14 @@ import { formatearFecha, formatearPesos } from "@/lib/formato";
 import { armarCondiciones } from "@/lib/presupuesto";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { AreaTexto, Campo, Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
 
 export function PaginaConfiguracion() {
+  const [tabConfig, setTabConfig] = useState<"empresa" | "presupuestos" | "cotizador">("empresa");
+
   // --- Estado Empresa ---
   const [razonSocial, setRazonSocial] = useState("");
   const [cuit, setCuit] = useState("");
@@ -259,13 +262,50 @@ export function PaginaConfiguracion() {
         subtitulo="Datos de la empresa, términos de presupuestos y parámetros del cotizador"
       />
 
+      {/* Selector de pestañas en celular para separar los 3 formularios */}
+      <div className="flex border-b border-borde md:hidden">
+        <button
+          type="button"
+          onClick={() => setTabConfig("empresa")}
+          className={`flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
+            tabConfig === "empresa"
+              ? "border-marca text-marca"
+              : "border-transparent text-tinta-suave hover:text-tinta"
+          }`}
+        >
+          Empresa
+        </button>
+        <button
+          type="button"
+          onClick={() => setTabConfig("presupuestos")}
+          className={`flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
+            tabConfig === "presupuestos"
+              ? "border-marca text-marca"
+              : "border-transparent text-tinta-suave hover:text-tinta"
+          }`}
+        >
+          Presupuestos
+        </button>
+        <button
+          type="button"
+          onClick={() => setTabConfig("cotizador")}
+          className={`flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
+            tabConfig === "cotizador"
+              ? "border-marca text-marca"
+              : "border-transparent text-tinta-suave hover:text-tinta"
+          }`}
+        >
+          Cotizador
+        </button>
+      </div>
+
       {/* 1. Tarjeta Empresa */}
-      <Tarjeta className="p-6">
+      <Tarjeta className={`p-6 ${tabConfig === "empresa" ? "block" : "hidden md:block"}`}>
         <h2 className="text-lg font-semibold text-tinta mb-4">Empresa</h2>
 
         {errorEmpresa && <Aviso variante="peligro" className="mb-4">{errorEmpresa}</Aviso>}
 
-        <form onSubmit={handleGuardarEmpresa} className="space-y-4">
+        <form onSubmit={handleGuardarEmpresa} className="space-y-4 pb-[72px] md:pb-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Campo etiqueta="Razón social" id="emp-razon-social">
               <Entrada
@@ -311,7 +351,7 @@ export function PaginaConfiguracion() {
             <Campo etiqueta="Teléfono" id="emp-telefono">
               <Entrada
                 id="emp-telefono"
-                placeholder="Ej: 11 6391-6614"
+                placeholder="Ej: 11 3276-5635"
                 value={telefono}
                 onChange={(e) => setTelefono(e.target.value)}
               />
@@ -346,26 +386,25 @@ export function PaginaConfiguracion() {
             </Campo>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          {mensajeEmpresa && (
+            <p className="text-sm font-medium text-ok">{mensajeEmpresa}</p>
+          )}
+
+          <BarraAcciones>
             <Boton type="submit" disabled={guardandoEmpresa}>
-              {guardandoEmpresa ? "Guardando…" : "Guardar"}
+              {guardandoEmpresa ? "Guardando…" : "Guardar empresa"}
             </Boton>
-            {mensajeEmpresa && (
-              <span className="text-sm font-medium text-ok">
-                {mensajeEmpresa}
-              </span>
-            )}
-          </div>
+          </BarraAcciones>
         </form>
       </Tarjeta>
 
       {/* 2. Tarjeta Presupuestos */}
-      <Tarjeta className="p-6">
+      <Tarjeta className={`p-6 ${tabConfig === "presupuestos" ? "block" : "hidden md:block"}`}>
         <h2 className="text-lg font-semibold text-tinta mb-4">Presupuestos</h2>
 
         {errorPresupuesto && <Aviso variante="peligro" className="mb-4">{errorPresupuesto}</Aviso>}
 
-        <form onSubmit={handleGuardarPresupuesto} className="space-y-4">
+        <form onSubmit={handleGuardarPresupuesto} className="space-y-4 pb-[72px] md:pb-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Campo etiqueta="Validez por defecto (días)" id="pres-validez">
               <Entrada
@@ -432,16 +471,15 @@ export function PaginaConfiguracion() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          {mensajePresupuesto && (
+            <p className="text-sm font-medium text-ok">{mensajePresupuesto}</p>
+          )}
+
+          <BarraAcciones>
             <Boton type="submit" disabled={guardandoPresupuesto}>
-              {guardandoPresupuesto ? "Guardando…" : "Guardar"}
+              {guardandoPresupuesto ? "Guardando…" : "Guardar presupuestos"}
             </Boton>
-            {mensajePresupuesto && (
-              <span className="text-sm font-medium text-ok">
-                {mensajePresupuesto}
-              </span>
-            )}
-          </div>
+          </BarraAcciones>
         </form>
 
         {/* Vista previa en gris */}
@@ -471,7 +509,7 @@ export function PaginaConfiguracion() {
       </Tarjeta>
 
       {/* 3. Tarjeta Cotizador */}
-      <Tarjeta className="p-6">
+      <Tarjeta className={`p-6 ${tabConfig === "cotizador" ? "block" : "hidden md:block"}`}>
         <h2 className="text-lg font-semibold text-tinta mb-4">Cotizador</h2>
 
         {errorParametros && <Aviso variante="peligro" className="mb-4">{errorParametros}</Aviso>}
@@ -529,7 +567,7 @@ export function PaginaConfiguracion() {
         <div className="mt-6 border-t border-borde pt-5">
           <h3 className="text-sm font-semibold text-tinta mb-3">Nuevos parámetros</h3>
 
-          <form onSubmit={handleGuardarParametros} className="space-y-4">
+          <form onSubmit={handleGuardarParametros} className="space-y-4 pb-[72px] md:pb-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
               <div>
                 <Etiqueta htmlFor="param-vigente">Vigente desde</Etiqueta>
@@ -595,16 +633,15 @@ export function PaginaConfiguracion() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 pt-1">
+            {mensajeParametros && (
+              <p className="text-sm font-medium text-ok">{mensajeParametros}</p>
+            )}
+
+            <BarraAcciones>
               <Boton type="submit" disabled={guardandoParametros}>
                 {guardandoParametros ? "Guardando…" : "Guardar nuevos valores"}
               </Boton>
-              {mensajeParametros && (
-                <span className="text-sm font-medium text-ok">
-                  {mensajeParametros}
-                </span>
-              )}
-            </div>
+            </BarraAcciones>
 
             <p className="text-xs text-tinta-suave">
               Los valores anteriores quedan en el historial.

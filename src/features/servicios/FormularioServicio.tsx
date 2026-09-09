@@ -17,6 +17,7 @@ import {
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Campo, Entrada, AreaTexto, Selector, Etiqueta } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Aviso } from "@/components/ui/Aviso";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 
@@ -382,7 +383,7 @@ export function FormularioServicio() {
       />
 
       <Tarjeta className="p-4 sm:p-6">
-        <form onSubmit={handleSubmit} className="space-y-6 pb-4 md:pb-0">
+        <form onSubmit={handleSubmit} className="space-y-6 pb-[72px] md:pb-0">
           {/* 1. Tipo de servicio */}
           <fieldset>
             <legend className="mb-2 block text-sm font-medium text-tinta-suave">
@@ -973,7 +974,7 @@ export function FormularioServicio() {
           )}
 
           {/* 6. Acciones */}
-          <div className="sticky bottom-0 z-20 -mx-4 border-t border-borde bg-superficie p-3 flex items-center justify-end gap-3 md:static md:mx-0 md:bg-transparent md:p-0 md:pt-4 md:border-t md:border-borde">
+          <BarraAcciones>
             <Boton
               type="button"
               variante="secundario"
@@ -988,7 +989,7 @@ export function FormularioServicio() {
             >
               {guardando ? "Guardando..." : "Guardar servicio"}
             </Boton>
-          </div>
+          </BarraAcciones>
         </form>
       </Tarjeta>
     </div>

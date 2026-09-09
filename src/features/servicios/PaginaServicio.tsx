@@ -9,6 +9,7 @@ import { formatearPesos, formatearFecha, formatearNumeroFactura, proximoCuartoDe
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
@@ -543,7 +544,7 @@ export function PaginaServicio() {
               Cerrar
             </button>
           </div>
-          <form onSubmit={handleConfirmarProgramacion} className="space-y-4">
+          <form onSubmit={handleConfirmarProgramacion} className="space-y-4 pb-[72px] md:pb-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Etiqueta htmlFor="fecha_prog">Fecha</Etiqueta>
@@ -625,10 +626,7 @@ export function PaginaServicio() {
               )}
             </div>
 
-            <div className="sticky bottom-0 z-20 -mx-4 border-t border-borde bg-superficie p-3 flex flex-wrap items-center justify-end gap-2 md:static md:mx-0 md:bg-transparent md:p-0 md:pt-2 md:border-t-0">
-              <Boton type="submit" disabled={guardandoProg}>
-                {guardandoProg ? "Guardando..." : "Confirmar programación"}
-              </Boton>
+            <BarraAcciones>
               <Boton
                 type="button"
                 variante="secundario"
@@ -637,7 +635,10 @@ export function PaginaServicio() {
               >
                 Cancelar
               </Boton>
-            </div>
+              <Boton type="submit" disabled={guardandoProg}>
+                {guardandoProg ? "Guardando..." : "Confirmar programación"}
+              </Boton>
+            </BarraAcciones>
           </form>
         </Tarjeta>
       )}
@@ -1017,6 +1018,7 @@ export function PaginaServicio() {
               empresa={empresa}
               alquiler={alquiler}
               onActualizado={cargarDatos}
+              ocultarAcciones={mostrarProgramar || mostrarCobro}
             />
           )}
 

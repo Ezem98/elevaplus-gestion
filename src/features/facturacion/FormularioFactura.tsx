@@ -7,6 +7,7 @@ import { sugerirTipoFactura, calcularTotales } from "@/lib/facturacion";
 import type { CondicionIva, Servicio, TipoFactura } from "@/lib/tipos";
 import { ETIQUETA_CONDICION_IVA, ETIQUETA_TIPO } from "@/lib/tipos";
 import { Boton } from "@/components/ui/Boton";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Entrada, Etiqueta, AreaTexto } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
 
@@ -180,7 +181,7 @@ export function FormularioFactura({
   };
 
   return (
-    <form onSubmit={handleGuardar} className="mt-4 border-t border-borde pt-4 space-y-4 pb-4 md:pb-0">
+    <form onSubmit={handleGuardar} className="mt-4 border-t border-borde pt-4 space-y-4 pb-[72px] md:pb-0">
       {/* Resumen de los servicios incluidos */}
       <div className="rounded-md border border-borde bg-fondo p-3 space-y-2">
         <span className="text-sm font-medium text-tinta-suave block">
@@ -311,13 +312,14 @@ export function FormularioFactura({
 
       {errorGuardar && <Aviso variante="peligro">{errorGuardar}</Aviso>}
 
-      {/* Botones de acción */}
-      <div className="sticky bottom-0 -mx-5 -mb-5 border-t border-borde bg-superficie p-3 md:static md:mx-0 md:mb-0 md:border-0 md:bg-transparent md:p-0 md:pt-2 flex flex-wrap items-center justify-between gap-3 z-10">
+      {/* Botón copiar datos ARCA */}
+      <div className="pt-2">
         <Boton
           type="button"
           variante="secundario"
           onClick={handleCopiarArca}
           title="Copia los datos de facturación para cargar en el portal de ARCA"
+          className="w-full sm:w-auto"
         >
           {copiado ? (
             <>
@@ -331,16 +333,17 @@ export function FormularioFactura({
             </>
           )}
         </Boton>
-
-        <div className="flex items-center gap-2">
-          <Boton type="button" variante="secundario" onClick={onCancelar} disabled={guardando}>
-            Cancelar
-          </Boton>
-          <Boton type="submit" disabled={guardando || faltaCuitParaA}>
-            {guardando ? "Guardando..." : "Guardar factura"}
-          </Boton>
-        </div>
       </div>
+
+      {/* Botones de acción */}
+      <BarraAcciones>
+        <Boton type="button" variante="secundario" onClick={onCancelar} disabled={guardando}>
+          Cancelar
+        </Boton>
+        <Boton type="submit" disabled={guardando || faltaCuitParaA}>
+          {guardando ? "Guardando..." : "Guardar factura"}
+        </Boton>
+      </BarraAcciones>
     </form>
   );
 }

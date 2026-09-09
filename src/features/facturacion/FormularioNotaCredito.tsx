@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Factura, TipoFactura } from "@/lib/tipos";
 import { Boton } from "@/components/ui/Boton";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Entrada, Etiqueta, AreaTexto } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
 
@@ -168,7 +169,7 @@ export function FormularioNotaCredito({
   };
 
   return (
-    <form onSubmit={handleGuardar} className="mt-3 p-4 rounded-lg border border-borde bg-fondo space-y-3">
+    <form onSubmit={handleGuardar} className="mt-3 p-4 rounded-lg border border-borde bg-fondo space-y-3 pb-[72px] md:pb-4">
       <div className="flex items-center justify-between pb-2 border-b border-borde">
         <h3 className="text-sm font-semibold text-tinta">
           Registrar nota de crédito ({tipoNC === "NC_A" ? "NC A" : "NC B"})
@@ -253,14 +254,14 @@ export function FormularioNotaCredito({
 
       {errorGuardar && <Aviso variante="peligro">{errorGuardar}</Aviso>}
 
-      <div className="flex items-center justify-end gap-2 pt-1">
+      <BarraAcciones>
         <Boton type="button" variante="secundario" onClick={onCancelar} disabled={guardando}>
           Cancelar
         </Boton>
         <Boton type="submit" disabled={guardando}>
           {guardando ? "Registrando..." : "Registrar nota de crédito"}
         </Boton>
-      </div>
+      </BarraAcciones>
     </form>
   );
 }

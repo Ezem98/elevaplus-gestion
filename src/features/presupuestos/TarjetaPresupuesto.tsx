@@ -13,6 +13,7 @@ import { PresupuestoPDF } from "./PresupuestoPDF";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Campo, Entrada, AreaTexto } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Aviso } from "@/components/ui/Aviso";
 
 export interface TarjetaPresupuestoProps {
@@ -20,6 +21,7 @@ export interface TarjetaPresupuestoProps {
   empresa: Empresa | null;
   alquiler: Alquiler | null;
   onActualizado: () => Promise<void>;
+  ocultarAcciones?: boolean;
 }
 
 function formatearFechaHora(iso: string | null | undefined): string {
@@ -37,6 +39,7 @@ export function TarjetaPresupuesto({
   empresa,
   alquiler,
   onActualizado,
+  ocultarAcciones = false,
 }: TarjetaPresupuestoProps) {
   const [validezDias, setValidezDias] = useState<number>(() => {
     return servicio.presupuesto_validez_dias ?? empresa?.presupuesto_validez_dias ?? 15;
@@ -282,7 +285,7 @@ export function TarjetaPresupuesto({
   };
 
   return (
-    <Tarjeta className="p-5 space-y-4">
+    <Tarjeta className="p-5 space-y-4 pb-[72px] md:pb-5">
       <div className="flex items-center justify-between pb-3 border-b border-borde">
         <h2 className="text-base font-semibold text-tinta">Presupuesto</h2>
         {servicio.presupuesto_generado_at && (
@@ -362,36 +365,38 @@ export function TarjetaPresupuesto({
       )}
 
       {/* Botones de acción */}
-      <div className="flex flex-wrap items-center gap-3 pt-2">
-        <Boton
-          variante="primario"
-          onClick={handleDescargar}
-          disabled={!tieneMonto || procesando}
-        >
-          <Download className="size-4" />
-          {procesando ? "Generando..." : "Descargar PDF"}
-        </Boton>
+      {!ocultarAcciones && (
+        <BarraAcciones>
+          <Boton
+            variante="secundario"
+            onClick={handleEnviarMail}
+            disabled={!tieneMonto || procesando || !tieneEmail}
+            title={!tieneEmail ? "El cliente no tiene email cargado" : undefined}
+          >
+            <Mail className="size-4 text-sky-600" />
+            <span className="hidden sm:inline">Enviar por </span>Mail
+          </Boton>
 
-        <Boton
-          variante="secundario"
-          onClick={handleEnviarWhatsApp}
-          disabled={!tieneMonto || procesando || !tieneTelefono}
-          title={!tieneTelefono ? "El cliente no tiene teléfono cargado" : undefined}
-        >
-          <MessageCircle className="size-4 text-emerald-600" />
-          Enviar por WhatsApp
-        </Boton>
+          <Boton
+            variante="secundario"
+            onClick={handleEnviarWhatsApp}
+            disabled={!tieneMonto || procesando || !tieneTelefono}
+            title={!tieneTelefono ? "El cliente no tiene teléfono cargado" : undefined}
+          >
+            <MessageCircle className="size-4 text-emerald-600" />
+            <span className="hidden sm:inline">Enviar por </span>WhatsApp
+          </Boton>
 
-        <Boton
-          variante="secundario"
-          onClick={handleEnviarMail}
-          disabled={!tieneMonto || procesando || !tieneEmail}
-          title={!tieneEmail ? "El cliente no tiene email cargado" : undefined}
-        >
-          <Mail className="size-4 text-sky-600" />
-          Enviar por mail
-        </Boton>
-      </div>
+          <Boton
+            variante="primario"
+            onClick={handleDescargar}
+            disabled={!tieneMonto || procesando}
+          >
+            <Download className="size-4" />
+            <span className="hidden sm:inline">Descargar </span>PDF
+          </Boton>
+        </BarraAcciones>
+      )}
     </Tarjeta>
   );
 }

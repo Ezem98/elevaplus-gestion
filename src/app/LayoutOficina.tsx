@@ -97,7 +97,7 @@ export function LayoutOficina() {
         </div>
       </aside>
 
-      <main className="flex-1 p-4 pb-24 md:p-8">
+      <main className="flex-1 p-4 pb-[76px] md:p-8 md:pb-8">
         <Outlet />
       </main>
 
@@ -113,14 +113,14 @@ export function LayoutOficina() {
       )}
 
       {/* Navegación inferior en celular */}
-      <nav className="sticky bottom-0 flex border-t border-borde bg-superficie md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-[60px] border-t border-borde bg-superficie pb-[env(safe-area-inset-bottom)] md:hidden">
         {enlacesMovil.map(({ a, texto, Icono }) => (
           <NavLink
             key={a}
             to={a}
             end={a === "/"}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-medium ${isActive ? "text-marca" : "text-tinta-suave"}`
+              `flex flex-1 flex-col items-center justify-center gap-1 py-1 text-[11px] font-medium ${isActive ? "text-marca" : "text-tinta-suave"}`
             }
           >
             <Icono className="h-5 w-5" />

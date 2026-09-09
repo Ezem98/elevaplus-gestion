@@ -7,6 +7,7 @@ import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Campo, Entrada, Selector, AreaTexto } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
 
 export function FormularioCliente() {
   const { id } = useParams<{ id: string }>();
@@ -129,7 +130,7 @@ export function FormularioCliente() {
       />
 
       <Tarjeta className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-4 pb-4 md:pb-0">
+        <form onSubmit={handleSubmit} className="space-y-4 pb-[72px] md:pb-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <Campo etiqueta="Nombre *" id="nombre">
@@ -189,7 +190,7 @@ export function FormularioCliente() {
                 type="tel"
                 value={telefono}
                 onChange={(e) => setTelefono(e.target.value)}
-                placeholder="Ej: 11 6391-6614"
+                placeholder="Ej: 11 3276-5635"
               />
             </Campo>
 
@@ -263,7 +264,7 @@ export function FormularioCliente() {
             <p className="text-sm text-peligro">{errorGuardar}</p>
           )}
 
-          <div className="sticky bottom-0 -mx-6 -mb-6 border-t border-borde bg-superficie p-3 md:static md:mx-0 md:mb-0 md:bg-transparent md:p-0 md:pt-4 flex items-center justify-end gap-3 z-10">
+          <BarraAcciones>
             <Boton
               type="button"
               variante="secundario"
@@ -277,7 +278,7 @@ export function FormularioCliente() {
             >
               Guardar cliente
             </Boton>
-          </div>
+          </BarraAcciones>
         </form>
       </Tarjeta>
     </div>
