@@ -4,6 +4,7 @@ import type { Factura, TipoFactura } from "@/lib/tipos";
 import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Entrada, Etiqueta, AreaTexto } from "@/components/ui/Campo";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Aviso } from "@/components/ui/Aviso";
 
 interface FormularioNotaCreditoProps {
@@ -19,12 +20,12 @@ export function FormularioNotaCredito({
 }: FormularioNotaCreditoProps) {
   const tipoNC: TipoFactura = facturaOriginal.tipo === "A" ? "NC_A" : "NC_B";
 
-  const [puntoVenta, setPuntoVenta] = useState<number>(facturaOriginal.punto_venta);
+  const [puntoVenta, setPuntoVenta] = useState<string>(() => String(facturaOriginal.punto_venta ?? 1));
   const [numero, setNumero] = useState<string>("");
   const [numeroModificadoManualmente, setNumeroModificadoManualmente] = useState(false);
   const [esNumeroSugerido, setEsNumeroSugerido] = useState(false);
   const [fecha, setFecha] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [monto, setMonto] = useState<number>(facturaOriginal.total);
+  const [monto, setMonto] = useState<number | null>(facturaOriginal.total);
   const [motivo, setMotivo] = useState<string>("");
 
   const [guardando, setGuardando] = useState(false);
@@ -71,7 +72,7 @@ export function FormularioNotaCredito({
       setErrorGuardar("El motivo de la nota de crédito es obligatorio.");
       return;
     }
-    if (monto <= 0) {
+    if (!monto || monto <= 0) {
       setErrorGuardar("El monto debe ser mayor a 0.");
       return;
     }
@@ -187,7 +188,7 @@ export function FormularioNotaCredito({
             type="number"
             min={1}
             value={puntoVenta}
-            onChange={(e) => setPuntoVenta(parseInt(e.target.value, 10) || 1)}
+            onChange={(e) => setPuntoVenta(e.target.value)}
             required
           />
         </div>
@@ -228,13 +229,10 @@ export function FormularioNotaCredito({
 
         <div>
           <Etiqueta htmlFor="nc_monto">Monto total</Etiqueta>
-          <Entrada
+          <EntradaMonto
             id="nc_monto"
-            type="number"
-            step="0.01"
-            min={0.01}
-            value={monto}
-            onChange={(e) => setMonto(parseFloat(e.target.value) || 0)}
+            valor={monto}
+            onChange={setMonto}
             required
           />
         </div>

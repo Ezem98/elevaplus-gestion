@@ -9,6 +9,7 @@ import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { AreaTexto, Campo, Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Aviso } from "@/components/ui/Aviso";
 
 export function PaginaConfiguracion() {
@@ -29,8 +30,8 @@ export function PaginaConfiguracion() {
 
   // --- Estado Presupuestos ---
   const [validezDias, setValidezDias] = useState<number | string>(15);
-  const [precioEsperaCamion, setPrecioEsperaCamion] = useState<number | string>("");
-  const [precioEsperaAutoelevador, setPrecioEsperaAutoelevador] = useState<number | string>("");
+  const [precioEsperaCamion, setPrecioEsperaCamion] = useState<number | null>(null);
+  const [precioEsperaAutoelevador, setPrecioEsperaAutoelevador] = useState<number | null>(null);
   const [textoEsperaAutoelevador, setTextoEsperaAutoelevador] = useState("");
   const [condicionesExtra, setCondicionesExtra] = useState("");
   const [guardandoPresupuesto, setGuardandoPresupuesto] = useState(false);
@@ -47,10 +48,10 @@ export function PaginaConfiguracion() {
     const dd = String(hoy.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   });
-  const [nuevoPrecioKm, setNuevoPrecioKm] = useState<number | string>("");
-  const [nuevoMontoMinimo, setNuevoMontoMinimo] = useState<number | string>("");
+  const [nuevoPrecioKm, setNuevoPrecioKm] = useState<number | null>(null);
+  const [nuevoMontoMinimo, setNuevoMontoMinimo] = useState<number | null>(null);
   const [nuevoKmMinimo, setNuevoKmMinimo] = useState<number | string>("");
-  const [nuevoPrecioGasoil, setNuevoPrecioGasoil] = useState<number | string>("");
+  const [nuevoPrecioGasoil, setNuevoPrecioGasoil] = useState<number | null>(null);
   const [guardandoParametros, setGuardandoParametros] = useState(false);
   const [mensajeParametros, setMensajeParametros] = useState<string | null>(null);
   const [errorParametros, setErrorParametros] = useState<string | null>(null);
@@ -74,8 +75,8 @@ export function PaginaConfiguracion() {
       setInstagram(emp.instagram || "");
 
       setValidezDias(emp.presupuesto_validez_dias ?? 15);
-      setPrecioEsperaCamion(emp.precio_hora_espera_camion ?? "");
-      setPrecioEsperaAutoelevador(emp.precio_hora_espera_autoelevador ?? "");
+      setPrecioEsperaCamion(emp.precio_hora_espera_camion ?? null);
+      setPrecioEsperaAutoelevador(emp.precio_hora_espera_autoelevador ?? null);
       setTextoEsperaAutoelevador(emp.presupuesto_espera_autoelevador || "");
       setCondicionesExtra(emp.presupuesto_condiciones_extra || "");
     }
@@ -94,10 +95,10 @@ export function PaginaConfiguracion() {
 
     if (lista.length > 0) {
       const vigente = lista[0];
-      setNuevoPrecioKm(vigente.precio_km);
-      setNuevoMontoMinimo(vigente.monto_minimo);
+      setNuevoPrecioKm(vigente.precio_km ?? null);
+      setNuevoMontoMinimo(vigente.monto_minimo ?? null);
       setNuevoKmMinimo(vigente.km_minimo);
-      setNuevoPrecioGasoil(vigente.precio_gasoil ?? "");
+      setNuevoPrecioGasoil(vigente.precio_gasoil ?? null);
     }
     setCargandoParametros(false);
   };
@@ -146,22 +147,12 @@ export function PaginaConfiguracion() {
     setGuardandoPresupuesto(true);
     setErrorPresupuesto(null);
 
-    const parsedPrecioCamion =
-      precioEsperaCamion !== "" && !isNaN(Number(precioEsperaCamion))
-        ? Number(precioEsperaCamion)
-        : null;
-
-    const parsedPrecioAutoelevador =
-      precioEsperaAutoelevador !== "" && !isNaN(Number(precioEsperaAutoelevador))
-        ? Number(precioEsperaAutoelevador)
-        : null;
-
     const { error } = await supabase
       .from("empresa")
       .update({
         presupuesto_validez_dias: Math.max(1, Math.floor(Number(validezDias) || 15)),
-        precio_hora_espera_camion: parsedPrecioCamion,
-        precio_hora_espera_autoelevador: parsedPrecioAutoelevador,
+        precio_hora_espera_camion: precioEsperaCamion,
+        precio_hora_espera_autoelevador: precioEsperaAutoelevador,
         presupuesto_espera_autoelevador: textoEsperaAutoelevador.trim(),
         presupuesto_condiciones_extra: condicionesExtra.trim() || null,
         updated_at: new Date().toISOString(),
@@ -186,19 +177,14 @@ export function PaginaConfiguracion() {
     setGuardandoParametros(true);
     setErrorParametros(null);
 
-    const parsedGasoil =
-      nuevoPrecioGasoil !== "" && !isNaN(Number(nuevoPrecioGasoil))
-        ? Number(nuevoPrecioGasoil)
-        : null;
-
     const { error } = await supabase
       .from("parametros_cotizador")
       .insert({
         vigente_desde: nuevoVigenteDesde,
-        precio_km: Number(nuevoPrecioKm) || 0,
-        monto_minimo: Number(nuevoMontoMinimo) || 0,
+        precio_km: nuevoPrecioKm ?? 0,
+        monto_minimo: nuevoMontoMinimo ?? 0,
         km_minimo: Number(nuevoKmMinimo) || 1,
-        precio_gasoil: parsedGasoil,
+        precio_gasoil: nuevoPrecioGasoil,
       });
 
     setGuardandoParametros(false);
@@ -218,14 +204,8 @@ export function PaginaConfiguracion() {
   const empresaPreview = {
     presupuesto_espera_autoelevador: textoEsperaAutoelevador,
     presupuesto_espera_camion: null,
-    precio_hora_espera_camion:
-      precioEsperaCamion !== "" && !isNaN(Number(precioEsperaCamion))
-        ? Number(precioEsperaCamion)
-        : null,
-    precio_hora_espera_autoelevador:
-      precioEsperaAutoelevador !== "" && !isNaN(Number(precioEsperaAutoelevador))
-        ? Number(precioEsperaAutoelevador)
-        : null,
+    precio_hora_espera_camion: precioEsperaCamion,
+    precio_hora_espera_autoelevador: precioEsperaAutoelevador,
   };
 
   const diasValidezPreview = Math.max(1, Math.floor(Number(validezDias) || 15));
@@ -419,14 +399,11 @@ export function PaginaConfiguracion() {
 
             <div>
               <Etiqueta htmlFor="pres-espera-camion">Precio hora de espera del camión</Etiqueta>
-              <Entrada
+              <EntradaMonto
                 id="pres-espera-camion"
-                type="number"
-                min="0"
-                step="any"
                 placeholder="Opcional"
-                value={precioEsperaCamion}
-                onChange={(e) => setPrecioEsperaCamion(e.target.value)}
+                valor={precioEsperaCamion}
+                onChange={setPrecioEsperaCamion}
               />
               <p className="mt-1 text-xs text-tinta-suave">
                 Si está vacío, el presupuesto no menciona la espera en traslados
@@ -435,14 +412,11 @@ export function PaginaConfiguracion() {
 
             <div>
               <Etiqueta htmlFor="pres-espera-autoelevador">Precio hora de espera del autoelevador</Etiqueta>
-              <Entrada
+              <EntradaMonto
                 id="pres-espera-autoelevador"
-                type="number"
-                min="0"
-                step="any"
                 placeholder="Opcional"
-                value={precioEsperaAutoelevador}
-                onChange={(e) => setPrecioEsperaAutoelevador(e.target.value)}
+                valor={precioEsperaAutoelevador}
+                onChange={setPrecioEsperaAutoelevador}
               />
               <p className="mt-1 text-xs text-tinta-suave">
                 Si está vacío se usa el texto de abajo
@@ -582,27 +556,21 @@ export function PaginaConfiguracion() {
 
               <div>
                 <Etiqueta htmlFor="param-precio-km">Precio por km</Etiqueta>
-                <Entrada
+                <EntradaMonto
                   id="param-precio-km"
-                  type="number"
-                  min="0"
-                  step="any"
                   required
-                  value={nuevoPrecioKm}
-                  onChange={(e) => setNuevoPrecioKm(e.target.value)}
+                  valor={nuevoPrecioKm}
+                  onChange={setNuevoPrecioKm}
                 />
               </div>
 
               <div>
                 <Etiqueta htmlFor="param-minimo">Mínimo</Etiqueta>
-                <Entrada
+                <EntradaMonto
                   id="param-minimo"
-                  type="number"
-                  min="0"
-                  step="any"
                   required
-                  value={nuevoMontoMinimo}
-                  onChange={(e) => setNuevoMontoMinimo(e.target.value)}
+                  valor={nuevoMontoMinimo}
+                  onChange={setNuevoMontoMinimo}
                 />
               </div>
 
@@ -621,14 +589,11 @@ export function PaginaConfiguracion() {
 
               <div>
                 <Etiqueta htmlFor="param-gasoil">Gasoil</Etiqueta>
-                <Entrada
+                <EntradaMonto
                   id="param-gasoil"
-                  type="number"
-                  min="0"
-                  step="any"
                   placeholder="Opcional"
-                  value={nuevoPrecioGasoil}
-                  onChange={(e) => setNuevoPrecioGasoil(e.target.value)}
+                  valor={nuevoPrecioGasoil}
+                  onChange={setNuevoPrecioGasoil}
                 />
               </div>
             </div>

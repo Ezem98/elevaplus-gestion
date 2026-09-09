@@ -16,6 +16,7 @@ import { formatearPesos, formatearFecha, formatearMes } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
 import { Campo, Entrada, Selector } from "@/components/ui/Campo";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { ChipMovimiento } from "@/components/ui/Chip";
 import { MenuAcciones, type AccionMenu } from "@/components/ui/MenuAcciones";
@@ -95,13 +96,13 @@ export function PaginaCaja() {
 
   // Edición inline de saldo inicial en Cuentas
   const [editandoCuentaId, setEditandoCuentaId] = useState<string | null>(null);
-  const [valorSaldoInicial, setValorSaldoInicial] = useState<string>("");
+  const [valorSaldoInicial, setValorSaldoInicial] = useState<number | null>(null);
   const [guardandoSaldoInicial, setGuardandoSaldoInicial] = useState(false);
 
   // Alta de nueva cuenta
   const [creandoCuenta, setCreandoCuenta] = useState(false);
   const [nombreNuevaCuenta, setNombreNuevaCuenta] = useState("");
-  const [saldoInicialNuevaCuenta, setSaldoInicialNuevaCuenta] = useState("");
+  const [saldoInicialNuevaCuenta, setSaldoInicialNuevaCuenta] = useState<number | null>(null);
   const [guardandoNuevaCuenta, setGuardandoNuevaCuenta] = useState(false);
 
   // 12 meses para el selector
@@ -303,7 +304,7 @@ export function PaginaCaja() {
   const guardarSaldoInicialInline = async (cuentaId: string) => {
     setGuardandoSaldoInicial(true);
     try {
-      const nuevo = Number(valorSaldoInicial) || 0;
+      const nuevo = valorSaldoInicial ?? 0;
       const { error } = await supabase
         .from("cuentas")
         .update({ saldo_inicial: nuevo })
@@ -324,7 +325,7 @@ export function PaginaCaja() {
     if (!nombreNuevaCuenta.trim()) return;
     setGuardandoNuevaCuenta(true);
     try {
-      const saldoInicial = Number(saldoInicialNuevaCuenta) || 0;
+      const saldoInicial = saldoInicialNuevaCuenta ?? 0;
       const { error } = await supabase.from("cuentas").insert({
         nombre: nombreNuevaCuenta.trim(),
         saldo_inicial: saldoInicial,
@@ -332,7 +333,7 @@ export function PaginaCaja() {
       });
       if (error) throw error;
       setNombreNuevaCuenta("");
-      setSaldoInicialNuevaCuenta("");
+      setSaldoInicialNuevaCuenta(null);
       setCreandoCuenta(false);
       await cargarCatalogos();
     } catch (err: any) {
@@ -549,6 +550,15 @@ export function PaginaCaja() {
       {(tipoFormulario || movimientoAEditar) && (
         <FormularioMovimiento
           tipoInicial={tipoFormulario ?? movimientoAEditar?.tipo ?? "egreso"}
+          ambitoInicial={
+            movimientoAEditar
+              ? movimientoAEditar.ambito
+              : ambitoFiltro === "empresa"
+              ? "empresa"
+              : ambitoFiltro === "personal"
+              ? "personal"
+              : null
+          }
           movimientoAEditar={movimientoAEditar}
           onGuardado={() => {
             setTipoFormulario(null);
@@ -1061,13 +1071,10 @@ export function PaginaCaja() {
                     />
                   </Campo>
                   <Campo etiqueta="Saldo inicial" id="saldo_inicial_cuenta">
-                    <Entrada
+                    <EntradaMonto
                       id="saldo_inicial_cuenta"
-                      type="number"
-                      step="any"
-                      placeholder="0.00"
-                      value={saldoInicialNuevaCuenta}
-                      onChange={(e) => setSaldoInicialNuevaCuenta(e.target.value)}
+                      valor={saldoInicialNuevaCuenta}
+                      onChange={setSaldoInicialNuevaCuenta}
                     />
                   </Campo>
                 </div>
@@ -1111,14 +1118,14 @@ export function PaginaCaja() {
                     <span className="text-xs text-tinta-suave block mb-1">Saldo inicial</span>
                     {estaEditando ? (
                       <div className="flex items-center gap-2">
-                        <Entrada
-                          type="number"
-                          step="any"
-                          value={valorSaldoInicial}
-                          onChange={(e) => setValorSaldoInicial(e.target.value)}
-                          className="h-8 text-xs tabular-nums"
-                          autoFocus
-                        />
+                        <div className="w-36">
+                          <EntradaMonto
+                            valor={valorSaldoInicial}
+                            onChange={setValorSaldoInicial}
+                            className="h-8 text-xs"
+                            autoFocus
+                          />
+                        </div>
                         <button
                           type="button"
                           onClick={() => guardarSaldoInicialInline(cta.id)}
@@ -1147,7 +1154,7 @@ export function PaginaCaja() {
                             type="button"
                             onClick={() => {
                               setEditandoCuentaId(cta.id);
-                              setValorSaldoInicial(String(cta.saldo_inicial));
+                              setValorSaldoInicial(cta.saldo_inicial ?? null);
                             }}
                             className="text-xs text-marca hover:underline flex items-center gap-1"
                           >

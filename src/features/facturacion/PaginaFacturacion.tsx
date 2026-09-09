@@ -7,7 +7,7 @@ import { ETIQUETA_CONDICION_IVA, ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearPesos, formatearFecha, formatearNumeroFactura, formatearMes } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
-import { Entrada } from "@/components/ui/Campo";
+import { Entrada, Selector } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { MenuAcciones } from "@/components/ui/MenuAcciones";
@@ -69,6 +69,36 @@ export function PaginaFacturacion() {
   const [comprobantesMes, setComprobantesMes] = useState<Record<string, MovimientoCaja[]>>({});
   const [cargandoComprobantesMes, setCargandoComprobantesMes] = useState(false);
   const [exportandoMes, setExportandoMes] = useState<string | null>(null);
+
+  const opcionesMesesCsv = useMemo(() => {
+    const lista: { valor: string; etiqueta: string }[] = [];
+    const hoy = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const valor = `${yyyy}-${mm}`;
+      lista.push({
+        valor,
+        etiqueta: formatearMes(valor),
+      });
+    }
+    return lista;
+  }, []);
+
+  const mesAnteriorDefecto = useMemo(() => {
+    const hoy = new Date();
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${yyyy}-${mm}`;
+  }, []);
+
+  const [mesSeleccionadoCsv, setMesSeleccionadoCsv] = useState<string>(mesAnteriorDefecto);
+
+  const hayDatosMesSeleccionado = useMemo(() => {
+    return ivaMensual.some((fila) => fila.mes.slice(0, 7) === mesSeleccionadoCsv);
+  }, [ivaMensual, mesSeleccionadoCsv]);
 
   // ==================== Cargar Pendientes ====================
   const cargarPendientes = useCallback(async () => {
@@ -203,7 +233,7 @@ export function PaginaFacturacion() {
   };
 
   // ==================== Exportar CSV para el contador ====================
-  const exportarCsvParaContador = async (mesIso: string) => {
+  const exportarCsvIvaContador = async (mesIso: string) => {
     const mesKey = mesIso.slice(0, 7);
     setExportandoMes(mesKey);
 
@@ -1097,6 +1127,36 @@ export function PaginaFacturacion() {
             </Tarjeta>
           </div>
 
+          {/* Encabezado con selector de mes y exportación para el contador */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h3 className="text-base sm:text-lg font-semibold text-tinta">Liquidación mensual</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <Selector
+                value={mesSeleccionadoCsv}
+                onChange={(e) => setMesSeleccionadoCsv(e.target.value)}
+                className="w-auto"
+              >
+                {opcionesMesesCsv.map((opt) => (
+                  <option key={opt.valor} value={opt.valor}>
+                    {opt.etiqueta}
+                  </option>
+                ))}
+              </Selector>
+              <Boton
+                type="button"
+                variante="secundario"
+                disabled={!hayDatosMesSeleccionado || exportandoMes !== null}
+                onClick={() => exportarCsvIvaContador(mesSeleccionadoCsv)}
+                title={!hayDatosMesSeleccionado ? "Sin datos calculados para este mes" : undefined}
+              >
+                <Download className="size-4 mr-1.5" />
+                {exportandoMes === mesSeleccionadoCsv
+                  ? "Exportando..."
+                  : "Exportar CSV para el contador"}
+              </Boton>
+            </div>
+          </div>
+
           {/* Lista y desglose de IVA mensual */}
           {cargandoIva ? (
             <div className="py-12 text-center text-tinta-suave">
@@ -1115,7 +1175,6 @@ export function PaginaFacturacion() {
                   const estaExpandido = mesExpandidoIva === mesKey;
                   const comprobantes = comprobantesMes[mesKey] || [];
                   const pos = Number(fila.posicion) || 0;
-                  const exportandoEste = exportandoMes === mesKey;
 
                   return (
                     <div key={fila.mes} className="p-4 space-y-3">
@@ -1159,22 +1218,6 @@ export function PaginaFacturacion() {
                         </div>
                       </div>
 
-                      <div className="pt-1">
-                        <Boton
-                          type="button"
-                          variante="secundario"
-                          disabled={exportandoEste}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            exportarCsvParaContador(fila.mes);
-                          }}
-                          className="w-full"
-                        >
-                          <Download className="size-3.5 mr-1.5" />
-                          {exportandoEste ? "Exportando..." : "Exportar CSV para el contador"}
-                        </Boton>
-                      </div>
-
                       {estaExpandido && (
                         <div className="pt-3 border-t border-borde mt-2 space-y-2">
                           <div className="text-xs font-semibold text-tinta uppercase tracking-wider">
@@ -1186,7 +1229,7 @@ export function PaginaFacturacion() {
                             </div>
                           ) : comprobantes.length === 0 ? (
                             <div className="py-3 text-xs text-tinta-suave">
-                              No hay comprobantes de compra registrados en este período.
+                              Sin comprobantes de compra este mes.
                             </div>
                           ) : (
                             <div className="divide-y divide-borde/60">
@@ -1242,7 +1285,6 @@ export function PaginaFacturacion() {
                       <th className="p-3.5 text-right">IVA ventas (débito)</th>
                       <th className="p-3.5 text-right">IVA compras (crédito)</th>
                       <th className="p-3.5 text-right">Posición</th>
-                      <th className="p-3.5 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-borde">
@@ -1251,7 +1293,6 @@ export function PaginaFacturacion() {
                       const estaExpandido = mesExpandidoIva === mesKey;
                       const comprobantes = comprobantesMes[mesKey] || [];
                       const pos = Number(fila.posicion) || 0;
-                      const exportandoEste = exportandoMes === mesKey;
 
                       return (
                         <Fragment key={fila.mes}>
@@ -1282,25 +1323,11 @@ export function PaginaFacturacion() {
                                   : `${formatearPesos(Math.abs(pos))} a favor`}
                               </span>
                             </td>
-                            <td
-                              className="p-3.5 text-right"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Boton
-                                type="button"
-                                variante="secundario"
-                                disabled={exportandoEste}
-                                onClick={() => exportarCsvParaContador(fila.mes)}
-                              >
-                                <Download className="size-3.5 mr-1.5" />
-                                {exportandoEste ? "Exportando..." : "Exportar CSV para el contador"}
-                              </Boton>
-                            </td>
                           </tr>
 
                           {estaExpandido && (
                             <tr className="bg-fondo/30">
-                              <td colSpan={6} className="p-4 border-t border-borde">
+                              <td colSpan={5} className="p-4 border-t border-borde">
                                 <div className="space-y-3 pl-6">
                                   <div className="flex items-center justify-between">
                                     <h4 className="text-xs font-semibold text-tinta uppercase tracking-wider">
@@ -1317,7 +1344,7 @@ export function PaginaFacturacion() {
                                     </div>
                                   ) : comprobantes.length === 0 ? (
                                     <div className="py-3 text-xs text-tinta-suave">
-                                      No hay comprobantes de compra registrados en este período.
+                                      Sin comprobantes de compra este mes.
                                     </div>
                                   ) : (
                                     <div className="rounded border border-borde overflow-hidden bg-superficie">

@@ -16,6 +16,7 @@ import {
 } from "@/lib/tipos";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Campo, Entrada, AreaTexto, Selector, Etiqueta } from "@/components/ui/Campo";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Aviso } from "@/components/ui/Aviso";
@@ -80,7 +81,7 @@ export function FormularioServicio() {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [unidad, setUnidad] = useState<UnidadAlquiler>("dia");
-  const [precioUnidad, setPrecioUnidad] = useState<number | string>("");
+  const [precioUnidad, setPrecioUnidad] = useState<number | null>(null);
   const [renovacionAutomatica, setRenovacionAutomatica] = useState(false);
   const [alertarDiasAntes, setAlertarDiasAntes] = useState<number | string>(5);
 
@@ -91,7 +92,7 @@ export function FormularioServicio() {
   const [descripcion, setDescripcion] = useState("");
   const [fechaProgramada, setFechaProgramada] = useState("");
   const [horaProgramada, setHoraProgramada] = useState("");
-  const [monto, setMonto] = useState<number | string>("");
+  const [monto, setMonto] = useState<number | null>(null);
   const [montoEditadoManualmente, setMontoEditadoManualmente] = useState(false);
   const [aplicaIva, setAplicaIva] = useState(true);
   const [remito, setRemito] = useState("");
@@ -155,14 +156,13 @@ export function FormularioServicio() {
     nuevaDesde: string,
     nuevaHasta: string,
     nuevaUnidad: UnidadAlquiler,
-    nuevoPrecio: number | string
+    nuevoPrecio: number | null
   ) => {
     if (montoEditadoManualmente) return;
     const dias = calcularDiasAlquiler(nuevaDesde, nuevaHasta);
     const cant = calcularCantidadAlquiler(dias, nuevaUnidad);
-    if (cant > 0 && nuevoPrecio !== "") {
-      const precioNum = Number(nuevoPrecio) || 0;
-      setMonto(precioNum * cant);
+    if (cant > 0 && nuevoPrecio != null) {
+      setMonto(nuevoPrecio * cant);
     }
   };
 
@@ -182,42 +182,35 @@ export function FormularioServicio() {
       return;
     }
 
-    if ((tipo === "mantenimiento" || tipo === "otro") && !descripcion.trim()) {
-      setErrorValidacion("La descripción es obligatoria para este tipo de servicio.");
+    if (!descripcion.trim() && tipo !== "alquiler_periodo") {
+      setErrorValidacion("Ingresá una descripción.");
       return;
     }
 
+    if (tipo === "traslado") {
+      if (!origen.trim() || !destino.trim()) {
+        setErrorValidacion("Origen y destino son obligatorios para traslados.");
+        return;
+      }
+      if (!carga.trim()) {
+        setErrorValidacion("Detallá qué se traslada.");
+        return;
+      }
+    }
+
     if (tipo === "alquiler_periodo") {
-      if (!maquinaId) {
-        setErrorValidacion("Seleccioná una máquina para el alquiler.");
-        return;
-      }
-      if (!fechaDesde) {
-        setErrorValidacion("Ingresá la fecha de inicio del alquiler.");
-        return;
-      }
-      if (!fechaHasta) {
-        setErrorValidacion("Ingresá la fecha de fin del alquiler.");
+      if (!fechaDesde || !fechaHasta) {
+        setErrorValidacion("Las fechas de inicio y fin son obligatorias.");
         return;
       }
       if (fechaHasta < fechaDesde) {
-        setErrorValidacion("La fecha de fin debe ser igual o posterior a la fecha de inicio.");
+        setErrorValidacion("La fecha de fin no puede ser anterior a la de inicio.");
         return;
       }
-      if (precioUnidad === "" || Number(precioUnidad) < 0) {
-        setErrorValidacion("Ingresá el precio por unidad del alquiler.");
+      if (!precioUnidad || precioUnidad <= 0) {
+        setErrorValidacion("Ingresá un precio por unidad válido.");
         return;
       }
-    }
-
-    if (tipo === "alquiler_hora" && !maquinaId) {
-      setErrorValidacion("Seleccioná una máquina para el alquiler por hora.");
-      return;
-    }
-
-    if (monto === "" || isNaN(Number(monto)) || Number(monto) < 0) {
-      setErrorValidacion("Ingresá un monto válido para el servicio.");
-      return;
     }
 
     if (estadoInicial === "programado" && !fechaProgramada) {
@@ -233,7 +226,7 @@ export function FormularioServicio() {
         tipo,
         cliente_id: clienteSinDefinir ? null : (clienteId || null),
         creado_por: session?.user?.id ?? null,
-        monto: Number(monto) || 0,
+        monto: monto ?? 0,
         aplica_iva: aplicaIva,
         fecha_programada: fechaProgramada || null,
         hora_programada: horaProgramada ? (horaProgramada.length === 5 ? `${horaProgramada}:00` : horaProgramada) : null,
@@ -309,7 +302,7 @@ export function FormularioServicio() {
           fecha_hasta: fechaHasta,
           unidad,
           cantidad: cantidadCalculada || 1,
-          precio_unidad: Number(precioUnidad) || 0,
+          precio_unidad: precioUnidad ?? 0,
           renovacion_automatica: renovacionAutomatica,
           alertar_dias_antes: Number(alertarDiasAntes) || 5,
         });
@@ -699,23 +692,14 @@ export function FormularioServicio() {
                 </Campo>
 
                 <Campo etiqueta="Precio por unidad *" id="precio_unidad">
-                  <div className="relative flex items-center">
-                    <span className="pointer-events-none absolute left-3 text-sm text-tinta-suave">$</span>
-                    <Entrada
-                      id="precio_unidad"
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={precioUnidad}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setPrecioUnidad(val);
-                        recalcularMonto(fechaDesde, fechaHasta, unidad, val);
-                      }}
-                      placeholder="0"
-                      className="pl-7"
-                    />
-                  </div>
+                  <EntradaMonto
+                    id="precio_unidad"
+                    valor={precioUnidad}
+                    onChange={(val) => {
+                      setPrecioUnidad(val);
+                      recalcularMonto(fechaDesde, fechaHasta, unidad, val);
+                    }}
+                  />
                 </Campo>
               </div>
 
@@ -824,22 +808,14 @@ export function FormularioServicio() {
 
             <div>
               <Campo etiqueta="Monto *" id="monto">
-                <div className="relative flex items-center">
-                  <span className="pointer-events-none absolute left-3 text-sm text-tinta-suave">$</span>
-                  <Entrada
-                    id="monto"
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={monto}
-                    onChange={(e) => {
-                      setMonto(e.target.value);
-                      setMontoEditadoManualmente(true);
-                    }}
-                    placeholder="0"
-                    className="pl-7"
-                  />
-                </div>
+                <EntradaMonto
+                  id="monto"
+                  valor={monto}
+                  onChange={(val) => {
+                    setMonto(val);
+                    setMontoEditadoManualmente(true);
+                  }}
+                />
               </Campo>
 
               {tipo === "traslado" && (

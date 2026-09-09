@@ -75,3 +75,69 @@ export function formatearMes(periodo: string | null | undefined): string {
   const idx = parseInt(mes, 10) - 1;
   return `${meses[idx] ?? mes} ${año}`;
 }
+
+export function parsearMonto(texto: string | null | undefined): number | null {
+  if (!texto) return null;
+  const limpio = texto.replace(/[^\d,]/g, "");
+  if (!/\d/.test(limpio)) return null;
+
+  let procesado = limpio;
+  if (procesado.startsWith(",")) {
+    procesado = "0" + procesado;
+  }
+
+  const partes = procesado.split(",");
+  const parteEntera = partes[0] || "0";
+  const tieneComa = partes.length > 1;
+  const parteDecimal = tieneComa ? partes.slice(1).join("").slice(0, 2) : "";
+
+  const normalizado = parteDecimal.length > 0
+    ? `${parteEntera}.${parteDecimal}`
+    : parteEntera;
+
+  const num = parseFloat(normalizado);
+  return isNaN(num) ? null : num;
+}
+
+export function formatearMontoEntrada(numero: number | null | undefined): string {
+  if (numero == null || isNaN(numero)) return "";
+  
+  const partes = numero.toString().split(".");
+  const enteroStr = partes[0];
+  const decimalStr = partes[1] ? partes[1].slice(0, 2) : "";
+
+  const enteroFormateado = enteroStr.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  if (decimalStr.length > 0) {
+    return `${enteroFormateado},${decimalStr}`;
+  }
+  return enteroFormateado;
+}
+
+export function formatearTextoMonto(texto: string): string {
+  if (!texto) return "";
+
+  const soloValidos = texto.replace(/[^\d,]/g, "");
+  if (!soloValidos) return "";
+
+  let procesado = soloValidos;
+  if (procesado.startsWith(",")) {
+    procesado = "0" + procesado;
+  }
+
+  const partes = procesado.split(",");
+  let parteEntera = partes[0];
+  const tieneComa = partes.length > 1;
+  const parteDecimal = tieneComa ? partes.slice(1).join("").slice(0, 2) : "";
+
+  if (parteEntera.length > 1 && parteEntera.startsWith("0")) {
+    parteEntera = parteEntera.replace(/^0+/, "") || "0";
+  }
+
+  const enteroFormateado = parteEntera.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  if (tieneComa) {
+    return `${enteroFormateado},${parteDecimal}`;
+  }
+  return enteroFormateado;
+}

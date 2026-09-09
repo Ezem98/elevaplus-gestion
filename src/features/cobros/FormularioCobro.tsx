@@ -7,6 +7,7 @@ import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Campo, Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Aviso } from "@/components/ui/Aviso";
 
 export interface ServicioCobroItem {
@@ -70,8 +71,8 @@ export function FormularioCobro({
     (acc, s) => acc + Math.max(0, (s.monto ?? 0) - s.monto_cobrado),
     0
   );
-  const [monto, setMonto] = useState<string>(
-    sumaSaldosInicial > 0 ? String(sumaSaldosInicial) : ""
+  const [monto, setMonto] = useState<number | null>(
+    sumaSaldosInicial > 0 ? sumaSaldosInicial : null
   );
 
   // Transferencia
@@ -196,7 +197,7 @@ export function FormularioCobro({
     };
   }, [medio, cuentas]);
 
-  const montoNum = Number(monto) || 0;
+  const montoNum = monto ?? 0;
   const esMultiServicio = servicios.length > 1;
   const esUnSoloServicio = servicios.length === 1;
 
@@ -420,15 +421,11 @@ export function FormularioCobro({
         {/* Monto y Fecha */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Campo etiqueta="Monto" id="monto_cobro">
-            <Entrada
+            <EntradaMonto
               id="monto_cobro"
-              type="number"
-              step="any"
-              min="0.01"
               required
-              placeholder="0.00"
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
+              valor={monto}
+              onChange={setMonto}
             />
           </Campo>
           <Campo etiqueta="Fecha" id="fecha_cobro">
@@ -565,20 +562,15 @@ export function FormularioCobro({
                         </span>
                       </div>
                       <div className="w-32">
-                        <Entrada
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={aAplicar === 0 ? "" : aAplicar}
-                          placeholder="0"
-                          onChange={(e) => {
-                            const val = Number(e.target.value) || 0;
+                        <EntradaMonto
+                          valor={aAplicar === 0 ? null : aAplicar}
+                          onChange={(val) => {
                             setAplicaciones((prev) => ({
                               ...prev,
-                              [s.id]: val,
+                              [s.id]: val ?? 0,
                             }));
                           }}
-                          className="h-8 text-right tabular-nums text-xs"
+                          className="h-8 text-right text-xs"
                         />
                       </div>
                     </div>

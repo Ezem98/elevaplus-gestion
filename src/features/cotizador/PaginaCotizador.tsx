@@ -7,6 +7,7 @@ import { cotizar } from "@/lib/cotizador";
 import { formatearPesos } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Campo, Entrada, Selector } from "@/components/ui/Campo";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Boton } from "@/components/ui/Boton";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 
@@ -25,12 +26,12 @@ export function PaginaCotizador() {
   const [params, setParams] = useState<ParametrosCotizador | null>(null);
   const [clientes, setClientes] = useState<ClienteOpcion[]>([]);
 
-  const [km, setKm] = useState(30);
+  const [km, setKm] = useState<string>("30");
   const [vehiculoId, setVehiculoId] = useState("");
   const [cargaMayor50, setCargaMayor50] = useState(false);
   const [idaYVuelta, setIdaYVuelta] = useState(true);
   const [clienteId, setClienteId] = useState("");
-  const [importeManual, setImporteManual] = useState<string>("");
+  const [importeManual, setImporteManual] = useState<number | null>(null);
 
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +79,7 @@ export function PaginaCotizador() {
     );
   }, [km, vehiculo, cargaMayor50, idaYVuelta, params]);
 
-  const importeFinal = importeManual !== "" ? Number(importeManual) : desglose?.importe ?? null;
+  const importeFinal = importeManual != null ? importeManual : desglose?.importe ?? null;
 
   const handleCrearPresupuesto = async () => {
     if (importeFinal == null) return;
@@ -154,7 +155,7 @@ export function PaginaCotizador() {
                 min={0}
                 step={0.5}
                 value={km}
-                onChange={(e) => setKm(Number(e.target.value))}
+                onChange={(e) => setKm(e.target.value)}
                 className="pr-10"
               />
               <span className="pointer-events-none absolute right-3 text-sm text-tinta-suave">
@@ -235,12 +236,11 @@ export function PaginaCotizador() {
 
           <div className="mt-auto pt-5">
             <Campo etiqueta="Ajustar a mano (opcional)" id="manual">
-              <Entrada
+              <EntradaMonto
                 id="manual"
-                type="number"
-                placeholder={String(desglose?.importe ?? "")}
-                value={importeManual}
-                onChange={(e) => setImporteManual(e.target.value)}
+                placeholder={desglose ? String(desglose.importe) : ""}
+                valor={importeManual}
+                onChange={setImporteManual}
               />
             </Campo>
             <p className="mt-1 text-xs text-tinta-suave">Podés redondear o ingresar un valor acordado</p>

@@ -15,10 +15,12 @@ import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Campo, Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Aviso } from "@/components/ui/Aviso";
 
 interface PropsFormularioMovimiento {
   tipoInicial: TipoMovimiento;
+  ambitoInicial?: AmbitoMovimiento | null;
   movimientoAEditar?: MovimientoCaja | null;
   onGuardado: () => void;
   onCancelar: () => void;
@@ -68,6 +70,7 @@ function Opcion({
 
 export function FormularioMovimiento({
   tipoInicial,
+  ambitoInicial,
   movimientoAEditar,
   onGuardado,
   onCancelar,
@@ -78,9 +81,10 @@ export function FormularioMovimiento({
   const tipo = movimientoAEditar ? movimientoAEditar.tipo : tipoInicial;
   const esEdicion = !!movimientoAEditar;
 
-  const [ambito, setAmbito] = useState<AmbitoMovimiento>(
-    movimientoAEditar?.ambito ?? "empresa"
+  const [ambito, setAmbito] = useState<AmbitoMovimiento | null>(
+    movimientoAEditar?.ambito ?? (tipo === "transferencia" ? null : ambitoInicial ?? null)
   );
+  const [errorAmbito, setErrorAmbito] = useState<string | null>(null);
   const [fecha, setFecha] = useState(movimientoAEditar?.fecha ?? fechaHoy);
   const [categoriaId, setCategoriaId] = useState<string>(
     movimientoAEditar?.categoria_id ?? ""
@@ -91,8 +95,8 @@ export function FormularioMovimiento({
   const [descripcion, setDescripcion] = useState(
     movimientoAEditar?.descripcion ?? ""
   );
-  const [monto, setMonto] = useState<string>(
-    movimientoAEditar?.monto != null ? String(movimientoAEditar.monto) : ""
+  const [monto, setMonto] = useState<number | null>(
+    movimientoAEditar?.monto ?? null
   );
   const [medio, setMedio] = useState<MedioPago>(
     movimientoAEditar?.medio ?? (tipo === "transferencia" ? "transferencia" : "efectivo")
@@ -130,11 +134,11 @@ export function FormularioMovimiento({
   const [cuitProveedor, setCuitProveedor] = useState(
     movimientoAEditar?.proveedor_cuit ?? ""
   );
-  const [neto, setNeto] = useState<string>(
-    movimientoAEditar?.neto != null ? String(movimientoAEditar.neto) : ""
+  const [neto, setNeto] = useState<number | null>(
+    movimientoAEditar?.neto ?? null
   );
-  const [iva, setIva] = useState<string>(
-    movimientoAEditar?.iva != null ? String(movimientoAEditar.iva) : ""
+  const [iva, setIva] = useState<number | null>(
+    movimientoAEditar?.iva ?? null
   );
   const [archivoComprobante, setArchivoComprobante] = useState<File | null>(null);
   const [comprobantePath] = useState<string | null>(
@@ -173,6 +177,11 @@ export function FormularioMovimiento({
   // Cargar categorías según ámbito y tipo
   useEffect(() => {
     if (tipo === "transferencia") return;
+    if (!ambito) {
+      setCategorias([]);
+      setCategoriaId("");
+      return;
+    }
     supabase
       .from("categorias_movimiento")
       .select("*")
@@ -210,43 +219,58 @@ export function FormularioMovimiento({
       });
   }, []);
 
+  // Recálculo cuando cambia el Monto general
+  const handleMontoChange = (val: number | null) => {
+    setMonto(val);
+    if (val != null && val > 0 && tieneFactura) {
+      if (comprobanteTipo === "A") {
+        const n = +(val / 1.21).toFixed(2);
+        const i = +(val - n).toFixed(2);
+        setNeto(n);
+        setIva(i);
+      } else {
+        setNeto(val);
+        setIva(null);
+      }
+    }
+  };
+
   // Recálculo cuando cambia el Neto
-  const handleNetoChange = (nuevoNeto: string) => {
+  const handleNetoChange = (nuevoNeto: number | null) => {
     setNeto(nuevoNeto);
-    const n = Number(nuevoNeto);
-    if (!nuevoNeto || isNaN(n) || n <= 0) return;
+    if (nuevoNeto == null || nuevoNeto <= 0) return;
 
     if (comprobanteTipo === "A") {
-      const ivaSugerido = +(n * 0.21).toFixed(2);
-      setIva(String(ivaSugerido));
-      setMonto(String(+(n + ivaSugerido).toFixed(2)));
+      const ivaSugerido = +(nuevoNeto * 0.21).toFixed(2);
+      setIva(ivaSugerido);
+      setMonto(+(nuevoNeto + ivaSugerido).toFixed(2));
     } else {
-      setMonto(String(n));
+      setMonto(nuevoNeto);
     }
   };
 
   // Recálculo cuando cambia el IVA
-  const handleIvaChange = (nuevoIva: string) => {
+  const handleIvaChange = (nuevoIva: number | null) => {
     setIva(nuevoIva);
-    const n = Number(neto) || 0;
-    const i = Number(nuevoIva) || 0;
+    const n = neto || 0;
+    const i = nuevoIva || 0;
     if (n > 0) {
-      setMonto(String(+(n + i).toFixed(2)));
+      setMonto(+(n + i).toFixed(2));
     }
   };
 
   // Cambio de tipo de comprobante
   const handleTipoComprobanteChange = (nuevoTipo: TipoComprobanteCompra) => {
     setComprobanteTipo(nuevoTipo);
-    const n = Number(neto) || 0;
+    const n = neto || 0;
     if (n > 0) {
       if (nuevoTipo === "A") {
         const ivaSugerido = +(n * 0.21).toFixed(2);
-        setIva(String(ivaSugerido));
-        setMonto(String(+(n + ivaSugerido).toFixed(2)));
+        setIva(ivaSugerido);
+        setMonto(+(n + ivaSugerido).toFixed(2));
       } else {
-        setIva("");
-        setMonto(String(n));
+        setIva(null);
+        setMonto(n);
       }
     }
   };
@@ -254,9 +278,14 @@ export function FormularioMovimiento({
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorValidacion(null);
+    setErrorAmbito(null);
 
-    const montoNum = Number(monto);
-    if (!montoNum || montoNum <= 0) {
+    if (tipo !== "transferencia" && !ambito) {
+      setErrorAmbito("Elegí si es un gasto de la empresa o personal");
+      return;
+    }
+
+    if (!monto || monto <= 0) {
       setErrorValidacion("El monto debe ser mayor a 0.");
       return;
     }
@@ -302,14 +331,14 @@ export function FormularioMovimiento({
       const datos = {
         fecha,
         tipo,
-        ambito,
+        ambito: tipo === "transferencia" ? null : ambito,
         categoria_id: tipo === "transferencia" ? null : (categoriaId || null),
         proveedor: tipo === "transferencia" ? null : (proveedor.trim() || null),
         descripcion: descripcion.trim() || null,
         medio: tipo === "transferencia" ? "transferencia" : medio,
         cuenta_id: cuentaId,
         cuenta_destino_id: tipo === "transferencia" ? cuentaDestinoId : null,
-        monto: montoNum,
+        monto: monto,
         estado,
         fecha_acreditacion: estado === "pendiente" ? (fechaAcreditacion || null) : null,
         tiene_comprobante: tipo === "egreso" && ambito === "empresa" && tieneFactura,
@@ -330,12 +359,12 @@ export function FormularioMovimiento({
             ? (cuitProveedor.trim() || null)
             : null,
         neto:
-          tipo === "egreso" && ambito === "empresa" && tieneFactura && neto
-            ? Number(neto)
+          tipo === "egreso" && ambito === "empresa" && tieneFactura && neto != null
+            ? neto
             : null,
         iva:
-          tipo === "egreso" && ambito === "empresa" && tieneFactura && iva
-            ? Number(iva)
+          tipo === "egreso" && ambito === "empresa" && tieneFactura && iva != null
+            ? iva
             : null,
         comprobante_path:
           tipo === "egreso" && ambito === "empresa" && tieneFactura
@@ -392,23 +421,34 @@ export function FormularioMovimiento({
 
       <form onSubmit={handleGuardar} className="space-y-4 pb-[72px] md:pb-0">
         {/* Ámbito */}
-        <div>
-          <Etiqueta>Ámbito</Etiqueta>
-          <div className="grid grid-cols-2 gap-2 max-w-xs">
-            <Opcion
-              activa={ambito === "empresa"}
-              onClick={() => setAmbito("empresa")}
-            >
-              Empresa
-            </Opcion>
-            <Opcion
-              activa={ambito === "personal"}
-              onClick={() => setAmbito("personal")}
-            >
-              Personal
-            </Opcion>
+        {tipo !== "transferencia" && (
+          <div>
+            <Etiqueta>Ámbito</Etiqueta>
+            <div className="grid grid-cols-2 gap-2 max-w-xs">
+              <Opcion
+                activa={ambito === "empresa"}
+                onClick={() => {
+                  setAmbito("empresa");
+                  setErrorAmbito(null);
+                }}
+              >
+                Empresa
+              </Opcion>
+              <Opcion
+                activa={ambito === "personal"}
+                onClick={() => {
+                  setAmbito("personal");
+                  setErrorAmbito(null);
+                }}
+              >
+                Personal
+              </Opcion>
+            </div>
+            {errorAmbito && (
+              <p className="text-sm text-peligro mt-1.5">{errorAmbito}</p>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Fecha y Categoría */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -489,15 +529,11 @@ export function FormularioMovimiento({
         {/* Monto y Medio */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Campo etiqueta="Monto" id="monto_movimiento">
-            <Entrada
+            <EntradaMonto
               id="monto_movimiento"
-              type="number"
-              step="any"
-              min="0.01"
               required
-              placeholder="0.00"
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
+              valor={monto}
+              onChange={handleMontoChange}
             />
           </Campo>
 
@@ -681,24 +717,18 @@ export function FormularioMovimiento({
                   </Campo>
 
                   <Campo etiqueta="Neto" id="comp_neto">
-                    <Entrada
+                    <EntradaMonto
                       id="comp_neto"
-                      type="number"
-                      step="any"
-                      placeholder="0.00"
-                      value={neto}
-                      onChange={(e) => handleNetoChange(e.target.value)}
+                      valor={neto}
+                      onChange={handleNetoChange}
                     />
                   </Campo>
 
                   <Campo etiqueta="IVA" id="comp_iva">
-                    <Entrada
+                    <EntradaMonto
                       id="comp_iva"
-                      type="number"
-                      step="any"
-                      placeholder="0.00"
-                      value={iva}
-                      onChange={(e) => handleIvaChange(e.target.value)}
+                      valor={iva}
+                      onChange={handleIvaChange}
                     />
                   </Campo>
                 </div>
