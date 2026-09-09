@@ -43,9 +43,34 @@ npm run dev
 Es un sitio estático. En Railway:
 - Build command: `npm run build`
 - Start command: `npx serve -s dist -l $PORT` (o servir `dist/` con cualquier estático)
-- Variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+- Variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY`
 
 Dominio sugerido: `gestion.elevaplus.com.ar`.
+
+## Notificaciones Push (Web Push + Supabase Edge Functions)
+
+Para habilitar las notificaciones push en segundo plano cuando choferes inician o terminan servicios, o cargan servicios no planificados:
+
+1. **Generar claves VAPID y configurar secrets**:
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+   - Clave pública: agregar a `.env.local` y a las variables de entorno en Railway como `VITE_VAPID_PUBLIC_KEY`.
+   - Ambas claves, asunto y secret del webhook a los secrets de Supabase:
+     ```bash
+     npx supabase secrets set VAPID_PUBLIC_KEY="<clave_publica>" VAPID_PRIVATE_KEY="<clave_privada>" VAPID_SUBJECT="mailto:elevaplus.one@gmail.com" WEBHOOK_SECRET="<uuid_aleatorio>"
+     ```
+
+2. **Desplegar la Edge Function**:
+   ```bash
+   npx supabase functions deploy enviar-push --no-verify-jwt
+   ```
+
+3. **Crear los Database Webhooks en Supabase**:
+   En Supabase Dashboard → **Database** → **Webhooks** → crear dos webhooks de tipo **Supabase Edge Function** apuntando a `enviar-push`:
+   - **Webhook 1**: Tabla `servicio_eventos`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
+   - **Webhook 2**: Tabla `servicios`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
+
 
 ## Estructura
 

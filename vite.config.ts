@@ -9,8 +9,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
-      includeAssets: ["icono.svg"],
+      includeAssets: ["icono.svg", "icono-192.png"],
       manifest: {
         name: "ELEVAPLUS Gestión",
         short_name: "ELEVAPLUS",
@@ -22,11 +25,8 @@ export default defineConfig({
         start_url: "/",
         icons: [
           { src: "/icono.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
+          { src: "/icono-192.png", sizes: "192x192", type: "image/png" },
         ],
-      },
-      workbox: {
-        // La app depende de Supabase; cacheamos solo el shell, nunca datos.
-        navigateFallbackDenylist: [/^\/api/],
       },
     }),
   ],
