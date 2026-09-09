@@ -8,6 +8,7 @@ import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
 import { Entrada } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { MenuAcciones } from "@/components/ui/MenuAcciones";
 import { FormularioFactura } from "./FormularioFactura";
 import { FormularioNotaCredito } from "./FormularioNotaCredito";
@@ -232,14 +233,10 @@ export function PaginaFacturacion() {
   return (
     <div className="space-y-6">
       {/* Encabezado */}
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-tinta">Facturación</h1>
-          <p className="text-sm text-tinta-suave">
-            Control de pendientes, emisión y notas de crédito
-          </p>
-        </div>
-      </header>
+      <EncabezadoPagina
+        titulo="Facturación"
+        subtitulo="Control de pendientes, emisión y notas de crédito"
+      />
 
       {/* Pestañas */}
       <div className="flex border-b border-borde gap-6">
@@ -496,141 +493,248 @@ export function PaginaFacturacion() {
               {busquedaFacturas ? "No se encontraron facturas." : "No hay facturas registradas."}
             </Tarjeta>
           ) : (
-            <Tarjeta className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-borde text-xs font-semibold text-tinta-suave bg-fondo/50">
-                    <th className="p-3.5">Fecha</th>
-                    <th className="p-3.5">Comprobante</th>
-                    <th className="p-3.5">Cliente</th>
-                    <th className="p-3.5 text-right">Neto</th>
-                    <th className="p-3.5 text-right">IVA</th>
-                    <th className="p-3.5 text-right">Total</th>
-                    <th className="p-3.5 text-center">Servicios</th>
-                    <th className="p-3.5 text-center">Estado</th>
-                    <th className="p-3.5 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-borde">
-                  {facturasFiltradas.map((f) => {
-                    const servsDeEstaFactura = serviciosFacturas[f.id] || [];
-                    const expandido = facturaExpandida === f.id;
-                    const registrandoNC = facturaParaNC?.id === f.id;
+            <Tarjeta>
+              {/* Móvil: lista dividida */}
+              <div className="divide-y divide-borde md:hidden">
+                {facturasFiltradas.map((f) => {
+                  const servsDeEstaFactura = serviciosFacturas[f.id] || [];
+                  const expandido = facturaExpandida === f.id;
+                  const registrandoNC = facturaParaNC?.id === f.id;
 
-                    return (
-                      <tr key={f.id} className="hover:bg-fondo/40 transition-colors">
-                        <td colSpan={9} className="p-0">
-                          <div className="flex items-center w-full px-3.5 py-3">
-                            <div className="w-24 shrink-0 text-tinta-suave tabular-nums">
-                              {formatearFecha(f.fecha)}
+                  const acciones = [
+                    {
+                      texto: expandido ? "Ocultar servicios" : "Ver servicios",
+                      onClick: () =>
+                        setFacturaExpandida(expandido ? null : f.id),
+                    },
+                    ...(!f.anulada
+                      ? [
+                          {
+                            texto: "Registrar nota de crédito",
+                            onClick: () =>
+                              setFacturaParaNC(registrandoNC ? null : f),
+                          },
+                        ]
+                      : []),
+                  ];
+
+                  return (
+                    <div key={f.id} className="divide-y divide-borde">
+                      <div className="p-3.5 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-tinta truncate text-sm">
+                            {f.clientes?.nombre || "—"}
+                          </span>
+                          {f.anulada ? (
+                            <span className="inline-flex items-center rounded-full border border-peligro/20 bg-peligro-suave px-2 py-0.5 text-xs font-medium text-peligro">
+                              Anulada
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full border border-borde bg-fondo px-2 py-0.5 text-xs font-medium text-tinta-suave">
+                              {f.tipo}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[13px] text-tinta-suave truncate">
+                          {formatearFecha(f.fecha)} · {formatearNumeroFactura(f.tipo, f.punto_venta, f.numero)}
+                          {servsDeEstaFactura.length > 0 ? ` · ${servsDeEstaFactura.length} serv.` : ""}
+                        </div>
+                        <div className="flex items-center justify-end gap-2 pt-0.5">
+                          <span className="text-sm font-semibold tabular-nums text-tinta">
+                            {formatearPesos(f.total)}
+                          </span>
+                          <MenuAcciones acciones={acciones} />
+                        </div>
+                      </div>
+
+                      {/* Lista expandida móvil */}
+                      {expandido && (
+                        <div className="bg-fondo/80 p-3 space-y-2 text-xs">
+                          <span className="font-semibold text-tinta-suave block">
+                            Servicios vinculados:
+                          </span>
+                          {servsDeEstaFactura.length === 0 ? (
+                            <div className="text-tinta-suave">
+                              No hay servicios asociados actualmente.
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-borde">
+                              {servsDeEstaFactura.map((s) => (
+                                <div
+                                  key={s.id}
+                                  className="py-1.5 flex items-center justify-between gap-2"
+                                >
+                                  <Link
+                                    to={`/servicios/${s.id}`}
+                                    className="text-marca hover:underline truncate"
+                                  >
+                                    #{s.numero} · {s.descripcion || ETIQUETA_TIPO[s.tipo]}
+                                  </Link>
+                                  <span className="tabular-nums font-medium text-tinta shrink-0">
+                                    {formatearPesos(s.monto)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Formulario móvil NC */}
+                      {registrandoNC && (
+                        <div className="bg-fondo p-3">
+                          <FormularioNotaCredito
+                            facturaOriginal={f}
+                            onGuardado={() => {
+                              setFacturaParaNC(null);
+                              cargarFacturas();
+                            }}
+                            onCancelar={() => setFacturaParaNC(null)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: tabla */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-borde text-xs font-semibold text-tinta-suave bg-fondo/50">
+                      <th className="p-3.5">Fecha</th>
+                      <th className="p-3.5">Comprobante</th>
+                      <th className="p-3.5">Cliente</th>
+                      <th className="p-3.5 text-right">Neto</th>
+                      <th className="p-3.5 text-right">IVA</th>
+                      <th className="p-3.5 text-right">Total</th>
+                      <th className="p-3.5 text-center">Servicios</th>
+                      <th className="p-3.5 text-center">Estado</th>
+                      <th className="p-3.5 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-borde">
+                    {facturasFiltradas.map((f) => {
+                      const servsDeEstaFactura = serviciosFacturas[f.id] || [];
+                      const expandido = facturaExpandida === f.id;
+                      const registrandoNC = facturaParaNC?.id === f.id;
+
+                      return (
+                        <tr key={f.id} className="hover:bg-fondo/40 transition-colors">
+                          <td colSpan={9} className="p-0">
+                            <div className="flex items-center w-full px-3.5 py-3">
+                              <div className="w-24 shrink-0 text-tinta-suave tabular-nums">
+                                {formatearFecha(f.fecha)}
+                              </div>
+
+                              <div className="w-40 shrink-0 font-medium tabular-nums text-tinta">
+                                {formatearNumeroFactura(f.tipo, f.punto_venta, f.numero)}
+                              </div>
+
+                              <div className="min-w-0 flex-1 truncate font-medium text-tinta pr-2">
+                                {f.clientes?.nombre || "—"}
+                              </div>
+
+                              <div className="w-24 shrink-0 text-right tabular-nums text-tinta-suave">
+                                {formatearPesos(f.neto)}
+                              </div>
+
+                              <div className="w-24 shrink-0 text-right tabular-nums text-tinta-suave">
+                                {formatearPesos(f.iva)}
+                              </div>
+
+                              <div className="w-28 shrink-0 text-right font-semibold tabular-nums text-tinta">
+                                {formatearPesos(f.total)}
+                              </div>
+
+                              <div className="w-20 shrink-0 text-center tabular-nums text-tinta">
+                                {servsDeEstaFactura.length}
+                              </div>
+
+                              <div className="w-24 shrink-0 text-center">
+                                {f.anulada ? (
+                                  <span className="inline-flex items-center rounded-full border border-peligro/20 bg-peligro-suave px-2.5 py-0.5 text-xs font-medium text-peligro">
+                                    Anulada
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              <div className="w-10 shrink-0 text-right">
+                                <MenuAcciones
+                                  acciones={[
+                                    {
+                                      texto: expandido ? "Ocultar servicios" : "Ver servicios",
+                                      onClick: () =>
+                                        setFacturaExpandida(expandido ? null : f.id),
+                                    },
+                                    ...(!f.anulada
+                                      ? [
+                                          {
+                                            texto: "Registrar nota de crédito",
+                                            onClick: () =>
+                                              setFacturaParaNC(registrandoNC ? null : f),
+                                          },
+                                        ]
+                                      : []),
+                                  ]}
+                                />
+                              </div>
                             </div>
 
-                            <div className="w-40 shrink-0 font-medium tabular-nums text-tinta">
-                              {formatearNumeroFactura(f.tipo, f.punto_venta, f.numero)}
-                            </div>
-
-                            <div className="min-w-0 flex-1 truncate font-medium text-tinta pr-2">
-                              {f.clientes?.nombre || "—"}
-                            </div>
-
-                            <div className="w-24 shrink-0 text-right tabular-nums text-tinta-suave">
-                              {formatearPesos(f.neto)}
-                            </div>
-
-                            <div className="w-24 shrink-0 text-right tabular-nums text-tinta-suave">
-                              {formatearPesos(f.iva)}
-                            </div>
-
-                            <div className="w-28 shrink-0 text-right font-semibold tabular-nums text-tinta">
-                              {formatearPesos(f.total)}
-                            </div>
-
-                            <div className="w-20 shrink-0 text-center tabular-nums text-tinta">
-                              {servsDeEstaFactura.length}
-                            </div>
-
-                            <div className="w-24 shrink-0 text-center">
-                              {f.anulada ? (
-                                <span className="inline-flex items-center rounded-full border border-peligro/20 bg-peligro-suave px-2.5 py-0.5 text-xs font-medium text-peligro">
-                                  Anulada
+                            {/* Lista expandida de servicios vinculados */}
+                            {expandido && (
+                              <div className="border-t border-borde bg-fondo/80 px-6 py-3 space-y-2">
+                                <span className="text-xs font-semibold text-tinta-suave block">
+                                  Servicios vinculados a esta factura:
                                 </span>
-                              ) : null}
-                            </div>
-
-                            <div className="w-10 shrink-0 text-right">
-                              <MenuAcciones
-                                acciones={[
-                                  {
-                                    texto: expandido ? "Ocultar servicios" : "Ver servicios",
-                                    onClick: () =>
-                                      setFacturaExpandida(expandido ? null : f.id),
-                                  },
-                                  ...(!f.anulada
-                                    ? [
-                                        {
-                                          texto: "Registrar nota de crédito",
-                                          onClick: () =>
-                                            setFacturaParaNC(registrandoNC ? null : f),
-                                        },
-                                      ]
-                                    : []),
-                                ]}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Lista expandida de servicios vinculados */}
-                          {expandido && (
-                            <div className="border-t border-borde bg-fondo/80 px-6 py-3 space-y-2">
-                              <span className="text-xs font-semibold text-tinta-suave block">
-                                Servicios vinculados a esta factura:
-                              </span>
-                              {servsDeEstaFactura.length === 0 ? (
-                                <div className="text-xs text-tinta-suave">
-                                  No hay servicios asociados actualmente.
-                                </div>
-                              ) : (
-                                <div className="divide-y divide-borde text-xs">
-                                  {servsDeEstaFactura.map((s) => (
-                                    <div
-                                      key={s.id}
-                                      className="py-1.5 flex items-center justify-between"
-                                    >
-                                      <Link
-                                        to={`/servicios/${s.id}`}
-                                        className="text-marca hover:underline truncate"
+                                {servsDeEstaFactura.length === 0 ? (
+                                  <div className="text-xs text-tinta-suave">
+                                    No hay servicios asociados actualmente.
+                                  </div>
+                                ) : (
+                                  <div className="divide-y divide-borde text-xs">
+                                    {servsDeEstaFactura.map((s) => (
+                                      <div
+                                        key={s.id}
+                                        className="py-1.5 flex items-center justify-between"
                                       >
-                                        #{s.numero} · {s.descripcion || ETIQUETA_TIPO[s.tipo]}
-                                      </Link>
-                                      <span className="tabular-nums font-medium text-tinta shrink-0">
-                                        {formatearPesos(s.monto)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                        <Link
+                                          to={`/servicios/${s.id}`}
+                                          className="text-marca hover:underline truncate"
+                                        >
+                                          #{s.numero} · {s.descripcion || ETIQUETA_TIPO[s.tipo]}
+                                        </Link>
+                                        <span className="tabular-nums font-medium text-tinta shrink-0">
+                                          {formatearPesos(s.monto)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
-                          {/* Formulario inline para nota de crédito */}
-                          {registrandoNC && (
-                            <div className="border-t border-borde bg-fondo p-4">
-                              <FormularioNotaCredito
-                                facturaOriginal={f}
-                                onGuardado={() => {
-                                  setFacturaParaNC(null);
-                                  cargarFacturas();
-                                }}
-                                onCancelar={() => setFacturaParaNC(null)}
-                              />
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            {/* Formulario inline para nota de crédito */}
+                            {registrandoNC && (
+                              <div className="border-t border-borde bg-fondo p-4">
+                                <FormularioNotaCredito
+                                  facturaOriginal={f}
+                                  onGuardado={() => {
+                                    setFacturaParaNC(null);
+                                    cargarFacturas();
+                                  }}
+                                  onCancelar={() => setFacturaParaNC(null)}
+                                />
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </Tarjeta>
           )}
         </div>
@@ -650,58 +754,104 @@ export function PaginaFacturacion() {
               No hay notas de crédito registradas.
             </Tarjeta>
           ) : (
-            <Tarjeta className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-borde text-xs font-semibold text-tinta-suave bg-fondo/50">
-                    <th className="p-3.5">Fecha</th>
-                    <th className="p-3.5">Comprobante</th>
-                    <th className="p-3.5">Cliente</th>
-                    <th className="p-3.5">Corrige a</th>
-                    <th className="p-3.5 text-right">Monto</th>
-                    <th className="p-3.5">Motivo</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-borde">
-                  {notasCredito.map((nc) => {
-                    const comprobante = formatearNumeroFactura(
-                      nc.tipo,
-                      nc.punto_venta,
-                      nc.numero
-                    );
-                    const corrigeA = nc.factura_asociada
-                      ? formatearNumeroFactura(
-                          nc.factura_asociada.tipo,
-                          nc.factura_asociada.punto_venta,
-                          nc.factura_asociada.numero
-                        )
-                      : "—";
+            <Tarjeta>
+              {/* Móvil: lista dividida */}
+              <div className="divide-y divide-borde md:hidden">
+                {notasCredito.map((nc) => {
+                  const comprobante = formatearNumeroFactura(
+                    nc.tipo,
+                    nc.punto_venta,
+                    nc.numero
+                  );
+                  const corrigeA = nc.factura_asociada
+                    ? formatearNumeroFactura(
+                        nc.factura_asociada.tipo,
+                        nc.factura_asociada.punto_venta,
+                        nc.factura_asociada.numero
+                      )
+                    : "—";
 
-                    return (
-                      <tr key={nc.id} className="hover:bg-fondo/40 transition-colors">
-                        <td className="p-3.5 text-tinta-suave tabular-nums">
-                          {formatearFecha(nc.fecha)}
-                        </td>
-                        <td className="p-3.5 font-medium tabular-nums text-tinta">
-                          {comprobante}
-                        </td>
-                        <td className="p-3.5 font-medium text-tinta">
+                  return (
+                    <div key={nc.id} className="p-3.5 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-tinta truncate text-sm">
                           {nc.clientes?.nombre || "—"}
-                        </td>
-                        <td className="p-3.5 text-tinta-suave tabular-nums">
-                          {corrigeA}
-                        </td>
-                        <td className="p-3.5 text-right font-semibold tabular-nums text-tinta">
+                        </span>
+                        <span className="inline-flex items-center rounded-full border border-alerta/20 bg-alerta-suave px-2 py-0.5 text-xs font-medium text-alerta">
+                          {nc.tipo}
+                        </span>
+                      </div>
+                      <div className="text-[13px] text-tinta-suave truncate">
+                        {formatearFecha(nc.fecha)} · {comprobante}
+                        {nc.factura_asociada ? ` · Corrige a ${corrigeA}` : ""}
+                      </div>
+                      <div className="flex items-center justify-between pt-0.5">
+                        <span className="text-xs text-tinta-suave truncate max-w-[200px]">
+                          {nc.notas || ""}
+                        </span>
+                        <span className="text-sm font-semibold tabular-nums text-tinta">
                           {formatearPesos(nc.total)}
-                        </td>
-                        <td className="p-3.5 text-tinta-suave">
-                          {nc.notas || "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: tabla */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-borde text-xs font-semibold text-tinta-suave bg-fondo/50">
+                      <th className="p-3.5">Fecha</th>
+                      <th className="p-3.5">Comprobante</th>
+                      <th className="p-3.5">Cliente</th>
+                      <th className="p-3.5">Corrige a</th>
+                      <th className="p-3.5 text-right">Monto</th>
+                      <th className="p-3.5">Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-borde">
+                    {notasCredito.map((nc) => {
+                      const comprobante = formatearNumeroFactura(
+                        nc.tipo,
+                        nc.punto_venta,
+                        nc.numero
+                      );
+                      const corrigeA = nc.factura_asociada
+                        ? formatearNumeroFactura(
+                            nc.factura_asociada.tipo,
+                            nc.factura_asociada.punto_venta,
+                            nc.factura_asociada.numero
+                          )
+                        : "—";
+
+                      return (
+                        <tr key={nc.id} className="hover:bg-fondo/40 transition-colors">
+                          <td className="p-3.5 text-tinta-suave tabular-nums">
+                            {formatearFecha(nc.fecha)}
+                          </td>
+                          <td className="p-3.5 font-medium tabular-nums text-tinta">
+                            {comprobante}
+                          </td>
+                          <td className="p-3.5 font-medium text-tinta">
+                            {nc.clientes?.nombre || "—"}
+                          </td>
+                          <td className="p-3.5 text-tinta-suave tabular-nums">
+                            {corrigeA}
+                          </td>
+                          <td className="p-3.5 text-right font-semibold tabular-nums text-tinta">
+                            {formatearPesos(nc.total)}
+                          </td>
+                          <td className="p-3.5 text-tinta-suave">
+                            {nc.notas || "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </Tarjeta>
           )}
         </div>

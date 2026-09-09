@@ -6,6 +6,7 @@ import { formatearFecha, formatearPesos } from "@/lib/formato";
 import { armarCondiciones } from "@/lib/presupuesto";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { AreaTexto, Campo, Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
 
@@ -253,12 +254,10 @@ export function PaginaConfiguracion() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-tinta">Configuración</h1>
-        <p className="text-sm text-tinta-suave">
-          Datos de la empresa, términos de presupuestos y parámetros del cotizador
-        </p>
-      </div>
+      <EncabezadoPagina
+        titulo="Configuración"
+        subtitulo="Datos de la empresa, términos de presupuestos y parámetros del cotizador"
+      />
 
       {/* 1. Tarjeta Empresa */}
       <Tarjeta className="p-6">
@@ -281,7 +280,7 @@ export function PaginaConfiguracion() {
               <Entrada
                 id="emp-cuit"
                 required
-                placeholder="27-XXXXXXXX-X"
+                placeholder="Ej: 30-12345678-9"
                 value={cuit}
                 onChange={(e) => setCuit(e.target.value)}
               />
@@ -303,6 +302,7 @@ export function PaginaConfiguracion() {
             <Campo etiqueta="Domicilio" id="emp-domicilio">
               <Entrada
                 id="emp-domicilio"
+                placeholder="Ej: Av. Espora 1200"
                 value={domicilio}
                 onChange={(e) => setDomicilio(e.target.value)}
               />
@@ -311,7 +311,7 @@ export function PaginaConfiguracion() {
             <Campo etiqueta="Teléfono" id="emp-telefono">
               <Entrada
                 id="emp-telefono"
-                placeholder="+54 9 11 ..."
+                placeholder="Ej: 11 6391-6614"
                 value={telefono}
                 onChange={(e) => setTelefono(e.target.value)}
               />
@@ -321,6 +321,7 @@ export function PaginaConfiguracion() {
               <Entrada
                 id="emp-email"
                 type="email"
+                placeholder="Ej: compras@empresa.com.ar"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />

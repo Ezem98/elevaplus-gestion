@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { LayoutDashboard, Truck, Calculator, Users, Wallet, Receipt, Settings, LogOut, Plus } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
 
@@ -30,6 +30,12 @@ const enlacesMovil = [
 export function LayoutOficina() {
   const { perfil, salir } = useAuth();
   const primerNombre = perfil?.nombre ? perfil.nombre.trim().split(/\s+/)[0] : "";
+
+  const location = useLocation();
+  const rutasConFab = ["/", "/servicios", "/clientes"];
+  const mostrarFab = rutasConFab.includes(location.pathname);
+  const destinoFab = location.pathname === "/clientes" ? "/clientes/nuevo" : "/servicios/nuevo";
+  const etiquetaFab = location.pathname === "/clientes" ? "Nuevo cliente" : "Nuevo servicio";
 
   return (
     <div className="flex min-h-full flex-col md:flex-row">
@@ -95,14 +101,16 @@ export function LayoutOficina() {
         <Outlet />
       </main>
 
-      {/* Botón flotante nuevo servicio en celular */}
-      <Link
-        to="/servicios/nuevo"
-        aria-label="Nuevo servicio"
-        className="fixed right-4 bottom-[76px] z-30 h-14 w-14 rounded-full bg-marca text-white grid place-items-center hover:bg-marca-oscuro active:scale-95 transition-transform md:hidden"
-      >
-        <Plus className="h-[26px] w-[26px]" strokeWidth={2.5} />
-      </Link>
+      {/* Botón flotante solo en listas de celular */}
+      {mostrarFab && (
+        <Link
+          to={destinoFab}
+          aria-label={etiquetaFab}
+          className="fixed right-4 bottom-[76px] z-30 h-14 w-14 rounded-full bg-marca text-white grid place-items-center hover:bg-marca-oscuro active:scale-95 transition-transform shadow-lg md:hidden"
+        >
+          <Plus className="h-[26px] w-[26px]" strokeWidth={2.5} />
+        </Link>
+      )}
 
       {/* Navegación inferior en celular */}
       <nav className="sticky bottom-0 flex border-t border-borde bg-superficie md:hidden">

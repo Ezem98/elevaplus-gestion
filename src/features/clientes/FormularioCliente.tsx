@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import type { TipoCliente, CondicionIva, CondicionPago } from "@/lib/tipos";
 import { ETIQUETA_TIPO_CLIENTE, ETIQUETA_CONDICION_IVA, ETIQUETA_CONDICION_PAGO } from "@/lib/tipos";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Campo, Entrada, Selector, AreaTexto } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
@@ -122,12 +123,13 @@ export function FormularioCliente() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">
-        {esEdicion ? "Editar cliente" : "Nuevo cliente"}
-      </h1>
+      <EncabezadoPagina
+        volverA={esEdicion && id ? `/clientes/${id}` : "/clientes"}
+        titulo={esEdicion ? "Editar cliente" : "Nuevo cliente"}
+      />
 
       <Tarjeta className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 pb-4 md:pb-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <Campo etiqueta="Nombre *" id="nombre">
@@ -163,7 +165,7 @@ export function FormularioCliente() {
                 id="cuit"
                 value={cuit}
                 onChange={(e) => setCuit(e.target.value)}
-                placeholder="20-xxxxxxxx-x"
+                placeholder="Ej: 30-12345678-9"
               />
             </Campo>
 
@@ -187,7 +189,7 @@ export function FormularioCliente() {
                 type="tel"
                 value={telefono}
                 onChange={(e) => setTelefono(e.target.value)}
-                placeholder="Ej: 341 555-1234"
+                placeholder="Ej: 11 6391-6614"
               />
             </Campo>
 
@@ -197,7 +199,7 @@ export function FormularioCliente() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="contacto@empresa.com"
+                placeholder="Ej: compras@empresa.com.ar"
               />
             </Campo>
 
@@ -206,7 +208,7 @@ export function FormularioCliente() {
                 id="direccion"
                 value={direccion}
                 onChange={(e) => setDireccion(e.target.value)}
-                placeholder="Calle y número"
+                placeholder="Ej: Av. Espora 1200"
               />
             </Campo>
 
@@ -215,7 +217,7 @@ export function FormularioCliente() {
                 id="localidad"
                 value={localidad}
                 onChange={(e) => setLocalidad(e.target.value)}
-                placeholder="Ej: Rosario, Alvear"
+                placeholder="Ej: Burzaco, Quilmes"
               />
             </Campo>
 
@@ -261,7 +263,7 @@ export function FormularioCliente() {
             <p className="text-sm text-peligro">{errorGuardar}</p>
           )}
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-borde">
+          <div className="sticky bottom-0 -mx-6 -mb-6 border-t border-borde bg-superficie p-3 md:static md:mx-0 md:mb-0 md:bg-transparent md:p-0 md:pt-4 flex items-center justify-end gap-3 z-10">
             <Boton
               type="button"
               variante="secundario"

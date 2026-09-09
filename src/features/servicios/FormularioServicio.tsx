@@ -15,9 +15,10 @@ import {
   formatearUnidadPlural,
 } from "@/lib/tipos";
 import { Tarjeta } from "@/components/ui/Tarjeta";
-import { Campo, Entrada, Etiqueta, Selector, AreaTexto } from "@/components/ui/Campo";
+import { Campo, Entrada, AreaTexto, Selector, Etiqueta } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
 import { Aviso } from "@/components/ui/Aviso";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 
 interface ClienteOpcion {
   id: string;
@@ -374,10 +375,14 @@ export function FormularioServicio() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold text-tinta">Nuevo servicio</h1>
+      <EncabezadoPagina
+        titulo="Nuevo servicio"
+        subtitulo="Completá los datos del servicio a realizar"
+        volverA="/servicios"
+      />
 
-      <Tarjeta className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <Tarjeta className="p-4 sm:p-6">
+        <form onSubmit={handleSubmit} className="space-y-6 pb-4 md:pb-0">
           {/* 1. Tipo de servicio */}
           <fieldset>
             <legend className="mb-2 block text-sm font-medium text-tinta-suave">
@@ -968,7 +973,7 @@ export function FormularioServicio() {
           )}
 
           {/* 6. Acciones */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-borde">
+          <div className="sticky bottom-0 z-20 -mx-4 border-t border-borde bg-superficie p-3 flex items-center justify-end gap-3 md:static md:mx-0 md:bg-transparent md:p-0 md:pt-4 md:border-t md:border-borde">
             <Boton
               type="button"
               variante="secundario"

@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { Servicio } from "@/lib/tipos";
 import { ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearPesos } from "@/lib/formato";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
 import { Aviso } from "@/components/ui/Aviso";
@@ -77,25 +78,23 @@ export function PaginaHoy() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <header className="space-y-4 md:space-y-0 md:flex md:flex-wrap md:items-end md:justify-between md:gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-tinta">Hoy</h1>
-          <p className="hidden text-sm text-tinta-suave md:block">{fechaHoy}</p>
-        </div>
-
-        {/* Total a cobrar en escritorio */}
-        <div className="hidden text-right md:block">
-          <div className="text-sm text-tinta-suave">Total a cobrar</div>
-          <div className="text-3xl font-semibold tracking-tight">{formatearPesos(saldo)}</div>
-          {sinFacturar > 0 && (
-            <div className="mt-1 text-sm text-tinta-suave">
-              <Link to="/facturacion" className="hover:underline">
-                {sinFacturar} {sinFacturar === 1 ? "servicio sin facturar" : "servicios sin facturar"}
-              </Link>
-            </div>
-          )}
-        </div>
-
+      <EncabezadoPagina
+        titulo="Hoy"
+        subtitulo={<span className="hidden md:inline">{fechaHoy}</span>}
+        acciones={
+          <div className="hidden text-right md:block">
+            <div className="text-sm text-tinta-suave">Total a cobrar</div>
+            <div className="text-3xl font-semibold tracking-tight">{formatearPesos(saldo)}</div>
+            {sinFacturar > 0 && (
+              <div className="mt-1 text-sm text-tinta-suave">
+                <Link to="/facturacion" className="hover:underline">
+                  {sinFacturar} {sinFacturar === 1 ? "servicio sin facturar" : "servicios sin facturar"}
+                </Link>
+              </div>
+            )}
+          </div>
+        }
+      />
         {/* Total a cobrar en móvil como Tarjeta a ancho completo */}
         <div className="md:hidden">
           <Tarjeta className="p-4">
@@ -118,7 +117,6 @@ export function PaginaHoy() {
             )}
           </Tarjeta>
         </div>
-      </header>
 
       {sinCerrar.length > 0 && (
         <section>

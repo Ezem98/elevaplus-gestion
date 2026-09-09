@@ -17,13 +17,15 @@ describe("presupuesto", () => {
     cuit: "27-22651487-8",
     condicion_iva: "responsable_inscripto",
     domicilio: "Llavallol, Lomas de Zamora, Provincia de Buenos Aires",
-    telefono: "+54 9 11 6391-6614",
+    telefono: "+54 9 11 3276-5635",
     email: "elevaplus.one@gmail.com",
     email_secundario: "aelgama@yahoo.com",
     instagram: "@elevaplus_",
     presupuesto_validez_dias: 15,
-    presupuesto_espera_autoelevador: "La hora de espera se cobra al valor de la hora de alquiler.",
-    presupuesto_espera_camion: "El importe no incluye espera superior a 30 minutos.",
+    presupuesto_espera_autoelevador:
+      "La hora de espera se cobra al valor de la hora de alquiler.",
+    presupuesto_espera_camion:
+      "El importe no incluye espera superior a 30 minutos.",
     presupuesto_condiciones_extra: null,
     precio_hora_espera_camion: null,
     precio_hora_espera_autoelevador: null,
@@ -146,7 +148,8 @@ describe("presupuesto", () => {
       expect(items).toHaveLength(1);
       expect(items[0]).toEqual({
         descripcion: "Traslado de autoelevador 2,5 t",
-        detalle: "Burzaco → Avellaneda, ida y vuelta (60 km) · Ford Cargo con rampa",
+        detalle:
+          "Burzaco → Avellaneda, ida y vuelta (60 km) · Ford Cargo con rampa",
         cantidad: "1",
         precioUnitario: 257040,
         importe: 257040,
@@ -199,14 +202,20 @@ describe("presupuesto", () => {
 
   describe("calcularTotalesPresupuesto", () => {
     it("calcula neto, iva y total cuando aplica iva", () => {
-      const totales = calcularTotalesPresupuesto({ monto: 100000, aplica_iva: true });
+      const totales = calcularTotalesPresupuesto({
+        monto: 100000,
+        aplica_iva: true,
+      });
       expect(totales.neto).toBe(100000);
       expect(totales.iva).toBe(21000);
       expect(totales.total).toBe(121000);
     });
 
     it("calcula total sin iva cuando aplica_iva es false", () => {
-      const totales = calcularTotalesPresupuesto({ monto: 100000, aplica_iva: false });
+      const totales = calcularTotalesPresupuesto({
+        monto: 100000,
+        aplica_iva: false,
+      });
       expect(totales.neto).toBe(100000);
       expect(totales.iva).toBe(0);
       expect(totales.total).toBe(100000);
@@ -215,10 +224,12 @@ describe("presupuesto", () => {
 
   describe("normalizarTelefonoWhatsApp", () => {
     it("normaliza números con diferentes formatos a 549...", () => {
-      expect(normalizarTelefonoWhatsApp("+54 9 11 6391-6614")).toBe("5491163916614");
-      expect(normalizarTelefonoWhatsApp("11 6391-6614")).toBe("5491163916614");
-      expect(normalizarTelefonoWhatsApp("011-6391-6614")).toBe("5491163916614");
-      expect(normalizarTelefonoWhatsApp("541163916614")).toBe("5491163916614");
+      expect(normalizarTelefonoWhatsApp("+54 9 11 3276-5635")).toBe(
+        "5491132765635",
+      );
+      expect(normalizarTelefonoWhatsApp("11 3276-5635")).toBe("5491132765635");
+      expect(normalizarTelefonoWhatsApp("011-3276-5635")).toBe("5491132765635");
+      expect(normalizarTelefonoWhatsApp("5491132765635")).toBe("5491132765635");
       expect(normalizarTelefonoWhatsApp(null)).toBeNull();
       expect(normalizarTelefonoWhatsApp("")).toBeNull();
     });

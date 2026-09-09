@@ -8,6 +8,7 @@ import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
 import { Aviso } from "@/components/ui/Aviso";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { FormularioCobro, type ServicioCobroItem } from "@/features/cobros/FormularioCobro";
 
 export function PaginaCliente() {
@@ -81,27 +82,25 @@ export function PaginaCliente() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-tinta">{cliente.nombre}</h1>
-          <p className="mt-1 text-sm text-tinta-suave">
-            {ETIQUETA_TIPO_CLIENTE[cliente.tipo]} · {cliente.localidad ?? "Sin localidad"} · {ETIQUETA_CONDICION_PAGO[cliente.condicion_pago]}
-            {cliente.condicion_pago !== "contado" && cliente.dias_pago > 0 ? ` (${cliente.dias_pago} días)` : ""}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Boton onClick={() => setMostrarCobro((prev) => !prev)}>Registrar cobro</Boton>
-          <Link to={`/cotizador?cliente=${id}`}>
-            <Boton variante="secundario">Nuevo presupuesto</Boton>
-          </Link>
-          <Link to={`/servicios/nuevo?cliente=${id}`}>
-            <Boton variante="secundario">Nuevo servicio</Boton>
-          </Link>
-          <Link to={`/clientes/${id}/editar`}>
-            <Boton variante="secundario">Editar</Boton>
-          </Link>
-        </div>
-      </header>
+      <EncabezadoPagina
+        volverA="/clientes"
+        titulo={cliente.nombre}
+        subtitulo={`${ETIQUETA_TIPO_CLIENTE[cliente.tipo]} · ${cliente.localidad ?? "Sin localidad"} · ${ETIQUETA_CONDICION_PAGO[cliente.condicion_pago]}${cliente.condicion_pago !== "contado" && cliente.dias_pago > 0 ? ` (${cliente.dias_pago} días)` : ""}`}
+        acciones={
+          <div className="flex flex-wrap items-center gap-2">
+            <Boton onClick={() => setMostrarCobro((prev) => !prev)}>Registrar cobro</Boton>
+            <Link to={`/cotizador?cliente=${id}`}>
+              <Boton variante="secundario">Nuevo presupuesto</Boton>
+            </Link>
+            <Link to={`/servicios/nuevo?cliente=${id}`}>
+              <Boton variante="secundario">Nuevo servicio</Boton>
+            </Link>
+            <Link to={`/clientes/${id}/editar`}>
+              <Boton variante="secundario">Editar</Boton>
+            </Link>
+          </div>
+        }
+      />
 
       {/* Formulario Registrar cobro o aviso de sin pendientes */}
       {mostrarCobro && (

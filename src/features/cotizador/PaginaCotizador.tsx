@@ -8,6 +8,7 @@ import { formatearPesos } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Campo, Entrada, Selector } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 
 interface ClienteOpcion {
   id: string;
@@ -134,14 +135,14 @@ export function PaginaCotizador() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Cotizador</h1>
-        <p className="text-sm text-tinta-suave">
-          {clientePreseleccionado
+      <EncabezadoPagina
+        titulo="Cotizador"
+        subtitulo={
+          clientePreseleccionado
             ? `Presupuesto para ${clientePreseleccionado.nombre}`
-            : "Cálculo de tarifas de traslado"}
-        </p>
-      </div>
+            : "Cálculo de tarifas de traslado según kilómetros y vehículo"
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Tarjeta className="space-y-4 p-5">

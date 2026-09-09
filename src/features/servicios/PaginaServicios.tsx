@@ -7,6 +7,7 @@ import { formatearPesos, formatearFecha } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { MenuAcciones, ConMenuContextual, type AccionMenu } from "@/components/ui/MenuAcciones";
 
 type ClaveFiltro = "todos" | "presupuestos" | "en_curso" | "cobrados" | "cancelados";
@@ -122,12 +123,14 @@ export function PaginaServicios() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Servicios</h1>
-        <Link to="/servicios/nuevo">
-          <Boton>Nuevo servicio</Boton>
-        </Link>
-      </header>
+      <EncabezadoPagina
+        titulo="Servicios"
+        acciones={
+          <Link to="/servicios/nuevo">
+            <Boton>Nuevo servicio</Boton>
+          </Link>
+        }
+      />
 
       <div className="flex flex-wrap gap-2">
         {PESTANAS.map((p) => {
@@ -150,77 +153,132 @@ export function PaginaServicios() {
         })}
       </div>
 
-      <Tarjeta className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-left text-tinta-suave">
-            <tr className="border-b border-borde">
-              <th className="px-4 py-3 font-medium">#</th>
-              <th className="px-4 py-3 font-medium">Fecha</th>
-              <th className="px-4 py-3 font-medium">Cliente</th>
-              <th className="px-4 py-3 font-medium">Tipo</th>
-              <th className="px-4 py-3 text-right font-medium">Monto</th>
-              <th className="px-4 py-3 text-right font-medium">Cobrado</th>
-              <th className="px-4 py-3 font-medium">Estado</th>
-              <th className="w-12 px-2 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {servicios.map((s) => {
-              const acciones: AccionMenu[] = [
-                {
-                  texto: "Ver detalle",
-                  onClick: () => navigate(`/servicios/${s.id}`),
-                },
-                ...(s.estado !== "cancelado"
-                  ? [
-                      {
-                        texto: "Cancelar",
-                        peligro: true,
-                        onClick: () => handleCancelar(s),
-                      },
-                    ]
-                  : []),
-              ];
+      <Tarjeta className="overflow-hidden">
+        {/* Vista móvil (< md): lista dividida */}
+        <div className="divide-y divide-borde md:hidden">
+          {servicios.map((s) => {
+            const acciones: AccionMenu[] = [
+              {
+                texto: "Ver detalle",
+                onClick: () => navigate(`/servicios/${s.id}`),
+              },
+              ...(s.estado !== "cancelado"
+                ? [
+                    {
+                      texto: "Cancelar",
+                      peligro: true,
+                      onClick: () => handleCancelar(s),
+                    },
+                  ]
+                : []),
+            ];
 
-              return (
-                <ConMenuContextual key={s.id} acciones={acciones}>
-                  <tr
-                    onClick={() => navigate(`/servicios/${s.id}`)}
-                    className="border-b border-borde last:border-0 hover:bg-fondo cursor-pointer"
-                  >
-                    <td className="px-4 py-3 text-tinta-suave">{s.numero}</td>
-                    <td className="px-4 py-3">{formatearFecha(s.fecha_programada)}</td>
-                    <td className="px-4 py-3 font-medium">
-                      <Link
-                        to={`/servicios/${s.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="hover:underline"
-                      >
-                        {s.clientes?.nombre ?? "—"}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-tinta-suave">{ETIQUETA_TIPO[s.tipo]}</td>
-                    <td className="px-4 py-3 text-right">{formatearPesos(s.monto)}</td>
-                    <td className="px-4 py-3 text-right">{formatearPesos(s.monto_cobrado)}</td>
-                    <td className="px-4 py-3">
-                      <ChipEstado estado={s.estado} />
-                    </td>
-                    <td className="w-12 px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                      <MenuAcciones acciones={acciones} />
-                    </td>
-                  </tr>
-                </ConMenuContextual>
-              );
-            })}
-            {servicios.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-tinta-suave">
-                  No hay servicios con ese filtro.
-                </td>
+            return (
+              <div
+                key={s.id}
+                onClick={() => navigate(`/servicios/${s.id}`)}
+                className="flex items-start justify-between gap-3 p-4 hover:bg-fondo active:bg-fondo/80 cursor-pointer"
+              >
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-tinta truncate">
+                      {s.clientes?.nombre ?? "—"}
+                    </span>
+                    <ChipEstado estado={s.estado} />
+                  </div>
+                  <div className="text-[13px] text-tinta-suave truncate">
+                    {formatearFecha(s.fecha_programada)} · {ETIQUETA_TIPO[s.tipo]}
+                  </div>
+                  <div className="text-right text-sm font-medium tabular-nums text-tinta">
+                    {formatearPesos(s.monto)}
+                  </div>
+                </div>
+                <div className="pt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <MenuAcciones acciones={acciones} />
+                </div>
+              </div>
+            );
+          })}
+          {servicios.length === 0 && (
+            <div className="p-8 text-center text-sm text-tinta-suave">
+              No hay servicios con ese filtro.
+            </div>
+          )}
+        </div>
+
+        {/* Vista escritorio (>= md): tabla completa */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-tinta-suave">
+              <tr className="border-b border-borde">
+                <th className="px-4 py-3 font-medium">#</th>
+                <th className="px-4 py-3 font-medium">Fecha</th>
+                <th className="px-4 py-3 font-medium">Cliente</th>
+                <th className="px-4 py-3 font-medium">Tipo</th>
+                <th className="px-4 py-3 text-right font-medium">Monto</th>
+                <th className="px-4 py-3 text-right font-medium">Cobrado</th>
+                <th className="px-4 py-3 font-medium">Estado</th>
+                <th className="w-12 px-2 py-3"></th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {servicios.map((s) => {
+                const acciones: AccionMenu[] = [
+                  {
+                    texto: "Ver detalle",
+                    onClick: () => navigate(`/servicios/${s.id}`),
+                  },
+                  ...(s.estado !== "cancelado"
+                    ? [
+                        {
+                          texto: "Cancelar",
+                          peligro: true,
+                          onClick: () => handleCancelar(s),
+                        },
+                      ]
+                    : []),
+                ];
+
+                return (
+                  <ConMenuContextual key={s.id} acciones={acciones}>
+                    <tr
+                      onClick={() => navigate(`/servicios/${s.id}`)}
+                      className="border-b border-borde last:border-0 hover:bg-fondo cursor-pointer"
+                    >
+                      <td className="px-4 py-3 text-tinta-suave">{s.numero}</td>
+                      <td className="px-4 py-3">{formatearFecha(s.fecha_programada)}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <Link
+                          to={`/servicios/${s.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:underline"
+                        >
+                          {s.clientes?.nombre ?? "—"}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-tinta-suave">{ETIQUETA_TIPO[s.tipo]}</td>
+                      <td className="px-4 py-3 text-right">{formatearPesos(s.monto)}</td>
+                      <td className="px-4 py-3 text-right">{formatearPesos(s.monto_cobrado)}</td>
+                      <td className="px-4 py-3">
+                        <ChipEstado estado={s.estado} />
+                      </td>
+                      <td className="w-12 px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <MenuAcciones acciones={acciones} />
+                      </td>
+                    </tr>
+                  </ConMenuContextual>
+                );
+              })}
+              {servicios.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-10 text-center text-tinta-suave">
+                    No hay servicios con ese filtro.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Tarjeta>
     </div>
   );

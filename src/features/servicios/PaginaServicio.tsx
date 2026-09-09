@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, FileText, Plus } from "lucide-react";
+import { ArrowRight, FileText, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
 import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro, Alquiler, Empresa } from "@/lib/tipos";
@@ -11,6 +11,7 @@ import { ChipEstado } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
 import { Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { LineaTiempo, type EventoLineaTiempo } from "@/components/ui/LineaTiempo";
 import { FormularioCobro } from "@/features/cobros/FormularioCobro";
 import { TarjetaPresupuesto } from "@/features/presupuestos/TarjetaPresupuesto";
@@ -466,50 +467,45 @@ export function PaginaServicio() {
 
   return (
     <div className="space-y-6">
-      {/* Volver a Servicios */}
-      <div>
-        <Link
-          to="/servicios"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-marca hover:text-marca-oscuro"
-        >
-          <ArrowLeft className="size-4" />
-          Volver a Servicios
-        </Link>
-      </div>
+      {/* Encabezado con volver a Servicios */}
+      <EncabezadoPagina
+        volverA="/servicios"
+        titulo={
+          <div className="flex flex-wrap items-center gap-3">
+            <span>Servicio #{servicio.numero}</span>
+            <ChipEstado estado={servicio.estado} />
+            {servicio.no_facturable && (
+              <span className="rounded-full bg-fondo px-2.5 py-0.5 text-xs font-medium text-tinta-suave border border-borde">
+                No se factura
+              </span>
+            )}
+          </div>
+        }
+        subtitulo={
+          <>
+            {servicio.cliente_id ? (
+              <Link to={`/clientes/${servicio.cliente_id}`} className="hover:underline text-tinta font-medium">
+                {servicio.clientes?.nombre ?? "—"}
+              </Link>
+            ) : (
+              <span>{servicio.clientes?.nombre ?? "—"}</span>
+            )}
+            {" · "}
+            {ETIQUETA_TIPO[servicio.tipo] ?? servicio.tipo}
+          </>
+        }
+      />
 
-      {/* Encabezado */}
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold text-tinta">Servicio #{servicio.numero}</h1>
-          <ChipEstado estado={servicio.estado} />
-          {servicio.no_facturable && (
-            <span className="rounded-full bg-fondo px-2.5 py-0.5 text-xs font-medium text-tinta-suave border border-borde">
-              No se factura
-            </span>
-          )}
-        </div>
-        <div className="text-sm text-tinta-suave">
-          {servicio.cliente_id ? (
-            <Link to={`/clientes/${servicio.cliente_id}`} className="hover:underline text-tinta font-medium">
-              {servicio.clientes?.nombre ?? "—"}
-            </Link>
-          ) : (
-            <span>{servicio.clientes?.nombre ?? "—"}</span>
-          )}
-          {" · "}
-          {ETIQUETA_TIPO[servicio.tipo] ?? servicio.tipo}
-        </div>
-        {servicio.no_planificado && (
-          <Aviso variante="alerta" className="mt-2">
-            Cargado por el chofer en la calle. Completá cliente y monto.
-          </Aviso>
-        )}
-        {mostrarAvisoVencimiento && (
-          <Aviso variante="alerta" className="mt-2">
-            Este alquiler vence el {fechaHastaDdMm}. ¿Renovar?
-          </Aviso>
-        )}
-      </header>
+      {servicio.no_planificado && (
+        <Aviso variante="alerta">
+          Cargado por el chofer en la calle. Completá cliente y monto.
+        </Aviso>
+      )}
+      {mostrarAvisoVencimiento && (
+        <Aviso variante="alerta">
+          Este alquiler vence el {fechaHastaDdMm}. ¿Renovar?
+        </Aviso>
+      )}
 
       {/* Formulario inline Registrar cobro */}
       {mostrarCobro && (
@@ -629,7 +625,7 @@ export function PaginaServicio() {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2 pt-2">
+            <div className="sticky bottom-0 z-20 -mx-4 border-t border-borde bg-superficie p-3 flex flex-wrap items-center justify-end gap-2 md:static md:mx-0 md:bg-transparent md:p-0 md:pt-2 md:border-t-0">
               <Boton type="submit" disabled={guardandoProg}>
                 {guardandoProg ? "Guardando..." : "Confirmar programación"}
               </Boton>

@@ -6,6 +6,7 @@ import { ETIQUETA_MEDIO_PAGO } from "@/lib/tipos";
 import { formatearPesos, formatearFecha } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipCobro, ChipCheque } from "@/components/ui/Chip";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { MenuAcciones, ConMenuContextual, type AccionMenu } from "@/components/ui/MenuAcciones";
 
 type ClavePestana = "pendientes" | "cheques" | "todos";
@@ -215,25 +216,25 @@ export function PaginaCobros() {
   return (
     <div className="space-y-6">
       {/* Encabezado y dos cifras a la derecha */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-tinta">Cobros</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-6 text-right">
-          <div>
-            <div className="text-xs text-tinta-suave">Pendiente de acreditar</div>
-            <div className="text-xl sm:text-2xl font-semibold tracking-tight text-tinta tabular-nums">
-              {formatearPesos(pendienteAcreditar)}
+      <EncabezadoPagina
+        titulo="Cobros"
+        acciones={
+          <div className="flex flex-wrap items-center gap-6 text-right">
+            <div>
+              <div className="text-xs text-tinta-suave">Pendiente de acreditar</div>
+              <div className="text-xl sm:text-2xl font-semibold tracking-tight text-tinta tabular-nums">
+                {formatearPesos(pendienteAcreditar)}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-tinta-suave">Cheques esta semana</div>
+              <div className="text-xl sm:text-2xl font-semibold tracking-tight text-tinta tabular-nums">
+                {formatearPesos(chequesEstaSemana)}
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-xs text-tinta-suave">Cheques esta semana</div>
-            <div className="text-xl sm:text-2xl font-semibold tracking-tight text-tinta tabular-nums">
-              {formatearPesos(chequesEstaSemana)}
-            </div>
-          </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Pestañas */}
       <div className="flex flex-wrap gap-2">
@@ -266,83 +267,139 @@ export function PaginaCobros() {
             No hay cobros pendientes de acreditar.
           </Tarjeta>
         ) : (
-          <Tarjeta className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-tinta-suave">
-                <tr className="border-b border-borde">
-                  <th className="px-4 py-3 font-medium">Fecha</th>
-                  <th className="px-4 py-3 font-medium">Cliente</th>
-                  <th className="px-4 py-3 font-medium">Medio</th>
-                  <th className="px-4 py-3 font-medium">Referencia / Nº cheque</th>
-                  <th className="px-4 py-3 font-medium">Acredita</th>
-                  <th className="px-4 py-3 text-right font-medium">Monto</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="w-12 px-2 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-borde">
-                {cobrosPendientes.map((c) => {
-                  const refCheque = c.cheques?.numero
-                    ? `Cheque #${c.cheques.numero}`
-                    : c.referencia || "—";
+          <Tarjeta>
+            {/* Móvil: lista dividida */}
+            <div className="divide-y divide-borde md:hidden">
+              {cobrosPendientes.map((c) => {
+                const refCheque = c.cheques?.numero
+                  ? `Cheque #${c.cheques.numero}`
+                  : c.referencia || "—";
 
-                  const acciones: AccionMenu[] = [
-                    {
-                      texto: "Marcar acreditado",
-                      onClick: () => marcarAcreditadoCobro(c),
-                    },
-                    { separador: true },
-                    {
-                      texto: "Marcar rechazado",
-                      onClick: () => marcarRechazadoCobro(c),
-                      peligro: true,
-                    },
-                  ];
+                const acciones: AccionMenu[] = [
+                  {
+                    texto: "Marcar acreditado",
+                    onClick: () => marcarAcreditadoCobro(c),
+                  },
+                  { separador: true },
+                  {
+                    texto: "Marcar rechazado",
+                    onClick: () => marcarRechazadoCobro(c),
+                    peligro: true,
+                  },
+                ];
 
-                  return (
-                    <ConMenuContextual key={c.id} acciones={acciones}>
-                      <tr className="hover:bg-fondo transition-colors">
-                        <td className="px-4 py-3 text-tinta-suave tabular-nums whitespace-nowrap">
-                          {formatearFecha(c.fecha)}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-tinta">
-                          {c.cliente_id ? (
-                            <Link
-                              to={`/clientes/${c.cliente_id}`}
-                              className="hover:underline text-tinta"
-                            >
-                              {c.clientes?.nombre ?? "—"}
-                            </Link>
-                          ) : (
-                            c.clientes?.nombre ?? "—"
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-tinta">
-                          {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
-                        </td>
-                        <td className="px-4 py-3 text-tinta-suave tabular-nums">
-                          {refCheque}
-                        </td>
-                        <td className="px-4 py-3 text-tinta-suave tabular-nums whitespace-nowrap">
-                          {c.fecha_acreditacion
-                            ? formatearFecha(c.fecha_acreditacion)
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-tinta tabular-nums">
-                          {formatearPesos(c.monto)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <ChipCobro estado={c.estado} />
-                        </td>
-                        <td className="px-2 py-3 text-right">
-                          <MenuAcciones acciones={acciones} />
-                        </td>
-                      </tr>
-                    </ConMenuContextual>
-                  );
-                })}
-              </tbody>
-            </table>
+                return (
+                  <div key={c.id} className="p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      {c.cliente_id ? (
+                        <Link
+                          to={`/clientes/${c.cliente_id}`}
+                          className="font-semibold text-tinta hover:underline truncate text-sm"
+                        >
+                          {c.clientes?.nombre ?? "—"}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold text-tinta truncate text-sm">
+                          {c.clientes?.nombre ?? "—"}
+                        </span>
+                      )}
+                      <ChipCobro estado={c.estado} />
+                    </div>
+                    <div className="text-[13px] text-tinta-suave truncate">
+                      {formatearFecha(c.fecha)} · {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
+                      {refCheque !== "—" ? ` · ${refCheque}` : ""}
+                      {c.fecha_acreditacion ? ` · Acredita ${formatearFecha(c.fecha_acreditacion)}` : ""}
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-0.5">
+                      <span className="text-sm font-semibold tabular-nums text-tinta">
+                        {formatearPesos(c.monto)}
+                      </span>
+                      <MenuAcciones acciones={acciones} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop: tabla */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-tinta-suave">
+                  <tr className="border-b border-borde">
+                    <th className="px-4 py-3 font-medium">Fecha</th>
+                    <th className="px-4 py-3 font-medium">Cliente</th>
+                    <th className="px-4 py-3 font-medium">Medio</th>
+                    <th className="px-4 py-3 font-medium">Referencia / Nº cheque</th>
+                    <th className="px-4 py-3 font-medium">Acredita</th>
+                    <th className="px-4 py-3 text-right font-medium">Monto</th>
+                    <th className="px-4 py-3 font-medium">Estado</th>
+                    <th className="w-12 px-2 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-borde">
+                  {cobrosPendientes.map((c) => {
+                    const refCheque = c.cheques?.numero
+                      ? `Cheque #${c.cheques.numero}`
+                      : c.referencia || "—";
+
+                    const acciones: AccionMenu[] = [
+                      {
+                        texto: "Marcar acreditado",
+                        onClick: () => marcarAcreditadoCobro(c),
+                      },
+                      { separador: true },
+                      {
+                        texto: "Marcar rechazado",
+                        onClick: () => marcarRechazadoCobro(c),
+                        peligro: true,
+                      },
+                    ];
+
+                    return (
+                      <ConMenuContextual key={c.id} acciones={acciones}>
+                        <tr className="hover:bg-fondo transition-colors">
+                          <td className="px-4 py-3 text-tinta-suave tabular-nums whitespace-nowrap">
+                            {formatearFecha(c.fecha)}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-tinta">
+                            {c.cliente_id ? (
+                              <Link
+                                to={`/clientes/${c.cliente_id}`}
+                                className="hover:underline text-tinta"
+                              >
+                                {c.clientes?.nombre ?? "—"}
+                              </Link>
+                            ) : (
+                              c.clientes?.nombre ?? "—"
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-tinta">
+                            {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave tabular-nums">
+                            {refCheque}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave tabular-nums whitespace-nowrap">
+                            {c.fecha_acreditacion
+                              ? formatearFecha(c.fecha_acreditacion)
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-tinta tabular-nums">
+                            {formatearPesos(c.monto)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <ChipCobro estado={c.estado} />
+                          </td>
+                          <td className="px-2 py-3 text-right">
+                            <MenuAcciones acciones={acciones} />
+                          </td>
+                        </tr>
+                      </ConMenuContextual>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Tarjeta>
         )
       ) : pestanaActiva === "cheques" ? (
@@ -351,103 +408,169 @@ export function PaginaCobros() {
             No hay cheques en cartera ni depositados.
           </Tarjeta>
         ) : (
-          <Tarjeta className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-tinta-suave">
-                <tr className="border-b border-borde">
-                  <th className="px-4 py-3 font-medium">Fecha de pago</th>
-                  <th className="px-4 py-3 font-medium">Cliente</th>
-                  <th className="px-4 py-3 font-medium">Emisor</th>
-                  <th className="px-4 py-3 font-medium">Banco</th>
-                  <th className="px-4 py-3 font-medium">Número</th>
-                  <th className="px-4 py-3 font-medium">E-cheq</th>
-                  <th className="px-4 py-3 text-right font-medium">Monto</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="w-12 px-2 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-borde">
-                {chequesCartera.map((ch) => {
-                  const yaPaso = ch.fecha_pago < hoyStr;
+          <Tarjeta>
+            {/* Móvil: lista dividida */}
+            <div className="divide-y divide-borde md:hidden">
+              {chequesCartera.map((ch) => {
+                const yaPaso = ch.fecha_pago < hoyStr;
 
-                  const acciones: AccionMenu[] = [];
-                  if (ch.estado === "en_cartera") {
-                    acciones.push({
-                      texto: "Marcar depositado",
-                      onClick: () => actualizarEstadoCheque(ch.id, "depositado"),
-                    });
-                    acciones.push({
-                      texto: "Marcar acreditado",
-                      onClick: () => actualizarEstadoCheque(ch.id, "acreditado"),
-                    });
-                    acciones.push({ separador: true });
-                    acciones.push({
-                      texto: "Marcar rechazado",
-                      onClick: () => actualizarEstadoCheque(ch.id, "rechazado"),
-                      peligro: true,
-                    });
-                  } else if (ch.estado === "depositado") {
-                    acciones.push({
-                      texto: "Marcar acreditado",
-                      onClick: () => actualizarEstadoCheque(ch.id, "acreditado"),
-                    });
-                    acciones.push({ separador: true });
-                    acciones.push({
-                      texto: "Marcar rechazado",
-                      onClick: () => actualizarEstadoCheque(ch.id, "rechazado"),
-                      peligro: true,
-                    });
-                  }
+                const acciones: AccionMenu[] = [];
+                if (ch.estado === "en_cartera") {
+                  acciones.push({
+                    texto: "Marcar depositado",
+                    onClick: () => actualizarEstadoCheque(ch.id, "depositado"),
+                  });
+                  acciones.push({
+                    texto: "Marcar acreditado",
+                    onClick: () => actualizarEstadoCheque(ch.id, "acreditado"),
+                  });
+                  acciones.push({ separador: true });
+                  acciones.push({
+                    texto: "Marcar rechazado",
+                    onClick: () => actualizarEstadoCheque(ch.id, "rechazado"),
+                    peligro: true,
+                  });
+                } else if (ch.estado === "depositado") {
+                  acciones.push({
+                    texto: "Marcar acreditado",
+                    onClick: () => actualizarEstadoCheque(ch.id, "acreditado"),
+                  });
+                  acciones.push({ separador: true });
+                  acciones.push({
+                    texto: "Marcar rechazado",
+                    onClick: () => actualizarEstadoCheque(ch.id, "rechazado"),
+                    peligro: true,
+                  });
+                }
 
-                  return (
-                    <ConMenuContextual key={ch.id} acciones={acciones}>
-                      <tr className="hover:bg-fondo transition-colors">
-                        <td
-                          className={`px-4 py-3 tabular-nums whitespace-nowrap ${
-                            yaPaso ? "text-alerta font-medium" : "text-tinta-suave"
-                          }`}
-                        >
-                          {formatearFecha(ch.fecha_pago)}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-tinta">
-                          {ch.cliente_id ? (
-                            <Link
-                              to={`/clientes/${ch.cliente_id}`}
-                              className="hover:underline text-tinta"
-                            >
-                              {ch.clientes?.nombre ?? "—"}
-                            </Link>
-                          ) : (
-                            ch.clientes?.nombre ?? "—"
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-tinta-suave">
-                          {ch.emisor || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-tinta-suave">
-                          {ch.banco || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-tinta-suave tabular-nums">
-                          {ch.numero || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-tinta-suave">
-                          {ch.es_echeq ? "Sí" : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-tinta tabular-nums">
-                          {formatearPesos(ch.monto)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <ChipCheque estado={ch.estado} />
-                        </td>
-                        <td className="px-2 py-3 text-right">
-                          <MenuAcciones acciones={acciones} />
-                        </td>
-                      </tr>
-                    </ConMenuContextual>
-                  );
-                })}
-              </tbody>
-            </table>
+                const emisorBanco = [ch.emisor, ch.banco].filter(Boolean).join(" · ") || ch.clientes?.nombre || "Cheque";
+
+                return (
+                  <div key={ch.id} className="p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-tinta truncate text-sm">
+                        {emisorBanco}
+                      </span>
+                      <ChipCheque estado={ch.estado} />
+                    </div>
+                    <div className="text-[13px] text-tinta-suave truncate">
+                      <span className={yaPaso ? "text-alerta font-medium" : ""}>
+                        Pago {formatearFecha(ch.fecha_pago)}
+                      </span>
+                      {ch.numero ? ` · Nº ${ch.numero}` : ""}
+                      {ch.clientes?.nombre ? ` · ${ch.clientes.nombre}` : ""}
+                      {ch.es_echeq ? " · E-cheq" : ""}
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-0.5">
+                      <span className="text-sm font-semibold tabular-nums text-tinta">
+                        {formatearPesos(ch.monto)}
+                      </span>
+                      <MenuAcciones acciones={acciones} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop: tabla */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-tinta-suave">
+                  <tr className="border-b border-borde">
+                    <th className="px-4 py-3 font-medium">Fecha de pago</th>
+                    <th className="px-4 py-3 font-medium">Cliente</th>
+                    <th className="px-4 py-3 font-medium">Emisor</th>
+                    <th className="px-4 py-3 font-medium">Banco</th>
+                    <th className="px-4 py-3 font-medium">Número</th>
+                    <th className="px-4 py-3 font-medium">E-cheq</th>
+                    <th className="px-4 py-3 text-right font-medium">Monto</th>
+                    <th className="px-4 py-3 font-medium">Estado</th>
+                    <th className="w-12 px-2 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-borde">
+                  {chequesCartera.map((ch) => {
+                    const yaPaso = ch.fecha_pago < hoyStr;
+
+                    const acciones: AccionMenu[] = [];
+                    if (ch.estado === "en_cartera") {
+                      acciones.push({
+                        texto: "Marcar depositado",
+                        onClick: () => actualizarEstadoCheque(ch.id, "depositado"),
+                      });
+                      acciones.push({
+                        texto: "Marcar acreditado",
+                        onClick: () => actualizarEstadoCheque(ch.id, "acreditado"),
+                      });
+                      acciones.push({ separador: true });
+                      acciones.push({
+                        texto: "Marcar rechazado",
+                        onClick: () => actualizarEstadoCheque(ch.id, "rechazado"),
+                        peligro: true,
+                      });
+                    } else if (ch.estado === "depositado") {
+                      acciones.push({
+                        texto: "Marcar acreditado",
+                        onClick: () => actualizarEstadoCheque(ch.id, "acreditado"),
+                      });
+                      acciones.push({ separador: true });
+                      acciones.push({
+                        texto: "Marcar rechazado",
+                        onClick: () => actualizarEstadoCheque(ch.id, "rechazado"),
+                        peligro: true,
+                      });
+                    }
+
+                    return (
+                      <ConMenuContextual key={ch.id} acciones={acciones}>
+                        <tr className="hover:bg-fondo transition-colors">
+                          <td
+                            className={`px-4 py-3 tabular-nums whitespace-nowrap ${
+                              yaPaso ? "text-alerta font-medium" : "text-tinta-suave"
+                            }`}
+                          >
+                            {formatearFecha(ch.fecha_pago)}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-tinta">
+                            {ch.cliente_id ? (
+                              <Link
+                                to={`/clientes/${ch.cliente_id}`}
+                                className="hover:underline text-tinta"
+                              >
+                                {ch.clientes?.nombre ?? "—"}
+                              </Link>
+                            ) : (
+                              ch.clientes?.nombre ?? "—"
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave">
+                            {ch.emisor || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave">
+                            {ch.banco || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave tabular-nums">
+                            {ch.numero || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave">
+                            {ch.es_echeq ? "Sí" : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-tinta tabular-nums">
+                            {formatearPesos(ch.monto)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <ChipCheque estado={ch.estado} />
+                          </td>
+                          <td className="px-2 py-3 text-right">
+                            <MenuAcciones acciones={acciones} />
+                          </td>
+                        </tr>
+                      </ConMenuContextual>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Tarjeta>
         )
       ) : (
@@ -456,92 +579,157 @@ export function PaginaCobros() {
             No hay cobros registrados.
           </Tarjeta>
         ) : (
-          <Tarjeta className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-tinta-suave">
-                <tr className="border-b border-borde">
-                  <th className="px-4 py-3 font-medium">Fecha</th>
-                  <th className="px-4 py-3 font-medium">Cliente</th>
-                  <th className="px-4 py-3 font-medium">Medio</th>
-                  <th className="px-4 py-3 font-medium">Referencia / Nº cheque</th>
-                  <th className="px-4 py-3 font-medium">Acredita</th>
-                  <th className="px-4 py-3 text-right font-medium">Monto</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="w-12 px-2 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-borde">
-                {todosCobros.map((c) => {
-                  const refCheque = c.cheques?.numero
-                    ? `Cheque #${c.cheques.numero}`
-                    : c.referencia || "—";
+          <Tarjeta>
+            {/* Móvil: lista dividida */}
+            <div className="divide-y divide-borde md:hidden">
+              {todosCobros.map((c) => {
+                const refCheque = c.cheques?.numero
+                  ? `Cheque #${c.cheques.numero}`
+                  : c.referencia || "—";
 
-                  const acciones: AccionMenu[] = [];
-                  if (c.estado === "pendiente") {
-                    acciones.push({
-                      texto: "Marcar acreditado",
-                      onClick: () => marcarAcreditadoCobro(c),
-                    });
-                    acciones.push({ separador: true });
-                    acciones.push({
-                      texto: "Marcar rechazado",
-                      onClick: () => marcarRechazadoCobro(c),
-                      peligro: true,
-                    });
-                  } else if (c.estado === "acreditado") {
-                    acciones.push({
-                      texto: "Marcar rechazado",
-                      onClick: () => marcarRechazadoCobro(c),
-                      peligro: true,
-                    });
-                  }
+                const acciones: AccionMenu[] = [];
+                if (c.estado === "pendiente") {
+                  acciones.push({
+                    texto: "Marcar acreditado",
+                    onClick: () => marcarAcreditadoCobro(c),
+                  });
+                  acciones.push({ separador: true });
+                  acciones.push({
+                    texto: "Marcar rechazado",
+                    onClick: () => marcarRechazadoCobro(c),
+                    peligro: true,
+                  });
+                } else if (c.estado === "acreditado") {
+                  acciones.push({
+                    texto: "Marcar rechazado",
+                    onClick: () => marcarRechazadoCobro(c),
+                    peligro: true,
+                  });
+                }
 
-                  return (
-                    <ConMenuContextual key={c.id} acciones={acciones}>
-                      <tr className="hover:bg-fondo transition-colors">
-                        <td className="px-4 py-3 text-tinta-suave tabular-nums whitespace-nowrap">
-                          {formatearFecha(c.fecha)}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-tinta">
-                          {c.cliente_id ? (
-                            <Link
-                              to={`/clientes/${c.cliente_id}`}
-                              className="hover:underline text-tinta"
-                            >
-                              {c.clientes?.nombre ?? "—"}
-                            </Link>
-                          ) : (
-                            c.clientes?.nombre ?? "—"
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-tinta">
-                          {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
-                        </td>
-                        <td className="px-4 py-3 text-tinta-suave tabular-nums">
-                          {refCheque}
-                        </td>
-                        <td className="px-4 py-3 text-tinta-suave tabular-nums whitespace-nowrap">
-                          {c.fecha_acreditacion
-                            ? formatearFecha(c.fecha_acreditacion)
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-tinta tabular-nums">
-                          {formatearPesos(c.monto)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <ChipCobro estado={c.estado} />
-                        </td>
-                        <td className="px-2 py-3 text-right">
-                          {acciones.length > 0 ? (
-                            <MenuAcciones acciones={acciones} />
-                          ) : null}
-                        </td>
-                      </tr>
-                    </ConMenuContextual>
-                  );
-                })}
-              </tbody>
-            </table>
+                return (
+                  <div key={c.id} className="p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      {c.cliente_id ? (
+                        <Link
+                          to={`/clientes/${c.cliente_id}`}
+                          className="font-semibold text-tinta hover:underline truncate text-sm"
+                        >
+                          {c.clientes?.nombre ?? "—"}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold text-tinta truncate text-sm">
+                          {c.clientes?.nombre ?? "—"}
+                        </span>
+                      )}
+                      <ChipCobro estado={c.estado} />
+                    </div>
+                    <div className="text-[13px] text-tinta-suave truncate">
+                      {formatearFecha(c.fecha)} · {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
+                      {refCheque !== "—" ? ` · ${refCheque}` : ""}
+                      {c.fecha_acreditacion ? ` · Acredita ${formatearFecha(c.fecha_acreditacion)}` : ""}
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-0.5">
+                      <span className="text-sm font-semibold tabular-nums text-tinta">
+                        {formatearPesos(c.monto)}
+                      </span>
+                      {acciones.length > 0 ? (
+                        <MenuAcciones acciones={acciones} />
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop: tabla */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-tinta-suave">
+                  <tr className="border-b border-borde">
+                    <th className="px-4 py-3 font-medium">Fecha</th>
+                    <th className="px-4 py-3 font-medium">Cliente</th>
+                    <th className="px-4 py-3 font-medium">Medio</th>
+                    <th className="px-4 py-3 font-medium">Referencia / Nº cheque</th>
+                    <th className="px-4 py-3 font-medium">Acredita</th>
+                    <th className="px-4 py-3 text-right font-medium">Monto</th>
+                    <th className="px-4 py-3 font-medium">Estado</th>
+                    <th className="w-12 px-2 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-borde">
+                  {todosCobros.map((c) => {
+                    const refCheque = c.cheques?.numero
+                      ? `Cheque #${c.cheques.numero}`
+                      : c.referencia || "—";
+
+                    const acciones: AccionMenu[] = [];
+                    if (c.estado === "pendiente") {
+                      acciones.push({
+                        texto: "Marcar acreditado",
+                        onClick: () => marcarAcreditadoCobro(c),
+                      });
+                      acciones.push({ separador: true });
+                      acciones.push({
+                        texto: "Marcar rechazado",
+                        onClick: () => marcarRechazadoCobro(c),
+                        peligro: true,
+                      });
+                    } else if (c.estado === "acreditado") {
+                      acciones.push({
+                        texto: "Marcar rechazado",
+                        onClick: () => marcarRechazadoCobro(c),
+                        peligro: true,
+                      });
+                    }
+
+                    return (
+                      <ConMenuContextual key={c.id} acciones={acciones}>
+                        <tr className="hover:bg-fondo transition-colors">
+                          <td className="px-4 py-3 text-tinta-suave tabular-nums whitespace-nowrap">
+                            {formatearFecha(c.fecha)}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-tinta">
+                            {c.cliente_id ? (
+                              <Link
+                                to={`/clientes/${c.cliente_id}`}
+                                className="hover:underline text-tinta"
+                              >
+                                {c.clientes?.nombre ?? "—"}
+                              </Link>
+                            ) : (
+                              c.clientes?.nombre ?? "—"
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-tinta">
+                            {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave tabular-nums">
+                            {refCheque}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave tabular-nums whitespace-nowrap">
+                            {c.fecha_acreditacion
+                              ? formatearFecha(c.fecha_acreditacion)
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-tinta tabular-nums">
+                            {formatearPesos(c.monto)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <ChipCobro estado={c.estado} />
+                          </td>
+                          <td className="px-2 py-3 text-right">
+                            {acciones.length > 0 ? (
+                              <MenuAcciones acciones={acciones} />
+                            ) : null}
+                          </td>
+                        </tr>
+                      </ConMenuContextual>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Tarjeta>
         )
       )}

@@ -295,7 +295,7 @@ export function FormularioCobro({
         </button>
       </div>
 
-      <form onSubmit={handleGuardar} className="space-y-4">
+      <form onSubmit={handleGuardar} className="space-y-4 pb-4 md:pb-0">
         {/* Medio de pago */}
         <div>
           <Etiqueta>Medio de pago</Etiqueta>
@@ -503,7 +503,7 @@ export function FormularioCobro({
         )}
 
         {/* Botones de acción */}
-        <div className="flex flex-wrap items-center gap-2 pt-2">
+        <div className="sticky bottom-0 -mx-5 -mb-5 border-t border-borde bg-superficie p-3 md:static md:mx-0 md:mb-0 md:border-0 md:bg-transparent md:p-0 md:pt-2 flex flex-wrap items-center gap-2 z-10">
           <Boton type="submit" disabled={guardando}>
             {guardando ? "Guardando..." : "Guardar cobro"}
           </Boton>

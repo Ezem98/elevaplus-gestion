@@ -180,7 +180,7 @@ export function FormularioFactura({
   };
 
   return (
-    <form onSubmit={handleGuardar} className="mt-4 border-t border-borde pt-4 space-y-4">
+    <form onSubmit={handleGuardar} className="mt-4 border-t border-borde pt-4 space-y-4 pb-4 md:pb-0">
       {/* Resumen de los servicios incluidos */}
       <div className="rounded-md border border-borde bg-fondo p-3 space-y-2">
         <span className="text-sm font-medium text-tinta-suave block">
@@ -312,7 +312,7 @@ export function FormularioFactura({
       {errorGuardar && <Aviso variante="peligro">{errorGuardar}</Aviso>}
 
       {/* Botones de acción */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+      <div className="sticky bottom-0 -mx-5 -mb-5 border-t border-borde bg-superficie p-3 md:static md:mx-0 md:mb-0 md:border-0 md:bg-transparent md:p-0 md:pt-2 flex flex-wrap items-center justify-between gap-3 z-10">
         <Boton
           type="button"
           variante="secundario"
