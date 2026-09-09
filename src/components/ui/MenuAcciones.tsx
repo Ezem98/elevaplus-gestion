@@ -21,6 +21,7 @@ export interface MenuAccionesProps {
   acciones: AccionMenu[];
   abierto?: boolean;
   onAbiertoChange?: (abierto: boolean) => void;
+  disparador?: ReactNode;
 }
 
 export interface ConMenuContextualProps {
@@ -64,19 +65,21 @@ function ListaAcciones({ acciones, ItemComponent, SeparatorComponent }: ListaAcc
   );
 }
 
-export function MenuAcciones({ acciones, abierto, onAbiertoChange }: MenuAccionesProps) {
+export function MenuAcciones({ acciones, abierto, onAbiertoChange, disparador }: MenuAccionesProps) {
   const rootProps = abierto !== undefined ? { open: abierto, onOpenChange: onAbiertoChange } : {};
 
   return (
     <DropdownMenu.Root {...rootProps}>
       <DropdownMenu.Trigger asChild onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          aria-label="Acciones"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-tinta-suave hover:bg-fondo transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca"
-        >
-          <MoreHorizontal className="size-4" />
-        </button>
+        {disparador ?? (
+          <button
+            type="button"
+            aria-label="Acciones"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-tinta-suave hover:bg-fondo transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca"
+          >
+            <MoreHorizontal className="size-4" />
+          </button>
+        )}
       </DropdownMenu.Trigger>
 
       <DropdownMenu.Portal>

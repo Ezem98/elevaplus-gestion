@@ -12,6 +12,7 @@ import { PaginaClientes } from "@/features/clientes/PaginaClientes";
 import { FormularioCliente } from "@/features/clientes/FormularioCliente";
 import { PaginaCliente } from "@/features/clientes/PaginaCliente";
 import { PaginaCobros } from "@/features/cobros/PaginaCobros";
+import { PaginaCaja } from "@/features/caja/PaginaCaja";
 import { PaginaFacturacion } from "@/features/facturacion/PaginaFacturacion";
 import { PaginaConfiguracion } from "@/features/configuracion/PaginaConfiguracion";
 import { PaginaChoferHoy } from "@/features/chofer/PaginaChoferHoy";
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
           { path: "/clientes/:id", element: <PaginaCliente /> },
           { path: "/clientes/:id/editar", element: <FormularioCliente /> },
           { path: "/cobros", element: <PaginaCobros /> },
+          { path: "/caja", element: <PaginaCaja /> },
           { path: "/facturacion", element: <PaginaFacturacion /> },
           {
             element: <RutaProtegida roles={["admin"]} />,

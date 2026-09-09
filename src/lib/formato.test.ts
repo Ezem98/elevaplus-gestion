@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { proximoCuartoDeHora } from "./formato";
+import { proximoCuartoDeHora, formatearMes } from "./formato";
 
 describe("proximoCuartoDeHora", () => {
   it("redondea 14:07 al próximo cuarto de hora (14:15)", () => {
@@ -34,5 +34,18 @@ describe("proximoCuartoDeHora", () => {
   it("hace rollover correctamente a las 00:00 al final del día", () => {
     const fecha = new Date(2026, 8, 8, 23, 52, 0);
     expect(proximoCuartoDeHora(fecha)).toBe("00:00");
+  });
+});
+
+describe("formatearMes", () => {
+  it("formatea correctamente un período YYYY-MM en español", () => {
+    expect(formatearMes("2026-09")).toBe("Septiembre 2026");
+    expect(formatearMes("2026-01")).toBe("Enero 2026");
+    expect(formatearMes("2026-12")).toBe("Diciembre 2026");
+  });
+
+  it("devuelve raya si es null o undefined", () => {
+    expect(formatearMes(null)).toBe("—");
+    expect(formatearMes(undefined)).toBe("—");
   });
 });

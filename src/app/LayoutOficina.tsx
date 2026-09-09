@@ -1,6 +1,7 @@
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Truck, Calculator, Users, Wallet, Receipt, Settings, LogOut, Plus } from "lucide-react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Truck, Calculator, Users, Wallet, Landmark, Receipt, Settings, LogOut, Plus, Menu } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { MenuAcciones, type AccionMenu } from "@/components/ui/MenuAcciones";
 
 import type { Rol } from "@/lib/tipos";
 
@@ -16,6 +17,7 @@ const enlacesSidebar = [
   { a: "/cotizador", texto: "Cotizador", Icono: Calculator },
   { a: "/clientes", texto: "Clientes", Icono: Users },
   { a: "/cobros", texto: "Cobros", Icono: Wallet },
+  { a: "/caja", texto: "Caja", Icono: Landmark },
   { a: "/facturacion", texto: "Facturación", Icono: Receipt },
 ];
 
@@ -23,8 +25,7 @@ const enlacesMovil = [
   { a: "/", texto: "Hoy", Icono: LayoutDashboard },
   { a: "/servicios", texto: "Servicios", Icono: Truck },
   { a: "/clientes", texto: "Clientes", Icono: Users },
-  { a: "/cobros", texto: "Cobros", Icono: Wallet },
-  { a: "/facturacion", texto: "Facturación", Icono: Receipt },
+  { a: "/caja", texto: "Caja", Icono: Landmark },
 ];
 
 export function LayoutOficina() {
@@ -32,10 +33,24 @@ export function LayoutOficina() {
   const primerNombre = perfil?.nombre ? perfil.nombre.trim().split(/\s+/)[0] : "";
 
   const location = useLocation();
+  const navigate = useNavigate();
   const rutasConFab = ["/", "/servicios", "/clientes"];
   const mostrarFab = rutasConFab.includes(location.pathname);
   const destinoFab = location.pathname === "/clientes" ? "/clientes/nuevo" : "/servicios/nuevo";
   const etiquetaFab = location.pathname === "/clientes" ? "Nuevo cliente" : "Nuevo servicio";
+
+  const accionesMas: AccionMenu[] = [
+    { texto: "Cobros", onClick: () => navigate("/cobros") },
+    { texto: "Facturación", onClick: () => navigate("/facturacion") },
+    { texto: "Cotizador", onClick: () => navigate("/cotizador") },
+    ...(perfil?.rol === "admin"
+      ? [{ texto: "Configuración", onClick: () => navigate("/configuracion") }]
+      : []),
+  ];
+
+  const esRutaMas = ["/cobros", "/facturacion", "/cotizador", "/configuracion"].some(
+    (r) => location.pathname.startsWith(r)
+  );
 
   return (
     <div className="flex min-h-full flex-col md:flex-row">
@@ -112,7 +127,7 @@ export function LayoutOficina() {
         </Link>
       )}
 
-      {/* Navegación inferior en celular */}
+      {/* Navegación inferior en celular: Hoy · Servicios · Clientes · Caja · Más */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-[60px] border-t border-borde bg-superficie pb-[env(safe-area-inset-bottom)] md:hidden">
         {enlacesMovil.map(({ a, texto, Icono }) => (
           <NavLink
@@ -127,6 +142,20 @@ export function LayoutOficina() {
             {texto}
           </NavLink>
         ))}
+        <MenuAcciones
+          acciones={accionesMas}
+          disparador={
+            <button
+              type="button"
+              className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 text-[11px] font-medium transition-colors ${
+                esRutaMas ? "text-marca" : "text-tinta-suave"
+              }`}
+            >
+              <Menu className="h-5 w-5" />
+              Más
+            </button>
+          }
+        />
       </nav>
     </div>
   );

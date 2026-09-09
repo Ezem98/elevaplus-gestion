@@ -62,3 +62,16 @@ export function proximoCuartoDeHora(fecha: Date): string {
   const minFinal = String(d.getMinutes()).padStart(2, "0");
   return `${horas}:${minFinal}`;
 }
+
+export function formatearMes(periodo: string | null | undefined): string {
+  if (!periodo) return "—";
+  const partes = periodo.slice(0, 7).split("-");
+  if (partes.length < 2) return periodo;
+  const [año, mes] = partes;
+  const meses = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  ];
+  const idx = parseInt(mes, 10) - 1;
+  return `${meses[idx] ?? mes} ${año}`;
+}

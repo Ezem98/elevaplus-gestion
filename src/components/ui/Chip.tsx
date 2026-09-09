@@ -1,4 +1,4 @@
-import type { EstadoServicio, EstadoCobro, EstadoCheque } from "@/lib/tipos";
+import type { EstadoServicio, EstadoCobro, EstadoCheque, EstadoMovimiento } from "@/lib/tipos";
 import { ETIQUETA_ESTADO, ETIQUETA_ESTADO_COBRO, ETIQUETA_ESTADO_CHEQUE } from "@/lib/tipos";
 
 const color: Record<EstadoServicio, string> = {
@@ -47,6 +47,19 @@ export function ChipCheque({ estado }: { estado: EstadoCheque }) {
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${colorCheque[estado]}`}>
       {ETIQUETA_ESTADO_CHEQUE[estado]}
+    </span>
+  );
+}
+
+const colorMovimiento: Record<EstadoMovimiento, string> = {
+  pendiente: "bg-alerta-suave text-alerta border-alerta/20",
+  pagado: "bg-ok-suave text-ok border-ok/20",
+};
+
+export function ChipMovimiento({ estado }: { estado: EstadoMovimiento }) {
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${colorMovimiento[estado]}`}>
+      {estado === "pendiente" ? "Pendiente" : "Pagado"}
     </span>
   );
 }
