@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Presupuesto N° 0042 — ELEVAPLUS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background-color: #525659;
+        font-family:
+          "IBM Plex Sans",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        color: #17212b;
+        display: flex;
+        justify-content: center;
+        padding: 32px 16px;
+        -webkit-font-smoothing: antialiased;
+      }
+      .page-container {
+        width: 210mm;
+        min-height: 297mm;
+        background: #ffffff;
+        padding: 20mm;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #1e4fa8;
+      }
+      .logo-box {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .logo-img {
+        height: 38px;
+        width: auto;
+      }
+      .doc-meta {
+        text-align: right;
+      }
+      .doc-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #17212b;
+        letter-spacing: -0.2px;
+      }
+      .doc-date {
+        font-size: 13px;
+        color: #5b6b7b;
+        margin-top: 4px;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-top: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #d9e0e8;
+      }
+      .info-block {
+        font-size: 11px;
+        line-height: 1.6;
+        color: #5b6b7b;
+      }
+      .info-block strong {
+        color: #17212b;
+        font-size: 12px;
+        display: block;
+        margin-bottom: 4px;
+      }
+      .client-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #1e4fa8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+        display: block;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 24px;
+        font-variant-numeric: tabular-nums;
+      }
+      thead th {
+        background: #f5f7fa;
+        border-top: 1px solid #d9e0e8;
+        border-bottom: 1px solid #d9e0e8;
+        padding: 10px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #17212b;
+        text-align: left;
+      }
+      thead th.text-right {
+        text-align: right;
+      }
+      thead th.text-center {
+        text-align: center;
+      }
+      tbody td {
+        padding: 12px;
+        border-bottom: 1px solid #d9e0e8;
+        font-size: 13px;
+        vertical-align: top;
+        color: #17212b;
+      }
+      tbody td.desc {
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      tbody td.desc span {
+        display: block;
+        color: #5b6b7b;
+        font-size: 12px;
+        margin-top: 2px;
+      }
+      tbody td.text-right {
+        text-align: right;
+        white-space: nowrap;
+      }
+      tbody td.text-center {
+        text-align: center;
+      }
+
+      .totals-wrapper {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 16px;
+      }
+      .totals-table {
+        width: 280px;
+        border-collapse: collapse;
+        font-variant-numeric: tabular-nums;
+      }
+      .totals-table td {
+        padding: 6px 12px;
+        font-size: 13px;
+        border: none;
+      }
+      .totals-table td.label {
+        color: #5b6b7b;
+        text-align: left;
+      }
+      .totals-table td.val {
+        text-align: right;
+        color: #17212b;
+        font-weight: 500;
+      }
+      .totals-table tr.grand-total {
+        border-top: 1px solid #d9e0e8;
+        border-bottom: 2px solid #17212b;
+      }
+      .totals-table tr.grand-total td {
+        padding-top: 10px;
+        padding-bottom: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #17212b;
+      }
+      .totals-table tr.grand-total td.val {
+        color: #1e4fa8;
+      }
+
+      .conditions-box {
+        margin-top: 36px;
+        padding: 14px 16px;
+        background: #f5f7fa;
+        border-left: 3px solid #1e4fa8;
+        border-radius: 4px;
+      }
+      .conditions-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: #17212b;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .conditions-text {
+        font-size: 10.5px;
+        line-height: 1.5;
+        color: #5b6b7b;
+      }
+
+      .footer {
+        margin-top: auto;
+        padding-top: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .footer-note {
+        font-size: 13px;
+        font-weight: 600;
+        color: #17212b;
+      }
+      .footer-signatures {
+        display: flex;
+        gap: 32px;
+        text-align: center;
+      }
+      .signature-line {
+        width: 140px;
+        border-top: 1px solid #d9e0e8;
+        padding-top: 4px;
+        font-size: 10px;
+        color: #5b6b7b;
+      }
+      .bottom-accent {
+        margin-top: 16px;
+        height: 2px;
+        background: #1e4fa8;
+        width: 100%;
+      }
+
+      @media print {
+        body {
+          background: transparent;
+          padding: 0;
+        }
+        .page-container {
+          box-shadow: none;
+          padding: 20mm;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-container">
+      <!-- Header -->
+      <header class="header">
+        <div class="logo-box">
+          <img
+            src="https://lh3.googleusercontent.com/aida/AEtjO1UbwPALaybP5OWGrXKb2YHJy8ESopKeol500G6nCnYiNz-3nzrXCVMBozlrcMrwwpf2yc5siBMGxRFqnxslO4RRIv8kigG_YHBNFD2O9YSQPVgRMvA1eVRMEFF_0KCeyTZuU1CxOJqQtfF1As-d0hqCrG4R0HeSGDCNY1LxE61Qc-ecRDs6gWtDRXS3oOKI5WjWUSS4dyrWW63UyLQ1sYia_Jo21x86yUUcU7n6FzUc9oo78il4MA898wzD"
+            alt="ELEVAPLUS"
+            class="logo-img"
+          />
+        </div>
+        <div class="doc-meta">
+          <div class="doc-title">Presupuesto N° 0042</div>
+          <div class="doc-date">8 de septiembre de 2026</div>
+        </div>
+      </header>
+
+      <!-- Info Grid -->
+      <section class="info-grid">
+        <div class="info-block">
+          <strong>ELEVAPLUS</strong>
+          CUIT 30-71489201-4 · Responsable inscripto<br />
+          Zona Sur, Buenos Aires<br />
+          +54 9 11 6391-6614 · @elevaplus_ · contacto@elevaplus.com.ar
+        </div>
+        <div class="info-block">
+          <span class="client-label">Para:</span>
+          <strong style="font-size: 13px">Deza S.A.</strong>
+          CUIT 30-63879432-9 · Responsable inscripto<br />
+          Planta Industrial Burzaco, Buenos Aires<br />
+          Atención: Ing. Gustavo Deza
+        </div>
+      </section>
+
+      <!-- Items Table -->
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 52%">Descripción</th>
+            <th class="text-center" style="width: 12%">Cantidad</th>
+            <th class="text-right" style="width: 18%">Precio unitario</th>
+            <th class="text-right" style="width: 18%">Importe</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="desc">
+              Traslado de autoelevador 2,5 t
+              <span
+                >Recorrido Burzaco → Avellaneda, ida y vuelta (60 km) · Ford
+                Cargo con rampa</span
+              >
+            </td>
+            <td class="text-center">1</td>
+            <td class="text-right">$ 257.040</td>
+            <td class="text-right">$ 257.040</td>
+          </tr>
+          <tr>
+            <td class="desc">
+              Alquiler autoelevador por hora en destino
+              <span
+                >Autoelevador Toyota 2,5 t combustión con operador
+                incluido</span
+              >
+            </td>
+            <td class="text-center">4 h</td>
+            <td class="text-right">$ 30.000</td>
+            <td class="text-right">$ 120.000</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Totals -->
+      <div class="totals-wrapper">
+        <table class="totals-table">
+          <tr>
+            <td class="label">Subtotal neto</td>
+            <td class="val">$ 377.040</td>
+          </tr>
+          <tr>
+            <td class="label">IVA (21 %)</td>
+            <td class="val">$ 79.178</td>
+          </tr>
+          <tr class="grand-total">
+            <td class="label">Total</td>
+            <td class="val">$ 456.218</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Conditions -->
+      <section class="conditions-box">
+        <div class="conditions-title">Condiciones comerciales</div>
+        <div class="conditions-text">
+          Validez de la cotización: 7 días corridos · Precios en pesos
+          argentinos · Forma de pago: transferencia bancaria anticipada o
+          efectivo contra entrega de remito · El importe de traslado no incluye
+          tiempo de espera superior a 30 minutos en origen o destino (hora de
+          espera adicional: $ 18.000) · Seguro de carga y maquinaria incluido.
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <div class="footer-note">Gracias por consultarnos</div>
+        <div class="footer-signatures">
+          <div class="signature-line">ELEVAPLUS Logística</div>
+          <div class="signature-line">Conforme cliente</div>
+        </div>
+      </footer>
+      <div class="bottom-accent"></div>
+    </div>
+  </body>
+</html>

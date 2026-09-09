@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, FileText, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
-import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro, Alquiler } from "@/lib/tipos";
+import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro, Alquiler, Empresa } from "@/lib/tipos";
 import { ETIQUETA_TIPO, ETIQUETA_TIPO_MAQUINA, ETIQUETA_MEDIO_PAGO, formatearUnidadPlural } from "@/lib/tipos";
 import { formatearPesos, formatearFecha, formatearNumeroFactura, proximoCuartoDeHora } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
@@ -13,6 +13,7 @@ import { Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
 import { LineaTiempo, type EventoLineaTiempo } from "@/components/ui/LineaTiempo";
 import { FormularioCobro } from "@/features/cobros/FormularioCobro";
+import { TarjetaPresupuesto } from "@/features/presupuestos/TarjetaPresupuesto";
 
 interface CobroAplicadoItem {
   monto: number;
@@ -76,6 +77,7 @@ export function PaginaServicio() {
   const [mostrarCobro, setMostrarCobro] = useState(false);
   const [cobrosAplicados, setCobrosAplicados] = useState<CobroAplicadoItem[]>([]);
   const [alquiler, setAlquiler] = useState<Alquiler | null>(null);
+  const [empresa, setEmpresa] = useState<Empresa | null>(null);
 
   const [fechaProg, setFechaProg] = useState("");
   const [horaProg, setHoraProg] = useState("");
@@ -131,11 +133,12 @@ export function PaginaServicio() {
       { data: scData },
       { data: caData },
       { data: alqData },
+      { data: empData },
       adjuntosLista,
     ] = await Promise.all([
       supabase
         .from("servicios")
-        .select("*, clientes(nombre), vehiculos(nombre), maquinas(codigo_interno, tipo), facturas(id, tipo, punto_venta, numero, fecha)")
+        .select("*, clientes(nombre, cuit, condicion_iva, telefono, email, direccion, localidad), vehiculos(nombre), maquinas(codigo_interno, tipo), facturas(id, tipo, punto_venta, numero, fecha)")
         .eq("id", id)
         .single(),
       supabase
@@ -156,6 +159,11 @@ export function PaginaServicio() {
         .select("*")
         .eq("servicio_id", id)
         .maybeSingle(),
+      supabase
+        .from("empresa")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle(),
       cargarAdjuntos(id),
     ]);
 
@@ -166,6 +174,7 @@ export function PaginaServicio() {
     }
 
     setServicio(sData as Servicio);
+    setEmpresa((empData as Empresa) ?? null);
     setAlquiler((alqData as Alquiler) ?? null);
     setEventos(
       (eData ?? []).map((e: any) => ({
@@ -1004,6 +1013,16 @@ export function PaginaServicio() {
               )}
             </div>
           </Tarjeta>
+
+          {/* Tarjeta Presupuesto debajo de Datos para consulta, presupuestado y aceptado */}
+          {["consulta", "presupuestado", "aceptado"].includes(servicio.estado) && (
+            <TarjetaPresupuesto
+              servicio={servicio}
+              empresa={empresa}
+              alquiler={alquiler}
+              onActualizado={cargarDatos}
+            />
+          )}
 
           {/* Tarjeta Notas si tiene contenido */}
           {servicio.notas?.trim() && (

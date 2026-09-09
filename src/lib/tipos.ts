@@ -110,11 +110,41 @@ export interface Servicio {
   no_facturable: boolean;
   notas: string | null;
   no_planificado: boolean;
+  presupuesto_validez_dias?: number | null;
+  presupuesto_condiciones?: string | null;
+  presupuesto_pdf_path?: string | null;
+  presupuesto_generado_at?: string | null;
   created_at: string;
-  clientes?: { nombre: string; cuit?: string | null; condicion_iva?: CondicionIva | null } | null;
+  clientes?: {
+    nombre: string;
+    cuit?: string | null;
+    condicion_iva?: CondicionIva | null;
+    telefono?: string | null;
+    email?: string | null;
+    direccion?: string | null;
+    localidad?: string | null;
+  } | null;
   vehiculos?: { nombre: string } | null;
   maquinas?: { codigo_interno: string | null; tipo: TipoMaquina } | null;
   facturas?: { id?: string; tipo: TipoFactura; punto_venta: number; numero: number; fecha?: string } | null;
+  alquileres?: Alquiler | null;
+}
+
+export interface Empresa {
+  id: number;
+  razon_social: string;
+  cuit: string;
+  condicion_iva: CondicionIva;
+  domicilio: string | null;
+  telefono: string | null;
+  email: string | null;
+  email_secundario: string | null;
+  instagram: string | null;
+  presupuesto_validez_dias: number;
+  presupuesto_espera_autoelevador: string;
+  presupuesto_espera_camion: string | null;
+  presupuesto_condiciones_extra: string | null;
+  updated_at?: string;
 }
 
 export interface ServicioEvento {
