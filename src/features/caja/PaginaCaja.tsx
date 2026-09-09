@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Check, X, Pencil } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { useRealtime } from "@/hooks/use-realtime";
 import type {
   AmbitoMovimiento,
   TipoMovimiento,
@@ -149,8 +150,8 @@ export function PaginaCaja() {
   }, []);
 
   // Cargar movimientos del mes y cobros acreditados
-  const cargarDatos = useCallback(async () => {
-    setCargando(true);
+  const cargarDatos = useCallback(async (mostrarSpinner = false) => {
+    if (mostrarSpinner) setCargando(true);
     await cargarCatalogos();
 
     const [añoStr, mesStr] = mesFiltro.split("-");
@@ -245,9 +246,15 @@ export function PaginaCaja() {
     setCargando(false);
   }, [mesFiltro, ambitoFiltro, cargarCatalogos]);
 
-  useEffect(() => {
-    cargarDatos();
+  const cargar = useCallback(() => {
+    return cargarDatos(false);
   }, [cargarDatos]);
+
+  useEffect(() => {
+    cargarDatos(true);
+  }, [cargarDatos]);
+
+  useRealtime(["movimientos_caja", "cobros", "cuentas"], cargar);
 
   // Filtrado final de items unificados
   const itemsFiltrados = itemsUnificados.filter((item) => {

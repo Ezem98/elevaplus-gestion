@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowRight, FileText, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { useRealtime } from "@/hooks/use-realtime";
 import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro, Alquiler, Empresa } from "@/lib/tipos";
 import { ETIQUETA_TIPO, ETIQUETA_TIPO_MAQUINA, ETIQUETA_MEDIO_PAGO, formatearUnidadPlural } from "@/lib/tipos";
 import { formatearPesos, formatearFecha, formatearNumeroFactura, proximoCuartoDeHora } from "@/lib/formato";
@@ -126,9 +127,11 @@ export function PaginaServicio() {
     return items;
   }, []);
 
-  const cargarDatos = useCallback(async () => {
+  const cargarDatos = useCallback(async (mostrarSpinner = false) => {
     if (!id) return;
-    setCargando(true);
+    if (mostrarSpinner) {
+      setCargando(true);
+    }
     const [
       { data: sData, error: sError },
       { data: eData },
@@ -193,10 +196,18 @@ export function PaginaServicio() {
     setCargando(false);
   }, [id, cargarAdjuntos]);
 
+  const cargar = useCallback(() => {
+    return cargarDatos(false);
+  }, [cargarDatos]);
 
   useEffect(() => {
-    cargarDatos();
+    cargarDatos(true);
   }, [cargarDatos]);
+
+  useRealtime(
+    ["servicios", "servicio_eventos", "cobros", "cobro_aplicaciones", "adjuntos"],
+    cargar
+  );
 
   useEffect(() => {
     Promise.all([

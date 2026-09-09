@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useRealtime } from "@/hooks/use-realtime";
 import type { Cliente, CuentaCorrienteCliente, Servicio } from "@/lib/tipos";
 import { ETIQUETA_TIPO, ETIQUETA_TIPO_CLIENTE, ETIQUETA_CONDICION_IVA, ETIQUETA_CONDICION_PAGO } from "@/lib/tipos";
 import { formatearPesos, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
@@ -21,9 +22,9 @@ export function PaginaCliente() {
   const [mostrarCobro, setMostrarCobro] = useState(false);
   const [cargando, setCargando] = useState(true);
 
-  const cargarDatos = useCallback(async () => {
+  const cargarDatos = useCallback(async (mostrarSpinner = false) => {
     if (!id) return;
-    setCargando(true);
+    if (mostrarSpinner) setCargando(true);
 
     const [clienteRes, ccRes, serviciosRes, pendientesRes] = await Promise.all([
       supabase.from("clientes").select("*").eq("id", id).single(),
@@ -57,9 +58,15 @@ export function PaginaCliente() {
     setCargando(false);
   }, [id]);
 
-  useEffect(() => {
-    cargarDatos();
+  const cargar = useCallback(() => {
+    return cargarDatos(false);
   }, [cargarDatos]);
+
+  useEffect(() => {
+    cargarDatos(true);
+  }, [cargarDatos]);
+
+  useRealtime(["servicios", "cobros"], cargar);
 
   if (cargando) {
     return (

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRealtime } from "@/hooks/use-realtime";
 import type { Servicio, EstadoServicio } from "@/lib/tipos";
 import { ETIQUETA_TIPO } from "@/lib/tipos";
 import { Tarjeta } from "@/components/ui/Tarjeta";
@@ -22,6 +23,8 @@ export function PaginaChoferHoy() {
   }, []);
 
   useEffect(cargar, [cargar]);
+
+  useRealtime(["servicios", "servicio_choferes"], cargar);
 
   async function cambiar(id: string, nuevo: EstadoServicio) {
     setError(null);

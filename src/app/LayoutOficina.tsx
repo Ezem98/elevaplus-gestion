@@ -1,6 +1,9 @@
+import { useCallback, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Truck, Calculator, Users, Wallet, Landmark, Receipt, Settings, LogOut, Plus, Menu } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { useRealtime } from "@/hooks/use-realtime";
 import { MenuAcciones, type AccionMenu } from "@/components/ui/MenuAcciones";
 
 import type { Rol } from "@/lib/tipos";
@@ -46,11 +49,38 @@ export function LayoutOficina() {
     ...(perfil?.rol === "admin"
       ? [{ texto: "Configuración", onClick: () => navigate("/configuracion") }]
       : []),
+    { texto: "Mi cuenta", onClick: () => navigate("/mi-cuenta") },
   ];
 
-  const esRutaMas = ["/cobros", "/facturacion", "/cotizador", "/configuracion"].some(
+  const esRutaMas = ["/cobros", "/facturacion", "/cotizador", "/configuracion", "/mi-cuenta"].some(
     (r) => location.pathname.startsWith(r)
   );
+
+  const [hayPendientesServicios, setHayPendientesServicios] = useState(false);
+
+  const consultarPendientes = useCallback(async () => {
+    const [{ count: cTerminados }, { count: cSinFacturar }] = await Promise.all([
+      supabase
+        .from("servicios")
+        .select("id", { count: "exact", head: true })
+        .eq("estado", "terminado")
+        .limit(1),
+      supabase
+        .from("servicios")
+        .select("id", { count: "exact", head: true })
+        .eq("estado", "cobrado")
+        .is("factura_id", null)
+        .eq("no_facturable", false)
+        .limit(1),
+    ]);
+    setHayPendientesServicios((cTerminados ?? 0) > 0 || (cSinFacturar ?? 0) > 0);
+  }, []);
+
+  useEffect(() => {
+    consultarPendientes();
+  }, [consultarPendientes]);
+
+  useRealtime(["servicios", "cobros", "facturas"], consultarPendientes);
 
   return (
     <div className="flex min-h-full flex-col md:flex-row">
@@ -72,7 +102,13 @@ export function LayoutOficina() {
               }
             >
               <Icono className="h-4 w-4" />
-              {texto}
+              <span className="flex-1">{texto}</span>
+              {texto === "Servicios" && hayPendientesServicios && (
+                <span
+                  className="h-2 w-2 rounded-full bg-alerta shrink-0"
+                  title="Servicios terminados sin cobrar o sin facturar"
+                />
+              )}
             </NavLink>
           ))}
           {perfil?.rol === "admin" && (
@@ -91,16 +127,16 @@ export function LayoutOficina() {
         </nav>
         <div className="flex items-center justify-between gap-3 text-sm md:mt-auto md:border-t md:border-borde md:px-2 md:pt-4">
           {primerNombre && (
-            <span className="text-sm font-semibold text-tinta md:hidden">
+            <Link to="/mi-cuenta" className="text-sm font-semibold text-tinta hover:text-marca md:hidden">
               Hola, {primerNombre}
-            </span>
+            </Link>
           )}
-          <div className="hidden min-w-0 flex-col md:flex">
+          <Link to="/mi-cuenta" className="hidden min-w-0 flex-col md:flex hover:opacity-80 transition-opacity">
             <span className="truncate font-medium text-tinta">{perfil?.nombre}</span>
             {perfil?.rol && (
               <span className="truncate text-xs text-tinta-suave">{etiquetasRol[perfil.rol]}</span>
             )}
-          </div>
+          </Link>
           <button
             onClick={salir}
             className="ml-auto rounded-md p-2 text-tinta-suave transition-colors hover:bg-peligro-suave hover:text-peligro md:ml-0"
@@ -138,7 +174,15 @@ export function LayoutOficina() {
               `flex flex-1 flex-col items-center justify-center gap-1 py-1 text-[11px] font-medium ${isActive ? "text-marca" : "text-tinta-suave"}`
             }
           >
-            <Icono className="h-5 w-5" />
+            <div className="relative">
+              <Icono className="h-5 w-5" />
+              {texto === "Servicios" && hayPendientesServicios && (
+                <span
+                  className="absolute -top-0.5 -right-1 h-2 w-2 rounded-full bg-alerta"
+                  title="Servicios terminados sin cobrar o sin facturar"
+                />
+              )}
+            </div>
             {texto}
           </NavLink>
         ))}

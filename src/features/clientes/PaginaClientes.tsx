@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useRealtime } from "@/hooks/use-realtime";
 import type { CondicionPago } from "@/lib/tipos";
 import { ETIQUETA_CONDICION_PAGO } from "@/lib/tipos";
 import { formatearPesos } from "@/lib/formato";
@@ -28,8 +29,8 @@ export function PaginaClientes() {
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [cargando, setCargando] = useState(true);
 
-  const cargarClientes = useCallback(async () => {
-    setCargando(true);
+  const cargarClientes = useCallback(async (mostrarSpinner = false) => {
+    if (mostrarSpinner) setCargando(true);
     const [{ data: ccData }, { data: clientesData }] = await Promise.all([
       supabase
         .from("cuenta_corriente")
@@ -86,9 +87,15 @@ export function PaginaClientes() {
     setCargando(false);
   }, []);
 
-  useEffect(() => {
-    cargarClientes();
+  const cargar = useCallback(() => {
+    return cargarClientes(false);
   }, [cargarClientes]);
+
+  useEffect(() => {
+    cargarClientes(true);
+  }, [cargarClientes]);
+
+  useRealtime(["servicios", "cobros"], cargar);
 
   const handleToggleActivo = async (c: ClienteFila) => {
     if (c.activo) {

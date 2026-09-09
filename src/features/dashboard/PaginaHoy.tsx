@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useRealtime } from "@/hooks/use-realtime";
 import type { Servicio } from "@/lib/tipos";
 import { ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearPesos } from "@/lib/formato";
@@ -41,37 +42,47 @@ export function PaginaHoy() {
   const [saldo, setSaldo] = useState<number | null>(null);
   const [sinFacturar, setSinFacturar] = useState<number>(0);
 
-  useEffect(() => {
+  const cargar = useCallback(async () => {
     const fecha = new Date().toISOString().slice(0, 10);
-    supabase
-      .from("servicios")
-      .select("*, clientes(nombre)")
-      .eq("fecha_programada", fecha)
-      .not("estado", "in", "(cancelado)")
-      .order("hora_programada")
-      .then(({ data }) => setHoy((data as Servicio[]) ?? []));
+    const [resHoy, resSinCerrar, resSaldo, resSinFacturar] = await Promise.all([
+      supabase
+        .from("servicios")
+        .select("*, clientes(nombre)")
+        .eq("fecha_programada", fecha)
+        .not("estado", "in", "(cancelado)")
+        .order("hora_programada"),
+      supabase
+        .from("servicios")
+        .select("*, clientes(nombre)")
+        .lt("fecha_programada", fecha)
+        .in("estado", ["programado", "en_curso"])
+        .order("fecha_programada"),
+      supabase
+        .from("cuenta_corriente")
+        .select("saldo"),
+      supabase
+        .from("servicios")
+        .select("id", { count: "exact", head: true })
+        .in("estado", ["terminado", "cobrado"])
+        .is("factura_id", null)
+        .eq("no_facturable", false),
+    ]);
 
-    supabase
-      .from("servicios")
-      .select("*, clientes(nombre)")
-      .lt("fecha_programada", fecha)
-      .in("estado", ["programado", "en_curso"])
-      .order("fecha_programada")
-      .then(({ data }) => setSinCerrar((data as Servicio[]) ?? []));
-
-    supabase
-      .from("cuenta_corriente")
-      .select("saldo")
-      .then(({ data }) => setSaldo((data ?? []).reduce((acc, r) => acc + Number(r.saldo), 0)));
-
-    supabase
-      .from("servicios")
-      .select("id", { count: "exact", head: true })
-      .in("estado", ["terminado", "cobrado"])
-      .is("factura_id", null)
-      .eq("no_facturable", false)
-      .then(({ count }) => setSinFacturar(count ?? 0));
+    if (resHoy.data) setHoy(resHoy.data as unknown as Servicio[]);
+    if (resSinCerrar.data) setSinCerrar(resSinCerrar.data as unknown as Servicio[]);
+    if (resSaldo.data) {
+      setSaldo(resSaldo.data.reduce((acc, r) => acc + Number(r.saldo), 0));
+    }
+    if (resSinFacturar.count != null) {
+      setSinFacturar(resSinFacturar.count);
+    }
   }, []);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  useRealtime(["servicios", "cobros", "cobro_aplicaciones", "facturas"], cargar);
 
   const fechaHoy = obtenerFechaHoyLarga();
   const fechaHoyCorta = obtenerFechaHoyCorta();

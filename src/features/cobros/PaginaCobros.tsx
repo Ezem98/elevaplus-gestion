@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useRealtime } from "@/hooks/use-realtime";
 import type { Cobro, Cheque, EstadoCheque } from "@/lib/tipos";
 import { ETIQUETA_MEDIO_PAGO } from "@/lib/tipos";
 import { formatearPesos, formatearFecha } from "@/lib/formato";
@@ -88,8 +89,8 @@ export function PaginaCobros() {
     setChequesEstaSemana(totalChequesSemana);
   }, [hoyStr, hoyMas7Str]);
 
-  const cargarDatos = useCallback(async () => {
-    setCargando(true);
+  const cargarDatos = useCallback(async (mostrarSpinner = false) => {
+    if (mostrarSpinner) setCargando(true);
     await cargarCifras();
 
     // Consultas para cada pestaña
@@ -133,9 +134,15 @@ export function PaginaCobros() {
     setCargando(false);
   }, [cargarCifras]);
 
-  useEffect(() => {
-    cargarDatos();
+  const cargar = useCallback(() => {
+    return cargarDatos(false);
   }, [cargarDatos]);
+
+  useEffect(() => {
+    cargarDatos(true);
+  }, [cargarDatos]);
+
+  useRealtime(["cobros", "cheques"], cargar);
 
   // Acciones para cobros
   const marcarAcreditadoCobro = async (cobro: Cobro) => {

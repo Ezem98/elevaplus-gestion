@@ -16,6 +16,7 @@ import { PaginaCaja } from "@/features/caja/PaginaCaja";
 import { PaginaFacturacion } from "@/features/facturacion/PaginaFacturacion";
 import { PaginaConfiguracion } from "@/features/configuracion/PaginaConfiguracion";
 import { PaginaChoferHoy } from "@/features/chofer/PaginaChoferHoy";
+import { PaginaMiCuenta } from "@/features/auth/PaginaMiCuenta";
 
 export const router = createBrowserRouter([
   { path: "/ingresar", element: <PaginaIngresar /> },
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
           { path: "/cobros", element: <PaginaCobros /> },
           { path: "/caja", element: <PaginaCaja /> },
           { path: "/facturacion", element: <PaginaFacturacion /> },
+          { path: "/mi-cuenta", element: <PaginaMiCuenta /> },
           {
             element: <RutaProtegida roles={["admin"]} />,
             children: [

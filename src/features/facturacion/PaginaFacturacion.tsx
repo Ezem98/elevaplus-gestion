@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useRealtime } from "@/hooks/use-realtime";
 import type { Factura, Servicio, CondicionIva, IvaMensual, MovimientoCaja } from "@/lib/tipos";
 import { ETIQUETA_CONDICION_IVA, ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearPesos, formatearFecha, formatearNumeroFactura, formatearMes } from "@/lib/formato";
@@ -101,8 +102,8 @@ export function PaginaFacturacion() {
   }, [ivaMensual, mesSeleccionadoCsv]);
 
   // ==================== Cargar Pendientes ====================
-  const cargarPendientes = useCallback(async () => {
-    setCargandoPendientes(true);
+  const cargarPendientes = useCallback(async (mostrarSpinner = false) => {
+    if (mostrarSpinner) setCargandoPendientes(true);
     const { data, error } = await supabase
       .from("servicios")
       .select("id, numero, tipo, estado, descripcion, fecha_programada, monto, aplica_iva, cliente_id, no_facturable, factura_id, clientes(id, nombre, cuit, condicion_iva)")
@@ -118,8 +119,8 @@ export function PaginaFacturacion() {
   }, []);
 
   // ==================== Cargar Facturas ====================
-  const cargarFacturas = useCallback(async () => {
-    setCargandoFacturas(true);
+  const cargarFacturas = useCallback(async (mostrarSpinner = false) => {
+    if (mostrarSpinner) setCargandoFacturas(true);
     const { data: facs, error } = await supabase
       .from("facturas")
       .select("id, tipo, punto_venta, numero, fecha, cliente_id, neto, iva, total, anulada, notas, clientes(nombre)")
@@ -150,8 +151,8 @@ export function PaginaFacturacion() {
   }, []);
 
   // ==================== Cargar Notas de crédito ====================
-  const cargarNotasCredito = useCallback(async () => {
-    setCargandoNC(true);
+  const cargarNotasCredito = useCallback(async (mostrarSpinner = false) => {
+    if (mostrarSpinner) setCargandoNC(true);
     const { data, error } = await supabase
       .from("facturas")
       .select(
@@ -168,8 +169,8 @@ export function PaginaFacturacion() {
   }, []);
 
   // ==================== Cargar IVA Mensual ====================
-  const cargarIvaMensual = useCallback(async () => {
-    setCargandoIva(true);
+  const cargarIvaMensual = useCallback(async (mostrarSpinner = false) => {
+    if (mostrarSpinner) setCargandoIva(true);
     const { data, error } = await supabase
       .from("iva_mensual")
       .select("*")
@@ -181,17 +182,29 @@ export function PaginaFacturacion() {
     setCargandoIva(false);
   }, []);
 
+  const cargar = useCallback(
+    async (mostrarSpinner = false) => {
+      if (pestanaActiva === "pendientes") {
+        await cargarPendientes(mostrarSpinner);
+      } else if (pestanaActiva === "facturas") {
+        await cargarFacturas(mostrarSpinner);
+      } else if (pestanaActiva === "notas_credito") {
+        await cargarNotasCredito(mostrarSpinner);
+      } else if (pestanaActiva === "iva") {
+        await cargarIvaMensual(mostrarSpinner);
+      }
+    },
+    [pestanaActiva, cargarPendientes, cargarFacturas, cargarNotasCredito, cargarIvaMensual]
+  );
+
   useEffect(() => {
-    if (pestanaActiva === "pendientes") {
-      cargarPendientes();
-    } else if (pestanaActiva === "facturas") {
-      cargarFacturas();
-    } else if (pestanaActiva === "notas_credito") {
-      cargarNotasCredito();
-    } else if (pestanaActiva === "iva") {
-      cargarIvaMensual();
-    }
-  }, [pestanaActiva, cargarPendientes, cargarFacturas, cargarNotasCredito, cargarIvaMensual]);
+    cargar(true);
+  }, [cargar]);
+
+  useRealtime(
+    ["servicios", "facturas", "movimientos_caja"],
+    () => cargar(false)
+  );
 
   // ==================== Expandir comprobantes de compra ====================
   const toggleExpandirMes = async (mesIso: string) => {

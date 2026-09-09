@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useRealtime } from "@/hooks/use-realtime";
 import type { Servicio, EstadoServicio } from "@/lib/tipos";
 import { ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearPesos, formatearFecha } from "@/lib/formato";
@@ -100,13 +101,15 @@ export function PaginaServicios() {
     setServicios((data as Servicio[]) ?? []);
   }, [filtroActivo]);
 
-  useEffect(() => {
-    cargarConteos();
-  }, [cargarConteos]);
+  const cargar = useCallback(async () => {
+    await Promise.all([cargarConteos(), cargarServicios()]);
+  }, [cargarConteos, cargarServicios]);
 
   useEffect(() => {
-    cargarServicios();
-  }, [cargarServicios]);
+    cargar();
+  }, [cargar]);
+
+  useRealtime(["servicios"], cargar);
 
   const handleCancelar = async (s: Servicio) => {
     const confirmado = window.confirm(`¿Seguro que querés cancelar el servicio #${s.numero}?`);
