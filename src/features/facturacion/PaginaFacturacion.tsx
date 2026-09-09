@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import type { Factura, Servicio, CondicionIva } from "@/lib/tipos";
+import type { Factura, Servicio, CondicionIva, IvaMensual, MovimientoCaja } from "@/lib/tipos";
 import { ETIQUETA_CONDICION_IVA, ETIQUETA_TIPO } from "@/lib/tipos";
-import { formatearPesos, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
+import { formatearPesos, formatearFecha, formatearNumeroFactura, formatearMes } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
 import { Entrada } from "@/components/ui/Campo";
@@ -35,9 +36,11 @@ export function PaginaFacturacion() {
       ? "facturas"
       : tabParam === "notas_credito"
       ? "notas_credito"
+      : tabParam === "iva"
+      ? "iva"
       : "pendientes";
 
-  const cambiarPestana = (nueva: "pendientes" | "facturas" | "notas_credito") => {
+  const cambiarPestana = (nueva: "pendientes" | "facturas" | "notas_credito" | "iva") => {
     setSearchParams({ tab: nueva });
   };
 
@@ -58,6 +61,14 @@ export function PaginaFacturacion() {
   // --- Estado pestaña Notas de crédito ---
   const [notasCredito, setNotasCredito] = useState<any[]>([]);
   const [cargandoNC, setCargandoNC] = useState(false);
+
+  // --- Estado pestaña IVA ---
+  const [ivaMensual, setIvaMensual] = useState<IvaMensual[]>([]);
+  const [cargandoIva, setCargandoIva] = useState(false);
+  const [mesExpandidoIva, setMesExpandidoIva] = useState<string | null>(null);
+  const [comprobantesMes, setComprobantesMes] = useState<Record<string, MovimientoCaja[]>>({});
+  const [cargandoComprobantesMes, setCargandoComprobantesMes] = useState(false);
+  const [exportandoMes, setExportandoMes] = useState<string | null>(null);
 
   // ==================== Cargar Pendientes ====================
   const cargarPendientes = useCallback(async () => {
@@ -126,6 +137,20 @@ export function PaginaFacturacion() {
     setCargandoNC(false);
   }, []);
 
+  // ==================== Cargar IVA Mensual ====================
+  const cargarIvaMensual = useCallback(async () => {
+    setCargandoIva(true);
+    const { data, error } = await supabase
+      .from("iva_mensual")
+      .select("*")
+      .order("mes", { ascending: false });
+
+    if (!error && data) {
+      setIvaMensual(data as unknown as IvaMensual[]);
+    }
+    setCargandoIva(false);
+  }, []);
+
   useEffect(() => {
     if (pestanaActiva === "pendientes") {
       cargarPendientes();
@@ -133,8 +158,165 @@ export function PaginaFacturacion() {
       cargarFacturas();
     } else if (pestanaActiva === "notas_credito") {
       cargarNotasCredito();
+    } else if (pestanaActiva === "iva") {
+      cargarIvaMensual();
     }
-  }, [pestanaActiva, cargarPendientes, cargarFacturas, cargarNotasCredito]);
+  }, [pestanaActiva, cargarPendientes, cargarFacturas, cargarNotasCredito, cargarIvaMensual]);
+
+  // ==================== Expandir comprobantes de compra ====================
+  const toggleExpandirMes = async (mesIso: string) => {
+    const mesKey = mesIso.slice(0, 7);
+    if (mesExpandidoIva === mesKey) {
+      setMesExpandidoIva(null);
+      return;
+    }
+
+    setMesExpandidoIva(mesKey);
+
+    if (!comprobantesMes[mesKey]) {
+      setCargandoComprobantesMes(true);
+      const [añoStr, mesNumStr] = mesKey.split("-");
+      const año = parseInt(añoStr, 10);
+      const mes = parseInt(mesNumStr, 10);
+      const primerDia = `${mesKey}-01`;
+      const ultimoDiaNumero = new Date(año, mes, 0).getDate();
+      const ultimoDia = `${mesKey}-${String(ultimoDiaNumero).padStart(2, "0")}`;
+
+      const { data } = await supabase
+        .from("movimientos_caja")
+        .select("*")
+        .gte("fecha", primerDia)
+        .lte("fecha", ultimoDia)
+        .eq("tipo", "egreso")
+        .eq("ambito", "empresa")
+        .eq("tiene_comprobante", true)
+        .order("fecha", { ascending: false });
+
+      if (data) {
+        setComprobantesMes((prev) => ({
+          ...prev,
+          [mesKey]: data as MovimientoCaja[],
+        }));
+      }
+      setCargandoComprobantesMes(false);
+    }
+  };
+
+  // ==================== Exportar CSV para el contador ====================
+  const exportarCsvParaContador = async (mesIso: string) => {
+    const mesKey = mesIso.slice(0, 7);
+    setExportandoMes(mesKey);
+
+    try {
+      const [añoStr, mesNumStr] = mesKey.split("-");
+      const año = parseInt(añoStr, 10);
+      const mes = parseInt(mesNumStr, 10);
+      const primerDia = `${mesKey}-01`;
+      const ultimoDiaNumero = new Date(año, mes, 0).getDate();
+      const ultimoDia = `${mesKey}-${String(ultimoDiaNumero).padStart(2, "0")}`;
+
+      const [facRes, compRes] = await Promise.all([
+        supabase
+          .from("facturas")
+          .select("fecha, tipo, punto_venta, numero, neto, iva, total, clientes(nombre, cuit)")
+          .gte("fecha", primerDia)
+          .lte("fecha", ultimoDia)
+          .eq("anulada", false)
+          .order("fecha", { ascending: true }),
+        supabase
+          .from("movimientos_caja")
+          .select("fecha, comprobante_tipo, comprobante_punto_venta, comprobante_numero, proveedor_cuit, proveedor, neto, iva, monto")
+          .gte("fecha", primerDia)
+          .lte("fecha", ultimoDia)
+          .eq("tipo", "egreso")
+          .eq("ambito", "empresa")
+          .eq("tiene_comprobante", true)
+          .order("fecha", { ascending: true }),
+      ]);
+
+      if (facRes.error) throw facRes.error;
+      if (compRes.error) throw compRes.error;
+
+      const escapar = (val: any) => {
+        if (val == null) return "";
+        const str = String(val);
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const cabeceraVentas = "fecha,tipo,punto_venta,número,CUIT,razón social,neto,IVA,total";
+
+      const filasVentas = (facRes.data || []).map((f: any) =>
+        [
+          escapar(f.fecha),
+          escapar(f.tipo),
+          escapar(f.punto_venta),
+          escapar(f.numero),
+          escapar(f.clientes?.cuit || ""),
+          escapar(f.clientes?.nombre || ""),
+          escapar(f.neto != null ? f.neto : ""),
+          escapar(f.iva != null ? f.iva : ""),
+          escapar(f.total != null ? f.total : ""),
+        ].join(",")
+      );
+      const csvVentas = [cabeceraVentas, ...filasVentas].join("\r\n");
+
+      const cabeceraCompras = "fecha,proveedor,CUIT proveedor,tipo comprobante,número comprobante,neto,IVA,total";
+
+      const filasCompras = (compRes.data || []).map((m: any) => {
+        const numComp =
+          m.comprobante_punto_venta && m.comprobante_numero
+            ? `${String(m.comprobante_punto_venta).padStart(4, "0")}-${String(m.comprobante_numero).padStart(8, "0")}`
+            : m.comprobante_numero || "";
+        return [
+          escapar(m.fecha),
+          escapar(m.proveedor || ""),
+          escapar(m.proveedor_cuit || ""),
+          escapar(m.comprobante_tipo || ""),
+          escapar(numComp),
+          escapar(m.neto != null ? m.neto : ""),
+          escapar(m.iva != null ? m.iva : ""),
+          escapar(m.monto != null ? m.monto : ""),
+        ].join(",");
+      });
+      const csvCompras = [cabeceraCompras, ...filasCompras].join("\r\n");
+
+      const descargar = (contenido: string, nombreArchivo: string) => {
+        const blob = new Blob(["\uFEFF" + contenido], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = nombreArchivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      descargar(csvVentas, `ventas-${mesKey}.csv`);
+      setTimeout(() => {
+        descargar(csvCompras, `compras-${mesKey}.csv`);
+      }, 300);
+    } catch (err: any) {
+      alert("Error al exportar CSV: " + (err.message || err));
+    } finally {
+      setExportandoMes(null);
+    }
+  };
+
+  const añoActual = new Date().getFullYear().toString();
+  const filasDelAño = ivaMensual.filter((fila) => fila.mes.startsWith(añoActual));
+  const totalIvaVentasAño = filasDelAño.reduce(
+    (acc, f) => acc + (Number(f.iva_ventas) || 0),
+    0
+  );
+  const totalIvaComprasAño = filasDelAño.reduce(
+    (acc, f) => acc + (Number(f.iva_compras) || 0),
+    0
+  );
+  const posicionAño = totalIvaVentasAño - totalIvaComprasAño;
 
   // ==================== Agrupación de pendientes ====================
   const gruposPendientes = useMemo(() => {
@@ -279,6 +461,18 @@ export function PaginaFacturacion() {
           }`}
         >
           Notas de crédito
+        </button>
+
+        <button
+          type="button"
+          onClick={() => cambiarPestana("iva")}
+          className={`pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+            pestanaActiva === "iva"
+              ? "border-marca text-marca font-semibold"
+              : "border-transparent text-tinta-suave hover:text-tinta"
+          }`}
+        >
+          IVA
         </button>
       </div>
 
@@ -847,6 +1041,350 @@ export function PaginaFacturacion() {
                             {nc.notas || "—"}
                           </td>
                         </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Tarjeta>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* PESTAÑA: IVA */}
+      {/* ============================================================ */}
+      {pestanaActiva === "iva" && (
+        <div className="space-y-6">
+          {/* Tarjetas de totales del año corriente */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Tarjeta className="p-5">
+              <div className="text-tinta-suave text-xs font-medium">
+                IVA ventas {añoActual}
+              </div>
+              <div className="mt-2 text-2xl font-bold tracking-tight text-tinta tabular-nums">
+                {formatearPesos(totalIvaVentasAño)}
+              </div>
+              <p className="text-[11px] text-tinta-suave mt-1">Débito fiscal acumulado</p>
+            </Tarjeta>
+
+            <Tarjeta className="p-5">
+              <div className="text-tinta-suave text-xs font-medium">
+                IVA compras {añoActual}
+              </div>
+              <div className="mt-2 text-2xl font-bold tracking-tight text-tinta tabular-nums">
+                {formatearPesos(totalIvaComprasAño)}
+              </div>
+              <p className="text-[11px] text-tinta-suave mt-1">Crédito fiscal acumulado</p>
+            </Tarjeta>
+
+            <Tarjeta className="p-5">
+              <div className="text-tinta-suave text-xs font-medium">
+                Posición acumulada {añoActual}
+              </div>
+              <div
+                className={`mt-2 text-2xl font-bold tracking-tight tabular-nums ${
+                  posicionAño > 0 ? "text-alerta" : "text-ok"
+                }`}
+              >
+                {posicionAño > 0
+                  ? `${formatearPesos(posicionAño)} a pagar`
+                  : `${formatearPesos(Math.abs(posicionAño))} a favor`}
+              </div>
+              <p className="text-[11px] text-tinta-suave mt-1">
+                {posicionAño > 0 ? "A pagar" : "A favor"}
+              </p>
+            </Tarjeta>
+          </div>
+
+          {/* Lista y desglose de IVA mensual */}
+          {cargandoIva ? (
+            <div className="py-12 text-center text-tinta-suave">
+              Cargando resumen de IVA...
+            </div>
+          ) : ivaMensual.length === 0 ? (
+            <Tarjeta className="p-8 text-center text-tinta-suave">
+              No hay movimientos registrados para calcular la posición de IVA.
+            </Tarjeta>
+          ) : (
+            <Tarjeta>
+              {/* Vista Móvil */}
+              <div className="divide-y divide-borde md:hidden">
+                {ivaMensual.map((fila) => {
+                  const mesKey = fila.mes.slice(0, 7);
+                  const estaExpandido = mesExpandidoIva === mesKey;
+                  const comprobantes = comprobantesMes[mesKey] || [];
+                  const pos = Number(fila.posicion) || 0;
+                  const exportandoEste = exportandoMes === mesKey;
+
+                  return (
+                    <div key={fila.mes} className="p-4 space-y-3">
+                      <div
+                        className="flex items-center justify-between cursor-pointer select-none"
+                        onClick={() => toggleExpandirMes(fila.mes)}
+                      >
+                        <div className="flex items-center gap-2">
+                          {estaExpandido ? (
+                            <ChevronDown className="size-4 text-tinta-suave" />
+                          ) : (
+                            <ChevronRight className="size-4 text-tinta-suave" />
+                          )}
+                          <span className="font-semibold text-tinta text-base">
+                            {formatearMes(fila.mes)}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-sm font-semibold tabular-nums ${
+                            pos > 0 ? "text-alerta" : "text-ok"
+                          }`}
+                        >
+                          {pos > 0
+                            ? `${formatearPesos(pos)} a pagar`
+                            : `${formatearPesos(Math.abs(pos))} a favor`}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="p-2.5 rounded-md bg-fondo">
+                          <span className="text-tinta-suave block mb-0.5">IVA ventas (débito)</span>
+                          <span className="font-semibold text-tinta tabular-nums text-sm">
+                            {formatearPesos(fila.iva_ventas)}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-md bg-fondo">
+                          <span className="text-tinta-suave block mb-0.5">IVA compras (crédito)</span>
+                          <span className="font-semibold text-tinta tabular-nums text-sm">
+                            {formatearPesos(fila.iva_compras)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-1">
+                        <Boton
+                          type="button"
+                          variante="secundario"
+                          disabled={exportandoEste}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            exportarCsvParaContador(fila.mes);
+                          }}
+                          className="w-full"
+                        >
+                          <Download className="size-3.5 mr-1.5" />
+                          {exportandoEste ? "Exportando..." : "Exportar CSV para el contador"}
+                        </Boton>
+                      </div>
+
+                      {estaExpandido && (
+                        <div className="pt-3 border-t border-borde mt-2 space-y-2">
+                          <div className="text-xs font-semibold text-tinta uppercase tracking-wider">
+                            Comprobantes de compra del mes
+                          </div>
+                          {cargandoComprobantesMes && !comprobantesMes[mesKey] ? (
+                            <div className="py-4 text-center text-xs text-tinta-suave">
+                              Cargando compras...
+                            </div>
+                          ) : comprobantes.length === 0 ? (
+                            <div className="py-3 text-xs text-tinta-suave">
+                              No hay comprobantes de compra registrados en este período.
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-borde/60">
+                              {comprobantes.map((comp) => {
+                                const numComp = formatearNumeroFactura(
+                                  comp.comprobante_tipo,
+                                  comp.comprobante_punto_venta,
+                                  comp.comprobante_numero
+                                );
+                                return (
+                                  <div key={comp.id} className="py-2.5 space-y-1 text-xs">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium text-tinta">
+                                        {comp.proveedor || "Sin proveedor"}
+                                        {comp.proveedor_cuit && (
+                                          <span className="text-tinta-suave ml-1 font-normal">
+                                            ({comp.proveedor_cuit})
+                                          </span>
+                                        )}
+                                      </span>
+                                      <Link
+                                        to={`/caja?tab=movimientos&mes=${mesKey}&movimiento=${comp.id}`}
+                                        className="text-marca hover:underline font-medium text-[11px]"
+                                      >
+                                        Ver en Caja
+                                      </Link>
+                                    </div>
+                                    <div className="flex items-center justify-between text-tinta-suave">
+                                      <span>{numComp || "Sin comprobante"}</span>
+                                      <span className="tabular-nums">
+                                        Neto: {formatearPesos(comp.neto || 0)} · IVA: {formatearPesos(comp.iva || 0)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Vista Escritorio */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-borde bg-fondo/50 text-xs font-medium text-tinta-suave">
+                      <th className="p-3.5 w-10"></th>
+                      <th className="p-3.5">Mes</th>
+                      <th className="p-3.5 text-right">IVA ventas (débito)</th>
+                      <th className="p-3.5 text-right">IVA compras (crédito)</th>
+                      <th className="p-3.5 text-right">Posición</th>
+                      <th className="p-3.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-borde">
+                    {ivaMensual.map((fila) => {
+                      const mesKey = fila.mes.slice(0, 7);
+                      const estaExpandido = mesExpandidoIva === mesKey;
+                      const comprobantes = comprobantesMes[mesKey] || [];
+                      const pos = Number(fila.posicion) || 0;
+                      const exportandoEste = exportandoMes === mesKey;
+
+                      return (
+                        <Fragment key={fila.mes}>
+                          <tr
+                            onClick={() => toggleExpandirMes(fila.mes)}
+                            className="hover:bg-fondo/50 transition-colors cursor-pointer"
+                          >
+                            <td className="p-3.5 text-tinta-suave">
+                              {estaExpandido ? (
+                                <ChevronDown className="size-4" />
+                              ) : (
+                                <ChevronRight className="size-4" />
+                              )}
+                            </td>
+                            <td className="p-3.5 font-semibold text-tinta">
+                              {formatearMes(fila.mes)}
+                            </td>
+                            <td className="p-3.5 text-right tabular-nums font-medium text-tinta">
+                              {formatearPesos(fila.iva_ventas)}
+                            </td>
+                            <td className="p-3.5 text-right tabular-nums font-medium text-tinta">
+                              {formatearPesos(fila.iva_compras)}
+                            </td>
+                            <td className="p-3.5 text-right tabular-nums font-semibold">
+                              <span className={pos > 0 ? "text-alerta" : "text-ok"}>
+                                {pos > 0
+                                  ? `${formatearPesos(pos)} a pagar`
+                                  : `${formatearPesos(Math.abs(pos))} a favor`}
+                              </span>
+                            </td>
+                            <td
+                              className="p-3.5 text-right"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Boton
+                                type="button"
+                                variante="secundario"
+                                disabled={exportandoEste}
+                                onClick={() => exportarCsvParaContador(fila.mes)}
+                              >
+                                <Download className="size-3.5 mr-1.5" />
+                                {exportandoEste ? "Exportando..." : "Exportar CSV para el contador"}
+                              </Boton>
+                            </td>
+                          </tr>
+
+                          {estaExpandido && (
+                            <tr className="bg-fondo/30">
+                              <td colSpan={6} className="p-4 border-t border-borde">
+                                <div className="space-y-3 pl-6">
+                                  <div className="flex items-center justify-between">
+                                    <h4 className="text-xs font-semibold text-tinta uppercase tracking-wider">
+                                      Comprobantes de compra — {formatearMes(fila.mes)}
+                                    </h4>
+                                    <span className="text-xs text-tinta-suave">
+                                      {comprobantes.length} {comprobantes.length === 1 ? "comprobante" : "comprobantes"}
+                                    </span>
+                                  </div>
+
+                                  {cargandoComprobantesMes && !comprobantesMes[mesKey] ? (
+                                    <div className="py-4 text-center text-xs text-tinta-suave">
+                                      Cargando compras...
+                                    </div>
+                                  ) : comprobantes.length === 0 ? (
+                                    <div className="py-3 text-xs text-tinta-suave">
+                                      No hay comprobantes de compra registrados en este período.
+                                    </div>
+                                  ) : (
+                                    <div className="rounded border border-borde overflow-hidden bg-superficie">
+                                      <table className="w-full text-left text-xs">
+                                        <thead>
+                                          <tr className="border-b border-borde bg-fondo text-tinta-suave">
+                                            <th className="p-2.5">Fecha</th>
+                                            <th className="p-2.5">Proveedor</th>
+                                            <th className="p-2.5">Comprobante</th>
+                                            <th className="p-2.5 text-right">Neto</th>
+                                            <th className="p-2.5 text-right">IVA</th>
+                                            <th className="p-2.5 text-right">Total</th>
+                                            <th className="p-2.5 text-right">Acción</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-borde">
+                                          {comprobantes.map((comp) => {
+                                            const numComp = formatearNumeroFactura(
+                                              comp.comprobante_tipo,
+                                              comp.comprobante_punto_venta,
+                                              comp.comprobante_numero
+                                            );
+                                            return (
+                                              <tr key={comp.id} className="hover:bg-fondo/40">
+                                                <td className="p-2.5 text-tinta-suave tabular-nums">
+                                                  {formatearFecha(comp.fecha)}
+                                                </td>
+                                                <td className="p-2.5 font-medium text-tinta">
+                                                  {comp.proveedor || "—"}
+                                                  {comp.proveedor_cuit && (
+                                                    <span className="text-tinta-suave ml-1.5 font-normal">
+                                                      ({comp.proveedor_cuit})
+                                                    </span>
+                                                  )}
+                                                </td>
+                                                <td className="p-2.5 text-tinta tabular-nums">
+                                                  {numComp || "—"}
+                                                </td>
+                                                <td className="p-2.5 text-right text-tinta-suave tabular-nums font-medium">
+                                                  {formatearPesos(comp.neto || 0)}
+                                                </td>
+                                                <td className="p-2.5 text-right text-tinta tabular-nums font-semibold">
+                                                  {formatearPesos(comp.iva || 0)}
+                                                </td>
+                                                <td className="p-2.5 text-right text-tinta tabular-nums font-semibold">
+                                                  {formatearPesos(comp.monto || 0)}
+                                                </td>
+                                                <td className="p-2.5 text-right">
+                                                  <Link
+                                                    to={`/caja?tab=movimientos&mes=${mesKey}&movimiento=${comp.id}`}
+                                                    className="text-marca hover:underline font-medium inline-block"
+                                                  >
+                                                    Ver en Caja
+                                                  </Link>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       );
                     })}
                   </tbody>

@@ -66,9 +66,19 @@ export function PaginaCaja() {
 
   // Filtros de Movimientos
   const mesActualStr = new Date().toISOString().slice(0, 7); // "YYYY-MM"
-  const [mesFiltro, setMesFiltro] = useState<string>(mesActualStr);
+  const [mesFiltro, setMesFiltro] = useState<string>(
+    searchParams.get("mes") || mesActualStr
+  );
   const [cuentaFiltro, setCuentaFiltro] = useState<string>("");
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>("");
+  const movimientoDestacadoId = searchParams.get("movimiento");
+
+  useEffect(() => {
+    const mesParam = searchParams.get("mes");
+    if (mesParam) {
+      setMesFiltro(mesParam);
+    }
+  }, [searchParams]);
 
   // Cuentas y Categorías activas
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
@@ -680,8 +690,16 @@ export function PaginaCaja() {
                     }
                   }
 
+                  const esDestacado = item.id === movimientoDestacadoId;
+
                   return (
-                    <div key={item.id} className="p-3.5 space-y-1.5">
+                    <div
+                      key={item.id}
+                      id={`movimiento-${item.id}`}
+                      className={`p-3.5 space-y-1.5 transition-colors ${
+                        esDestacado ? "bg-marca-suave/30 ring-1 ring-marca rounded-md" : ""
+                      }`}
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           {item.esCobro && item.linkCobro ? (
@@ -781,8 +799,16 @@ export function PaginaCaja() {
                         }
                       }
 
+                      const esDestacado = item.id === movimientoDestacadoId;
+
                       return (
-                        <tr key={item.id} className="hover:bg-fondo transition-colors">
+                        <tr
+                          key={item.id}
+                          id={`movimiento-${item.id}`}
+                          className={`hover:bg-fondo transition-colors ${
+                            esDestacado ? "bg-marca-suave/30 ring-1 ring-marca" : ""
+                          }`}
+                        >
                           <td className="px-4 py-3 text-tinta-suave tabular-nums whitespace-nowrap">
                             {formatearFecha(item.fecha)}
                           </td>
