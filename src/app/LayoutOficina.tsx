@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Truck, Calculator, Users, Wallet, Receipt, LogOut, Plus } from "lucide-react";
+import { LayoutDashboard, Truck, Calculator, Users, Wallet, Receipt, Settings, LogOut, Plus } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
 
 import type { Rol } from "@/lib/tipos";
@@ -54,6 +54,19 @@ export function LayoutOficina() {
               {texto}
             </NavLink>
           ))}
+          {perfil?.rol === "admin" && (
+            <NavLink
+              to="/configuracion"
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                  isActive ? "bg-marca-suave text-marca" : "text-tinta-suave hover:bg-fondo hover:text-tinta"
+                }`
+              }
+            >
+              <Settings className="h-4 w-4" />
+              Configuración
+            </NavLink>
+          )}
         </nav>
         <div className="flex items-center justify-between gap-3 text-sm md:mt-auto md:border-t md:border-borde md:px-2 md:pt-4">
           {primerNombre && (

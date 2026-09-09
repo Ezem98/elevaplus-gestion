@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { formatearPesos } from "./formato";
 import {
   armarCondiciones,
   armarItems,
@@ -24,6 +25,8 @@ describe("presupuesto", () => {
     presupuesto_espera_autoelevador: "La hora de espera se cobra al valor de la hora de alquiler.",
     presupuesto_espera_camion: "El importe no incluye espera superior a 30 minutos.",
     presupuesto_condiciones_extra: null,
+    precio_hora_espera_camion: null,
+    precio_hora_espera_autoelevador: null,
   };
 
   describe("formatearNumeroPresupuesto", () => {
@@ -37,9 +40,9 @@ describe("presupuesto", () => {
   });
 
   describe("armarCondiciones", () => {
-    it("arma las condiciones básicas para traslado con IVA y espera de camión", () => {
+    it("arma las condiciones básicas para traslado con precio de espera de camión si no es null", () => {
       const lineas = armarCondiciones({
-        empresa: empresaMock,
+        empresa: { ...empresaMock, precio_hora_espera_camion: 25000 },
         servicio: { tipo: "traslado", aplica_iva: true },
         validezDias: 15,
       });
@@ -48,13 +51,13 @@ describe("presupuesto", () => {
         "Validez: 15 días corridos.",
         "Precios en pesos argentinos, sin IVA.",
         "Forma de pago: al finalizar el servicio.",
-        "El importe no incluye espera superior a 30 minutos.",
+        `La hora de espera del camión se cobra ${formatearPesos(25000)}.`,
       ]);
     });
 
-    it("omite espera de camión si es null", () => {
+    it("omite espera de camión en traslado si precio_hora_espera_camion es null", () => {
       const lineas = armarCondiciones({
-        empresa: { ...empresaMock, presupuesto_espera_camion: null },
+        empresa: { ...empresaMock, precio_hora_espera_camion: null },
         servicio: { tipo: "traslado", aplica_iva: false },
         validezDias: 7,
       });
@@ -66,9 +69,24 @@ describe("presupuesto", () => {
       ]);
     });
 
-    it("arma condiciones para alquiler por hora con espera de autoelevador", () => {
+    it("arma condiciones para alquiler por hora con precio de espera si no es null", () => {
       const lineas = armarCondiciones({
-        empresa: empresaMock,
+        empresa: { ...empresaMock, precio_hora_espera_autoelevador: 30000 },
+        servicio: { tipo: "alquiler_hora", aplica_iva: true },
+        validezDias: 10,
+      });
+
+      expect(lineas).toEqual([
+        "Validez: 10 días corridos.",
+        "Precios en pesos argentinos, sin IVA.",
+        "Forma de pago: al finalizar el servicio.",
+        `La hora de espera se cobra ${formatearPesos(30000)}.`,
+      ]);
+    });
+
+    it("arma condiciones para alquiler por hora con texto libre si precio_hora_espera_autoelevador es null", () => {
+      const lineas = armarCondiciones({
+        empresa: { ...empresaMock, precio_hora_espera_autoelevador: null },
         servicio: { tipo: "alquiler_hora", aplica_iva: true },
         validezDias: 10,
       });

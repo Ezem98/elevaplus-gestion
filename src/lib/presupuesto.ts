@@ -1,9 +1,18 @@
 import { calcularTotales, type TotalesFactura } from "./facturacion";
+import { formatearPesos } from "./formato";
 import type { Empresa, Servicio, TipoServicio } from "./tipos";
 import { ETIQUETA_TIPO, formatearUnidadPlural } from "./tipos";
 
 export interface ArmarCondicionesParams {
-  empresa: Pick<Empresa, "presupuesto_espera_autoelevador" | "presupuesto_espera_camion"> | Partial<Empresa>;
+  empresa:
+    | Pick<
+        Empresa,
+        | "presupuesto_espera_autoelevador"
+        | "presupuesto_espera_camion"
+        | "precio_hora_espera_camion"
+        | "precio_hora_espera_autoelevador"
+      >
+    | Partial<Empresa>;
   servicio: Pick<Servicio, "tipo" | "aplica_iva"> | Partial<Servicio>;
   validezDias: number;
   extra?: string | null;
@@ -49,12 +58,14 @@ export function armarCondiciones({
 
   // Cláusula de espera según tipo
   if (servicio.tipo === "alquiler_hora") {
-    if (empresa.presupuesto_espera_autoelevador && empresa.presupuesto_espera_autoelevador.trim()) {
+    if (empresa.precio_hora_espera_autoelevador != null) {
+      lineas.push(`La hora de espera se cobra ${formatearPesos(empresa.precio_hora_espera_autoelevador)}.`);
+    } else if (empresa.presupuesto_espera_autoelevador && empresa.presupuesto_espera_autoelevador.trim()) {
       lineas.push(empresa.presupuesto_espera_autoelevador.trim());
     }
   } else if (servicio.tipo === "traslado") {
-    if (empresa.presupuesto_espera_camion && empresa.presupuesto_espera_camion.trim()) {
-      lineas.push(empresa.presupuesto_espera_camion.trim());
+    if (empresa.precio_hora_espera_camion != null) {
+      lineas.push(`La hora de espera del camión se cobra ${formatearPesos(empresa.precio_hora_espera_camion)}.`);
     }
   }
 

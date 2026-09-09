@@ -144,6 +144,8 @@ export interface Empresa {
   presupuesto_espera_autoelevador: string;
   presupuesto_espera_camion: string | null;
   presupuesto_condiciones_extra: string | null;
+  precio_hora_espera_camion?: number | null;
+  precio_hora_espera_autoelevador?: number | null;
   updated_at?: string;
 }
 
