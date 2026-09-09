@@ -96,7 +96,7 @@ export function PaginaCobros() {
     const [pendientesRes, chequesRes, todosRes] = await Promise.all([
       supabase
         .from("cobros")
-        .select("*, clientes(nombre), cheques(id, numero, estado)")
+        .select("*, clientes(nombre), cheques(id, numero, estado), cuentas(id, nombre)")
         .eq("estado", "pendiente"),
       supabase
         .from("cheques")
@@ -106,7 +106,7 @@ export function PaginaCobros() {
         .order("fecha_pago", { ascending: true }),
       supabase
         .from("cobros")
-        .select("*, clientes(nombre), cheques(id, numero, estado)")
+        .select("*, clientes(nombre), cheques(id, numero, estado), cuentas(id, nombre)")
         .order("fecha", { ascending: false })
         .limit(100),
     ]);
@@ -307,6 +307,7 @@ export function PaginaCobros() {
                     </div>
                     <div className="text-[13px] text-tinta-suave truncate">
                       {formatearFecha(c.fecha)} · {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
+                      {c.cuentas?.nombre ? ` · ${c.cuentas.nombre}` : ""}
                       {refCheque !== "—" ? ` · ${refCheque}` : ""}
                       {c.fecha_acreditacion ? ` · Acredita ${formatearFecha(c.fecha_acreditacion)}` : ""}
                     </div>
@@ -329,6 +330,7 @@ export function PaginaCobros() {
                     <th className="px-4 py-3 font-medium">Fecha</th>
                     <th className="px-4 py-3 font-medium">Cliente</th>
                     <th className="px-4 py-3 font-medium">Medio</th>
+                    <th className="px-4 py-3 font-medium">Cuenta</th>
                     <th className="px-4 py-3 font-medium">Referencia / Nº cheque</th>
                     <th className="px-4 py-3 font-medium">Acredita</th>
                     <th className="px-4 py-3 text-right font-medium">Monto</th>
@@ -375,6 +377,9 @@ export function PaginaCobros() {
                           </td>
                           <td className="px-4 py-3 text-tinta">
                             {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave">
+                            {c.cuentas?.nombre ?? "—"}
                           </td>
                           <td className="px-4 py-3 text-tinta-suave tabular-nums">
                             {refCheque}
@@ -626,6 +631,7 @@ export function PaginaCobros() {
                     </div>
                     <div className="text-[13px] text-tinta-suave truncate">
                       {formatearFecha(c.fecha)} · {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
+                      {c.cuentas?.nombre ? ` · ${c.cuentas.nombre}` : ""}
                       {refCheque !== "—" ? ` · ${refCheque}` : ""}
                       {c.fecha_acreditacion ? ` · Acredita ${formatearFecha(c.fecha_acreditacion)}` : ""}
                     </div>
@@ -650,6 +656,7 @@ export function PaginaCobros() {
                     <th className="px-4 py-3 font-medium">Fecha</th>
                     <th className="px-4 py-3 font-medium">Cliente</th>
                     <th className="px-4 py-3 font-medium">Medio</th>
+                    <th className="px-4 py-3 font-medium">Cuenta</th>
                     <th className="px-4 py-3 font-medium">Referencia / Nº cheque</th>
                     <th className="px-4 py-3 font-medium">Acredita</th>
                     <th className="px-4 py-3 text-right font-medium">Monto</th>
@@ -703,6 +710,9 @@ export function PaginaCobros() {
                           </td>
                           <td className="px-4 py-3 text-tinta">
                             {ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio}
+                          </td>
+                          <td className="px-4 py-3 text-tinta-suave">
+                            {c.cuentas?.nombre ?? "—"}
                           </td>
                           <td className="px-4 py-3 text-tinta-suave tabular-nums">
                             {refCheque}

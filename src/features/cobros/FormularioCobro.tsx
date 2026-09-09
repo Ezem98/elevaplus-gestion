@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
-import type { MedioPago, EstadoCobro } from "@/lib/tipos";
+import type { MedioPago, EstadoCobro, Cuenta } from "@/lib/tipos";
 import { formatearPesos, formatearFecha } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
-import { Campo, Entrada, Etiqueta } from "@/components/ui/Campo";
+import { Campo, Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
 
 export interface ServicioCobroItem {
@@ -61,6 +61,8 @@ export function FormularioCobro({
   const fechaHoy = new Date().toISOString().slice(0, 10);
 
   const [medio, setMedio] = useState<MedioPago>("efectivo");
+  const [cuentas, setCuentas] = useState<Cuenta[]>([]);
+  const [cuentaId, setCuentaId] = useState<string>("");
   const [fecha, setFecha] = useState(fechaHoy);
 
   // Monto inicial: suma de saldos de los servicios
@@ -110,6 +112,89 @@ export function FormularioCobro({
         });
     }
   }, [clienteId]);
+
+  // Cargar cuentas activas
+  useEffect(() => {
+    let activo = true;
+    supabase
+      .from("cuentas")
+      .select("*")
+      .eq("activa", true)
+      .order("orden", { ascending: true })
+      .then(({ data }) => {
+        if (activo && data) {
+          setCuentas(data);
+        }
+      });
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  // Default de cuenta según medio de pago:
+  // Efectivo → "Efectivo"; Transferencia, Cheque y E-cheq → última cuenta usada o primera bancaria
+  useEffect(() => {
+    if (cuentas.length === 0) return;
+    let cancelado = false;
+
+    async function actualizarCuentaPorDefecto() {
+      if (medio === "efectivo") {
+        const cEfectivo = cuentas.find(
+          (c) => c.nombre.toLowerCase() === "efectivo"
+        );
+        if (cEfectivo && !cancelado) {
+          setCuentaId(cEfectivo.id);
+        } else if (cuentas.length > 0 && !cancelado) {
+          setCuentaId(cuentas[0].id);
+        }
+        return;
+      }
+
+      if (medio === "transferencia" || medio === "cheque" || medio === "echeq") {
+        const { data } = await supabase
+          .from("cobros")
+          .select("cuenta_id")
+          .eq("medio", medio)
+          .not("cuenta_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (cancelado) return;
+
+        if (data?.cuenta_id && cuentas.some((c) => c.id === data.cuenta_id)) {
+          setCuentaId(data.cuenta_id);
+          return;
+        }
+
+        const primeraBancaria =
+          cuentas.find((c) =>
+            /banco|credicoop|galicia|macro|santander|bbva|nacion|provincia/i.test(
+              c.nombre
+            )
+          ) ||
+          cuentas.find((c) => c.nombre.toLowerCase() !== "efectivo") ||
+          cuentas[0];
+
+        if (primeraBancaria && !cancelado) {
+          setCuentaId(primeraBancaria.id);
+        }
+        return;
+      }
+
+      const fallback =
+        cuentas.find((c) => c.nombre.toLowerCase() !== "efectivo") || cuentas[0];
+      if (fallback && !cancelado) {
+        setCuentaId(fallback.id);
+      }
+    }
+
+    actualizarCuentaPorDefecto();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [medio, cuentas]);
 
   const montoNum = Number(monto) || 0;
   const esMultiServicio = servicios.length > 1;
@@ -236,6 +321,7 @@ export function FormularioCobro({
           fecha_acreditacion: fechaAcred,
           monto: montoNum,
           medio,
+          cuenta_id: cuentaId || null,
           estado: estadoCobro,
           referencia: referencia.trim() || null,
           cheque_id: chequeId,
@@ -312,6 +398,24 @@ export function FormularioCobro({
             ))}
           </div>
         </div>
+
+        {/* Cuenta */}
+        <Campo etiqueta="Cuenta" id="cuenta_cobro">
+          <Selector
+            id="cuenta_cobro"
+            value={cuentaId}
+            onChange={(e) => setCuentaId(e.target.value)}
+          >
+            <option value="" disabled>
+              Seleccionar cuenta...
+            </option>
+            {cuentas.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </Selector>
+        </Campo>
 
         {/* Monto y Fecha */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

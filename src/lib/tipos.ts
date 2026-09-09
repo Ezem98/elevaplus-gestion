@@ -169,6 +169,72 @@ export type EstadoCobro = "pendiente" | "acreditado" | "rechazado";
 export type TipoCheque = "recibido" | "emitido";
 export type EstadoCheque = "en_cartera" | "depositado" | "acreditado" | "rechazado" | "endosado";
 
+export interface Cuenta {
+  id: string;
+  nombre: string;
+  saldo_inicial: number;
+  activa: boolean;
+  orden: number;
+}
+
+export type AmbitoMovimiento = "empresa" | "personal";
+export type TipoMovimiento = "ingreso" | "egreso" | "transferencia";
+export type EstadoMovimiento = "pendiente" | "pagado";
+export type TipoComprobanteCompra = "A" | "B" | "C" | "M" | "ticket" | "otro";
+
+export interface CategoriaMovimiento {
+  id: string;
+  nombre: string;
+  ambito: AmbitoMovimiento;
+  tipo: "ingreso" | "egreso";
+  activa: boolean;
+  orden: number;
+}
+
+export interface MovimientoCaja {
+  id: string;
+  fecha: string;
+  tipo: TipoMovimiento;
+  ambito: AmbitoMovimiento;
+  categoria_id: string | null;
+  proveedor: string | null;
+  descripcion: string | null;
+  medio: MedioPago | null;
+  cuenta_id: string | null;
+  cuenta_destino_id: string | null;
+  monto: number;
+  estado: EstadoMovimiento;
+  fecha_acreditacion: string | null;
+  tiene_comprobante: boolean;
+  comprobante_tipo: TipoComprobanteCompra | null;
+  comprobante_punto_venta: number | null;
+  comprobante_numero: number | null;
+  proveedor_cuit: string | null;
+  neto: number | null;
+  iva: number | null;
+  comprobante_path: string | null;
+  notas: string | null;
+  registrado_por: string | null;
+  created_at: string;
+  categorias_movimiento?: { nombre: string } | null;
+  cuentas?: { nombre: string } | null;
+  cuenta_destino?: { nombre: string } | null;
+}
+
+export interface SaldoCuenta {
+  id: string;
+  nombre: string;
+  saldo_inicial: number;
+  saldo: number;
+}
+
+export interface IvaMensual {
+  mes: string;
+  iva_ventas: number;
+  iva_compras: number;
+  posicion: number;
+}
+
 export interface Cobro {
   id: string;
   cliente_id: string | null;
@@ -176,6 +242,7 @@ export interface Cobro {
   fecha_acreditacion: string | null;
   monto: number;
   medio: MedioPago;
+  cuenta_id: string | null;
   estado: EstadoCobro;
   referencia: string | null;
   cheque_id: string | null;
@@ -184,6 +251,7 @@ export interface Cobro {
   created_at: string;
   clientes?: { nombre: string } | null;
   cheques?: Cheque | null;
+  cuentas?: { id: string; nombre: string } | null;
 }
 
 export interface Cheque {
