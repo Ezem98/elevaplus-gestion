@@ -11,16 +11,17 @@ Que la mayor parte de las facturas de ELEVAPLUS se emitan solas, todas las noche
 
 ## 2. Decisiones
 
-| Tema           | Decisión                                                                                                                                                         |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Proveedor ARCA | **Afip SDK** (REST). Maneja WSAA/WSFEv1, cambios normativos, homologación y producción.                                                                          |
-| PDF            | Generado por nosotros con `@react-pdf/renderer`, mismo estilo que el presupuesto, con el QR obligatorio.                                                         |
-| Dónde corre    | **Worker Node en Railway** (`worker/` en el mismo repo). Cron a las 21:30 (America/Argentina/Buenos_Aires) + endpoints HTTP para emisión a demanda desde la app. |
-| Mail           | **Resend**, remitente `facturacion@eleva-plus.com.ar` (SPF + DKIM en Cloudflare), reply-to al Gmail de la empresa.                                               |
-| Política       | Por cliente: modo (por servicio · diaria · quincenal · mensual · manual), automática sí/no, enviar mail sí/no. **Default: manual y no automática.**              |
-| Punto de venta | Nuevo **0003 tipo web service**, exclusivo de la app. El 0002 sigue siendo del portal.                                                                           |
-| Ambientes      | `empresa.arca_ambiente = 'homologacion'                                                                                                                          | 'produccion'`. Staging siempre en homologación. |
-| Seguridad      | Idempotencia con consulta del último comprobante autorizado; tope diario de cantidad y monto; log completo de cada llamada.                                      |
+| Tema                      | Decisión                                                                                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Proveedor ARCA            | **Afip SDK** (REST). Maneja WSAA/WSFEv1, cambios normativos, homologación y producción.                                                                          |
+| PDF                       | Generado por nosotros con `@react-pdf/renderer`, mismo estilo que el presupuesto, con el QR obligatorio.                                                         |
+| Dónde corre               | **Worker Node en Railway** (`worker/` en el mismo repo). Cron a las 21:30 (America/Argentina/Buenos_Aires) + endpoints HTTP para emisión a demanda desde la app. |
+| Mail                      | **Resend**, remitente `facturacion@eleva-plus.com.ar` (SPF + DKIM en Cloudflare), reply-to al Gmail de la empresa.                                               |
+| Política                  | Por cliente: modo (por servicio · diaria · quincenal · mensual · manual), automática sí/no, enviar mail sí/no. **Default: manual y no automática.**              |
+| Punto de venta            | Nuevo **0003 tipo web service**, exclusivo de la app. El 0002 sigue siendo del portal.                                                                           |
+| Ambientes                 | `empresa.arca_ambiente = 'homologacion'                                                                                                                          | 'produccion'`. Staging siempre en homologación. |
+| Seguridad                 | Idempotencia con consulta del último comprobante autorizado; tope diario de cantidad y monto; log completo de cada llamada.                                      |
+| Fuente de verdad Afip SDK | Siempre la documentación en Markdown (`docs.afipsdk.com/llms.txt` + páginas `.md`). Nunca la memoria del agente: los códigos y nombres de métodos cambian.       |
 
 ## 3. Modelo de datos (migraciones nuevas)
 
@@ -188,11 +189,11 @@ Ante error en 3 o 4: `estado_emision = 'error'`, `error_emision`, **desvincular 
 - `CondicionIVAReceptorId`: RI = 1, exento = 4, consumidor final = 5, monotributo = 6.
 - `ImpNeto`, `ImpIVA`, `ImpTotal`; `Iva: [{ Id: 5, BaseImp: neto, Importe: iva }]` (21 %). Si `aplica_iva = false` en todos los servicios de una A → no debería pasar: la selección descarta A con neto sin IVA (`sin_iva_en_a`). En B, el total va con IVA incluido igual.
 - `MonId: 'PES'`, `MonCotiz: 1`.
-- Verificar en la doc de Afip SDK los nombres exactos y códigos vigentes al implementar.
+- Los nombres de campos y códigos salen **exclusivamente** de las páginas `factura-a.md` y `factura-b.md` de Afip SDK; la tabla de arriba es orientativa.
 
 ### 4.5 QR (`qr.ts`)
 
-JSON `{ ver: 1, fecha, cuit, ptoVta, tipoCmp, nroCmp, importe, moneda: 'PES', ctz: 1, tipoDocRec, nroDocRec, tipoCodAut: 'E', codAut: cae }` → base64 → URL de verificación oficial (confirmar dominio vigente en la doc de ARCA/Afip SDK) → `qrcode.toDataURL()` → imagen en el PDF.
+JSON `{ ver: 1, fecha, cuit, ptoVta, tipoCmp, nroCmp, importe, moneda: 'PES', ctz: 1, tipoDocRec, nroDocRec, tipoCodAut: 'E', codAut: cae }` → base64 → URL de verificación oficial según `codigo-qr.md` de Afip SDK → `qrcode.toDataURL()` → imagen en el PDF.
 
 ### 4.6 PDF (`FacturaPDF.tsx`)
 
@@ -208,6 +209,7 @@ Asunto: `Factura A 0003-00000042 · ELEVAPLUS · $ 456.218`. Cuerpo en texto pla
 - `POST /emitir` `{ cliente_id, servicio_ids[] }` — requiere `Authorization: Bearer <JWT del usuario>`; el worker valida el JWT contra Supabase (`auth.getUser`) y exige rol admin u oficina. Emite una factura con esos servicios (misma función que el lote). Responde `{ factura_id, numero, cae }` o `{ error }`.
 - `POST /lote` — requiere `WORKER_SECRET`. Dispara la corrida nocturna a demanda (para pruebas y para el botón "Correr ahora" de admin).
 - `POST /reenviar-mail` `{ factura_id }` — JWT de usuario. Regenera PDF si falta y reenvía.
+- `GET /padron/:cuit` — JWT de usuario (admin u oficina). Consulta el padrón de constancia de inscripción de ARCA y devuelve `{ razon_social, condicion_iva, domicilio, activo }`. Cachear 24 h en memoria por CUIT.
 
 ### 4.9 Cron
 
@@ -250,19 +252,31 @@ Topes: si `aEmitir.length > empresa.tope_diario_facturas` o la suma supera `tope
 
 ## 8. Orden de prompts para `agy`
 
-Cada prompt arranca con: "Leé `AGENTS.md`, `docs/DESIGN.md`, `docs/DISEÑO.md` y `docs/FACTURACION-ARCA.md`. Estamos en la rama `facturacion-arca`."
+Cada prompt arranca con este encabezado, textual:
+
+> Leé `AGENTS.md`, `docs/DESIGN.md`, `docs/DISEÑO.md` y `docs/FACTURACION-ARCA.md`. Estamos en la rama `facturacion-arca`. Para todo lo que sea Afip SDK, **no uses memoria**: leé `https://docs.afipsdk.com/llms.txt` y de ahí las páginas que correspondan (Railway, Factura A, Factura B, Código QR, Crear PDF, Errores frecuentes) agregando `.md` a la URL. Usá los nombres de métodos y códigos exactamente como figuran ahí.
+
+Páginas de Afip SDK relevantes por prompt (todas bajo `https://docs.afipsdk.com/`, agregar `.md`):
+
+| Prompt   | Páginas                                                                                                                                                                 |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2        | `integracion/node.js/railway`, `siguientes-pasos/web-services/factura-electronica`, `.../factura-electronica/factura-a`, `.../factura-b`, `recursos/errores-frecuentes` |
+| 3        | `.../factura-electronica/codigo-qr`, `.../factura-electronica/crear-pdf`                                                                                                |
+| 4        | `recursos/otros-metodos-utiles` (último comprobante, consultar comprobante)                                                                                             |
+| 6        | `siguientes-pasos/web-services/padron-de-constancia-de-inscripcion`, `.../nota-de-credito-a`, `.../nota-de-credito-b`                                                   |
+| Trámites | `recursos/tutoriales-pagina-de-arca/*`, `siguientes-pasos/ir-a-produccion`                                                                                              |
 
 1. **Migración + cliente** (§3 y la parte de cliente de §5). Sin `--dangerously-skip-permissions`.
 2. **Worker: esqueleto + ARCA en homologación** (§4.1–4.4, `/health`, `/emitir` emitiendo contra Afip SDK dev; tests de `mapear.ts` y `seleccionar.ts`; Dockerfile). Sin cron todavía.
 3. **PDF + QR + Storage** (§4.5–4.6).
 4. **Lote nocturno + topes + idempotencia + push** (§4.3 recuperación, §4.9).
 5. **Mail con Resend** (§4.7, `/reenviar-mail`, lista blanca en staging).
-6. **App: Facturación y Configuración** (§5 completo).
+6. **App: Facturación y Configuración** (§5 completo) + **validación de clientes contra el padrón de ARCA**: en el formulario de cliente, al cargar un CUIT, botón "Buscar en ARCA" que llama a un endpoint del worker (`GET /padron/:cuit`, JWT de usuario) que usa el web service de constancia de inscripción y devuelve razón social, condición IVA y domicilio fiscal para precompletar (editable). Si el CUIT no existe o está inactivo, `Aviso` alerta.
 
 ## 9. Trámites (sin código)
 
-- Certificado digital de producción en ARCA con la clave fiscal de la titular; autorizar servicio `wsfe` al certificado.
-- Punto de venta 0003 tipo web service.
+- Certificado digital de producción en ARCA con la clave fiscal de la titular; autorizar servicio `wsfe` al certificado. Guías con capturas: `docs.afipsdk.com/recursos/tutoriales-pagina-de-arca/` (habilitar administrador de certificados, obtener certificado, autorizar web service) y `docs.afipsdk.com/siguientes-pasos/ir-a-produccion`.
+- Punto de venta 0003 tipo web service. Guía: `docs.afipsdk.com/recursos/tutoriales-pagina-de-arca/crear-punto-de-venta`.
 - Cuenta Afip SDK (token) y cuenta Resend (API key, dominio verificado).
 - CBU/alias/banco para el pie de factura y el mail.
 - Confirmar con el contador: que la app emita por 0003 y el portal siga en 0002 no le complica los libros (no debería; son puntos de venta distintos del mismo contribuyente).
