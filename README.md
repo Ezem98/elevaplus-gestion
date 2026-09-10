@@ -72,6 +72,18 @@ Para habilitar las notificaciones push en segundo plano cuando choferes inician 
    - **Webhook 2**: Tabla `servicios`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
 
 
+## Ingreso con huella / Passkeys (Supabase Auth)
+
+Para habilitar el inicio de sesión con huella dactilar, Face ID o llave de seguridad (WebAuthn / Passkeys):
+
+1. En Supabase Dashboard → **Authentication** → **Passkeys** → activar **Enable Passkey authentication**.
+2. Configurar los datos del Relying Party:
+   - **Relying Party Display Name**: `ELEVAPLUS Gestión`
+   - **Relying Party ID**: el dominio bare de la app (ej: `gestion.elevaplus.com.ar`, o `localhost` para desarrollo local). Sin scheme, puerto ni ruta.
+   - **Relying Party Origins**: `https://<dominio>` y `http://localhost:5173` (separados por coma).
+
+> **Aviso importante:** Sin esta configuración activa en Supabase, la API de WebAuthn devuelve error (`passkey_disabled`) y no permite registrar ni autenticar passkeys.
+
 ## Estructura
 
 ```

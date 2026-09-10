@@ -3,6 +3,7 @@ import { RutaProtegida } from "@/features/auth/RutaProtegida";
 import { PaginaIngresar } from "@/features/auth/PaginaIngresar";
 import { LayoutOficina } from "./LayoutOficina";
 import { LayoutChofer } from "./LayoutChofer";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { PaginaHoy } from "@/features/dashboard/PaginaHoy";
 import { PaginaServicios } from "@/features/servicios/PaginaServicios";
 import { FormularioServicio } from "@/features/servicios/FormularioServicio";
@@ -18,8 +19,25 @@ import { PaginaConfiguracion } from "@/features/configuracion/PaginaConfiguracio
 import { PaginaChoferHoy } from "@/features/chofer/PaginaChoferHoy";
 import { PaginaMiCuenta } from "@/features/auth/PaginaMiCuenta";
 
+function LayoutSegunRol() {
+  const { perfil } = useAuth();
+  if (perfil?.rol === "chofer") {
+    return <LayoutChofer />;
+  }
+  return <LayoutOficina />;
+}
+
 export const router = createBrowserRouter([
   { path: "/ingresar", element: <PaginaIngresar /> },
+  {
+    element: <RutaProtegida roles={["admin", "oficina", "chofer"]} />,
+    children: [
+      {
+        element: <LayoutSegunRol />,
+        children: [{ path: "/mi-cuenta", element: <PaginaMiCuenta /> }],
+      },
+    ],
+  },
   {
     element: <RutaProtegida roles={["admin", "oficina"]} />,
     children: [
@@ -38,7 +56,6 @@ export const router = createBrowserRouter([
           { path: "/cobros", element: <PaginaCobros /> },
           { path: "/caja", element: <PaginaCaja /> },
           { path: "/facturacion", element: <PaginaFacturacion /> },
-          { path: "/mi-cuenta", element: <PaginaMiCuenta /> },
           {
             element: <RutaProtegida roles={["admin"]} />,
             children: [

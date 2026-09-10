@@ -10,5 +10,10 @@ if (!url || !anonKey) {
 }
 
 export const supabase = createClient(url, anonKey, {
-  auth: { persistSession: true, autoRefreshToken: true },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    // Passkeys en fase beta: la contraseña sigue siendo el método de respaldo
+    experimental: { passkey: true },
+  },
 });
