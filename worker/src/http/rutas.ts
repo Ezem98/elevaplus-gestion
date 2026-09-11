@@ -1,7 +1,8 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { config } from "../config";
-import { requerirAdminUOficina } from "./auth";
+import { requerirAdminUOficina, requerirWorkerSecretOAdmin } from "./auth";
 import { emitirFactura } from "../emision/emitir";
+import { correrLote } from "../emision/lote";
 
 export const enrutador = Router();
 
@@ -15,7 +16,7 @@ enrutador.get("/health", (_req, res) => {
   });
 });
 
-// Emisión a demanda desde la app
+// Emisión a demanda de un conjunto específico de servicios
 enrutador.post("/emitir", requerirAdminUOficina, async (req, res) => {
   const { cliente_id, servicio_ids } = req.body;
 
@@ -47,3 +48,28 @@ enrutador.post("/emitir", requerirAdminUOficina, async (req, res) => {
     });
   }
 });
+
+// Disparo de lote nocturno o a demanda (botón 'Correr ahora' o cron externo)
+enrutador.post("/lote", requerirWorkerSecretOAdmin, async (req, res) => {
+  try {
+    const usuarioId = req.usuario?.id;
+    const disparadoPor =
+      usuarioId && usuarioId !== "worker_secret"
+        ? `manual:${usuarioId}`
+        : "manual";
+
+    const resultado = await correrLote({ disparadoPor });
+
+    res.status(200).json({
+      ok: true,
+      ...resultado,
+    });
+  } catch (err: any) {
+    console.error("Error al ejecutar corrida de lote:", err);
+    res.status(500).json({
+      ok: false,
+      error: err?.message || "Ocurrió un error al ejecutar el lote de facturación.",
+    });
+  }
+});
+

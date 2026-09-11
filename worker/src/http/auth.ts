@@ -1,4 +1,5 @@
-﻿import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
+import { config } from "../config";
 import { supabaseAdmin } from "../supabase";
 
 export interface UsuarioAutenticado {
@@ -72,3 +73,28 @@ export async function requerirAdminUOficina(
     res.status(500).json({ error: "Error al validar la sesión." });
   }
 }
+
+/**
+ * Middleware que permite acceso si se envía el header WORKER_SECRET
+ * (Bearer token o x-worker-secret) o un JWT válido de admin/oficina.
+ */
+export async function requerirWorkerSecretOAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const secretHeader =
+    (req.headers["x-worker-secret"] as string) ||
+    req.headers.authorization?.replace(/^Bearer\s+/i, "");
+
+  if (config.WORKER_SECRET && secretHeader === config.WORKER_SECRET) {
+    req.usuario = {
+      id: "worker_secret",
+      rol: "admin",
+    };
+    return next();
+  }
+
+  return requerirAdminUOficina(req, res, next);
+}
+

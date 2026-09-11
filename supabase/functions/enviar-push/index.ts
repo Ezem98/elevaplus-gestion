@@ -10,11 +10,19 @@ interface WebhookPayload {
 }
 
 Deno.serve(async (req: Request) => {
-  // 1. Verificación del header Authorization contra WEBHOOK_SECRET
+  // 1. Verificación del header Authorization contra WEBHOOK_SECRET o SUPABASE_SERVICE_ROLE_KEY
   const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
-  if (webhookSecret) {
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader !== `Bearer ${webhookSecret}`) {
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const authHeader = req.headers.get("Authorization");
+  const apiKeyHeader = req.headers.get("apikey");
+
+  if (webhookSecret || serviceRoleKey) {
+    const esWebhookValido = webhookSecret && authHeader === `Bearer ${webhookSecret}`;
+    const esServiceRoleValido =
+      serviceRoleKey &&
+      (authHeader === `Bearer ${serviceRoleKey}` || apiKeyHeader === serviceRoleKey);
+
+    if (!esWebhookValido && !esServiceRoleValido) {
       return new Response(JSON.stringify({ error: "No autorizado" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
@@ -23,16 +31,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const payload: WebhookPayload = await req.json();
-    const { type, table, record } = payload;
-
-    // Solo se procesan eventos tipo INSERT
-    if (type !== "INSERT" || !record) {
-      return new Response(
-        JSON.stringify({ ok: true, ignorado: true, motivo: "No es un evento INSERT" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    const payload: any = await req.json();
 
     let titulo = "";
     let cuerpo = "";
@@ -41,7 +40,7 @@ Deno.serve(async (req: Request) => {
     let usuarioExcluido: string | null = null;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseServiceKey = serviceRoleKey || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error("Faltan variables SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
@@ -52,6 +51,24 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Caso directo (llamado explícito desde worker o backend)
+    if (payload.direct || (payload.titulo && payload.cuerpo)) {
+      titulo = payload.titulo;
+      cuerpo = payload.cuerpo;
+      url = payload.url || "/facturacion";
+      tag = payload.tag || "facturacion";
+      usuarioExcluido = payload.usuarioExcluido || null;
+    } else {
+      const { type, table, record } = payload;
+
+      // Solo se procesan eventos tipo INSERT
+      if (type !== "INSERT" || !record) {
+        return new Response(
+          JSON.stringify({ ok: true, ignorado: true, motivo: "No es un evento INSERT" }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
 
     // Caso 1: INSERT en servicio_eventos con estado_nuevo in ('terminado', 'en_curso')
     if (table === "servicio_eventos") {
@@ -141,6 +158,7 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ ok: true, ignorado: true, motivo: "Tabla no configurada para push" }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
+    }
     }
 
     // 2. Obtener usuarios destino con rol admin u oficina excluyendo al generador
