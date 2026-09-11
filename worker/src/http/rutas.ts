@@ -3,6 +3,7 @@ import { config } from "../config";
 import { requerirAdminUOficina, requerirWorkerSecretOAdmin } from "./auth";
 import { emitirFactura } from "../emision/emitir";
 import { correrLote } from "../emision/lote";
+import { enviarFacturaEmail } from "../mail/enviar";
 
 export const enrutador = Router();
 
@@ -72,4 +73,38 @@ enrutador.post("/lote", requerirWorkerSecretOAdmin, async (req, res) => {
     });
   }
 });
+
+// Reenvío de factura por correo electrónico
+enrutador.post("/reenviar-mail", requerirAdminUOficina, async (req, res) => {
+  const { factura_id } = req.body;
+
+  if (!factura_id || typeof factura_id !== "string") {
+    res.status(400).json({ error: "Falta el campo factura_id." });
+    return;
+  }
+
+  try {
+    const resultado = await enviarFacturaEmail(factura_id);
+    if (!resultado.exito) {
+      res.status(400).json({
+        ok: false,
+        motivo: resultado.motivo,
+        error: `No se pudo enviar el correo: ${resultado.motivo || "desconocido"}`,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      ok: true,
+      destinatario: resultado.destinatario,
+    });
+  } catch (err: any) {
+    console.error("Error al reenviar factura por correo:", err);
+    res.status(500).json({
+      ok: false,
+      error: err?.message || "Ocurrió un error al reenviar la factura.",
+    });
+  }
+});
+
 

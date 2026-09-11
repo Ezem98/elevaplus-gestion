@@ -14,6 +14,7 @@ import {
   type AmbienteArca,
 } from "../arca/cliente";
 import { generarYSubirPdfFactura } from "../pdf/generar";
+import { enviarFacturaEmail } from "../mail/enviar";
 
 export interface ParametrosEmitirFactura {
   clienteId: string;
@@ -73,7 +74,7 @@ export async function emitirFactura(
   // 2. Obtener datos del cliente
   const { data: cliente, error: errorCliente } = await supabaseAdmin
     .from("clientes")
-    .select("id, nombre, cuit, condicion_iva, dias_pago")
+    .select("id, nombre, cuit, condicion_iva, dias_pago, enviar_factura_email, email_facturacion, email")
     .eq("id", clienteId)
     .single();
 
@@ -229,6 +230,16 @@ export async function emitirFactura(
     } catch (errPdf) {
       console.error(`Error al generar/subir PDF de factura ${factura.id}:`, errPdf);
     }
+
+    // Paso 8: Enviar factura por correo electrónico si el cliente lo tiene habilitado
+    if (cliente.enviar_factura_email !== false) {
+      try {
+        await enviarFacturaEmail(factura.id);
+      } catch (errMail) {
+        console.error(`Error al enviar factura ${factura.id} por email:`, errMail);
+      }
+    }
+
 
     return {
       factura_id: factura.id,

@@ -1,4 +1,4 @@
-﻿import dotenv from "dotenv";
+import dotenv from "dotenv";
 import { z } from "zod";
 
 dotenv.config();
@@ -14,6 +14,10 @@ const esquemaConfig = z.object({
   ARCA_KEY: z.string().optional(),
   WORKER_SECRET: z.string().optional().default(""),
   TZ: z.string().default("America/Argentina/Buenos_Aires"),
+  RESEND_API_KEY: z.string().optional().default(""),
+  RESEND_REMITENTE: z.string().default("ELEVAPLUS Facturación <facturacion@eleva-plus.com.ar>"),
+  MAIL_LISTA_BLANCA: z.string().optional().default(""),
 });
+
 
 export const config = esquemaConfig.parse(process.env);
