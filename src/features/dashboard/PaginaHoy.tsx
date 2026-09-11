@@ -41,10 +41,11 @@ export function PaginaHoy() {
   const [sinCerrar, setSinCerrar] = useState<Servicio[]>([]);
   const [saldo, setSaldo] = useState<number | null>(null);
   const [sinFacturar, setSinFacturar] = useState<number>(0);
+  const [descartadosLote, setDescartadosLote] = useState<number>(0);
 
   const cargar = useCallback(async () => {
     const fecha = new Date().toISOString().slice(0, 10);
-    const [resHoy, resSinCerrar, resSaldo, resSinFacturar] = await Promise.all([
+    const [resHoy, resSinCerrar, resSaldo, resSinFacturar, resUltimoLote] = await Promise.all([
       supabase
         .from("servicios")
         .select("*, clientes(nombre)")
@@ -66,6 +67,12 @@ export function PaginaHoy() {
         .in("estado", ["terminado", "cobrado"])
         .is("factura_id", null)
         .eq("no_facturable", false),
+      supabase
+        .from("lotes_emision")
+        .select("id, descartados, finalizado_at")
+        .order("iniciado_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     if (resHoy.data) setHoy(resHoy.data as unknown as Servicio[]);
@@ -76,13 +83,30 @@ export function PaginaHoy() {
     if (resSinFacturar.count != null) {
       setSinFacturar(resSinFacturar.count);
     }
+    if (
+      resUltimoLote.data?.descartados &&
+      Array.isArray(resUltimoLote.data.descartados) &&
+      resUltimoLote.data.descartados.length > 0
+    ) {
+      const fin = resUltimoLote.data.finalizado_at
+        ? new Date(resUltimoLote.data.finalizado_at).getTime()
+        : 0;
+      const haceHoras = (Date.now() - fin) / (1000 * 60 * 60);
+      if (haceHoras <= 36) {
+        setDescartadosLote(resUltimoLote.data.descartados.length);
+      } else {
+        setDescartadosLote(0);
+      }
+    } else {
+      setDescartadosLote(0);
+    }
   }, []);
 
   useEffect(() => {
     cargar();
   }, [cargar]);
 
-  useRealtime(["servicios", "cobros", "cobro_aplicaciones", "facturas"], cargar);
+  useRealtime(["servicios", "cobros", "cobro_aplicaciones", "facturas", "lotes_emision"], cargar);
 
   const fechaHoy = obtenerFechaHoyLarga();
   const fechaHoyCorta = obtenerFechaHoyCorta();
@@ -128,6 +152,21 @@ export function PaginaHoy() {
             )}
           </Tarjeta>
         </div>
+
+      {descartadosLote > 0 && (
+        <Aviso variante="alerta">
+          <span>
+            {descartadosLote} {descartadosLote === 1 ? "servicio no se pudo facturar anoche" : "servicios no se pudieron facturar anoche"}
+            {" · "}
+            <Link
+              to="/facturacion?tab=emisiones_automaticas"
+              className="underline font-semibold hover:opacity-80"
+            >
+              Ver descartados
+            </Link>
+          </span>
+        </Aviso>
+      )}
 
       {sinCerrar.length > 0 && (
         <section>

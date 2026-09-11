@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/lib/supabase";
-import type { CondicionIva, Empresa, ParametrosCotizador, Servicio } from "@/lib/tipos";
+import type { CondicionIva, Empresa, ParametrosCotizador, Servicio, AmbienteArca } from "@/lib/tipos";
 import { ETIQUETA_CONDICION_IVA } from "@/lib/tipos";
 import { formatearFecha, formatearPesos } from "@/lib/formato";
 import { armarCondiciones } from "@/lib/presupuesto";
@@ -13,7 +13,7 @@ import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Aviso } from "@/components/ui/Aviso";
 
 export function PaginaConfiguracion() {
-  const [tabConfig, setTabConfig] = useState<"empresa" | "presupuestos" | "cotizador">("empresa");
+  const [tabConfig, setTabConfig] = useState<"empresa" | "facturacion_arca" | "presupuestos" | "cotizador">("empresa");
 
   // --- Estado Empresa ---
   const [razonSocial, setRazonSocial] = useState("");
@@ -27,6 +27,21 @@ export function PaginaConfiguracion() {
   const [guardandoEmpresa, setGuardandoEmpresa] = useState(false);
   const [mensajeEmpresa, setMensajeEmpresa] = useState<string | null>(null);
   const [errorEmpresa, setErrorEmpresa] = useState<string | null>(null);
+
+  // --- Estado Facturación Electrónica ARCA ---
+  const [arcaAmbiente, setArcaAmbiente] = useState<AmbienteArca>("homologacion");
+  const [puntoVentaWs, setPuntoVentaWs] = useState<number | string>(3);
+  const [topeDiarioFacturas, setTopeDiarioFacturas] = useState<number | string>(20);
+  const [topeDiarioMonto, setTopeDiarioMonto] = useState<number | null>(20000000);
+  const [cbu, setCbu] = useState("");
+  const [aliasCbu, setAliasCbu] = useState("");
+  const [banco, setBanco] = useState("");
+  const [emailFacturacion, setEmailFacturacion] = useState("");
+  const [textoPieFactura, setTextoPieFactura] = useState("");
+  const [guardandoArca, setGuardandoArca] = useState(false);
+  const [mensajeArca, setMensajeArca] = useState<string | null>(null);
+  const [errorArca, setErrorArca] = useState<string | null>(null);
+  const [modalConfirmarProd, setModalConfirmarProd] = useState(false);
 
   // --- Estado Presupuestos ---
   const [validezDias, setValidezDias] = useState<number | string>(15);
@@ -79,8 +94,19 @@ export function PaginaConfiguracion() {
       setPrecioEsperaAutoelevador(emp.precio_hora_espera_autoelevador ?? null);
       setTextoEsperaAutoelevador(emp.presupuesto_espera_autoelevador || "");
       setCondicionesExtra(emp.presupuesto_condiciones_extra || "");
+
+      setArcaAmbiente(emp.arca_ambiente || "homologacion");
+      setPuntoVentaWs(emp.punto_venta_ws ?? 3);
+      setTopeDiarioFacturas(emp.tope_diario_facturas ?? 20);
+      setTopeDiarioMonto(emp.tope_diario_monto ?? 20000000);
+      setCbu(emp.cbu || "");
+      setAliasCbu(emp.alias_cbu || "");
+      setBanco(emp.banco || "");
+      setEmailFacturacion(emp.email_facturacion || "facturacion@eleva-plus.com.ar");
+      setTextoPieFactura(emp.texto_pie_factura || "");
     }
   };
+
 
   const cargarParametros = async () => {
     setCargandoParametros(true);
@@ -141,7 +167,42 @@ export function PaginaConfiguracion() {
     }
   };
 
+  // --- Guardar Facturación Electrónica ARCA ---
+  const handleGuardarArca = async (e: FormEvent) => {
+    e.preventDefault();
+    setGuardandoArca(true);
+    setErrorArca(null);
+
+    const { error } = await supabase
+      .from("empresa")
+      .update({
+        arca_ambiente: arcaAmbiente,
+        punto_venta_ws: Math.max(1, Math.floor(Number(puntoVentaWs) || 3)),
+        tope_diario_facturas: Math.max(1, Math.floor(Number(topeDiarioFacturas) || 20)),
+        tope_diario_monto: topeDiarioMonto || 20000000,
+        cbu: cbu.trim() || null,
+        alias_cbu: aliasCbu.trim() || null,
+        banco: banco.trim() || null,
+        email_facturacion: emailFacturacion.trim() || null,
+        texto_pie_factura: textoPieFactura.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", 1);
+
+    setGuardandoArca(false);
+
+    if (error) {
+      setErrorArca(error.message);
+    } else {
+      setMensajeArca("Guardado");
+      setTimeout(() => {
+        setMensajeArca(null);
+      }, 2000);
+    }
+  };
+
   // --- Guardar Presupuestos ---
+
   const handleGuardarPresupuesto = async (e: FormEvent) => {
     e.preventDefault();
     setGuardandoPresupuesto(true);
@@ -257,6 +318,17 @@ export function PaginaConfiguracion() {
         </button>
         <button
           type="button"
+          onClick={() => setTabConfig("facturacion_arca")}
+          className={`flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
+            tabConfig === "facturacion_arca"
+              ? "border-marca text-marca"
+              : "border-transparent text-tinta-suave hover:text-tinta"
+          }`}
+        >
+          Facturación ARCA
+        </button>
+        <button
+          type="button"
           onClick={() => setTabConfig("presupuestos")}
           className={`flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
             tabConfig === "presupuestos"
@@ -266,6 +338,7 @@ export function PaginaConfiguracion() {
         >
           Presupuestos
         </button>
+
         <button
           type="button"
           onClick={() => setTabConfig("cotizador")}
@@ -378,8 +451,177 @@ export function PaginaConfiguracion() {
         </form>
       </Tarjeta>
 
-      {/* 2. Tarjeta Presupuestos */}
+      {/* 2. Tarjeta Facturación Electrónica ARCA */}
+      <Tarjeta className={`p-6 ${tabConfig === "facturacion_arca" ? "block" : "hidden md:block"}`}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-tinta">Facturación electrónica (ARCA)</h2>
+            <p className="text-xs text-tinta-suave mt-0.5">
+              Configuración de Web Service (WSFEv1), ambiente, topes diarios y datos de pago
+            </p>
+          </div>
+          {arcaAmbiente === "homologacion" ? (
+            <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              Homologación
+            </span>
+          ) : (
+            <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              Producción
+            </span>
+          )}
+        </div>
+
+        {errorArca && <Aviso variante="peligro" className="mb-4">{errorArca}</Aviso>}
+
+        <form onSubmit={handleGuardarArca} className="space-y-4 pb-[72px] md:pb-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Campo
+              etiqueta="Ambiente ARCA"
+              id="arca-ambiente"
+              ayuda="En homologación los comprobantes no tienen validez fiscal."
+            >
+              <Selector
+                id="arca-ambiente"
+                value={arcaAmbiente}
+                onChange={(e) => {
+                  const nuevo = e.target.value as AmbienteArca;
+                  if (nuevo === "produccion" && arcaAmbiente !== "produccion") {
+                    setModalConfirmarProd(true);
+                  } else {
+                    setArcaAmbiente(nuevo);
+                  }
+                }}
+              >
+                <option value="homologacion">Homologación (pruebas)</option>
+                <option value="produccion">Producción (oficial)</option>
+              </Selector>
+            </Campo>
+
+            <Campo
+              etiqueta="Punto de venta WS"
+              id="arca-pv"
+              ayuda="Punto de venta habilitado en ARCA tipo Web Service."
+            >
+              <Entrada
+                id="arca-pv"
+                type="number"
+                min="1"
+                max="9999"
+                required
+                value={puntoVentaWs}
+                onChange={(e) => setPuntoVentaWs(e.target.value)}
+              />
+            </Campo>
+
+            <Campo
+              etiqueta="Tope diario de facturas"
+              id="arca-tope-facturas"
+              ayuda="Cantidad máxima de facturas que el lote emitirá sin pausar."
+            >
+              <Entrada
+                id="arca-tope-facturas"
+                type="number"
+                min="1"
+                required
+                value={topeDiarioFacturas}
+                onChange={(e) => setTopeDiarioFacturas(e.target.value)}
+              />
+            </Campo>
+
+            <Campo
+              etiqueta="Tope diario de monto"
+              id="arca-tope-monto"
+              ayuda="Si el lote supera este monto acumulado, no emitirá."
+            >
+              <EntradaMonto
+                id="arca-tope-monto"
+                valor={topeDiarioMonto}
+                onChange={(val) => setTopeDiarioMonto(val)}
+                placeholder="20.000.000"
+              />
+
+            </Campo>
+          </div>
+
+          <div className="border-t border-borde pt-4 mt-4">
+            <h3 className="text-sm font-semibold text-tinta mb-3">
+              Datos para el pago (aparecen en PDF y correos)
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Campo etiqueta="Banco" id="arca-banco">
+                <Entrada
+                  id="arca-banco"
+                  placeholder="Ej: Banco Galicia"
+                  value={banco}
+                  onChange={(e) => setBanco(e.target.value)}
+                />
+              </Campo>
+
+              <Campo etiqueta="CBU" id="arca-cbu">
+                <Entrada
+                  id="arca-cbu"
+                  placeholder="22 dígitos"
+                  value={cbu}
+                  onChange={(e) => setCbu(e.target.value)}
+                />
+              </Campo>
+
+              <Campo etiqueta="Alias CBU" id="arca-alias">
+                <Entrada
+                  id="arca-alias"
+                  placeholder="Ej: ELEVA.PLUS.PAGOS"
+                  value={aliasCbu}
+                  onChange={(e) => setAliasCbu(e.target.value)}
+                />
+              </Campo>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 pt-2">
+            <Campo
+              etiqueta="Email remitente de facturación"
+              id="arca-email"
+              ayuda="Email remitente para el envío de facturas a clientes."
+            >
+              <Entrada
+                id="arca-email"
+                type="email"
+                placeholder="facturacion@eleva-plus.com.ar"
+                value={emailFacturacion}
+                onChange={(e) => setEmailFacturacion(e.target.value)}
+              />
+            </Campo>
+
+            <Campo
+              etiqueta="Texto para el pie de factura"
+              id="arca-pie"
+              ayuda="Leyenda o notas adicionales en el pie del PDF."
+            >
+              <AreaTexto
+                id="arca-pie"
+                rows={2}
+                placeholder="Ej: Esta factura debe ser cancelada dentro del plazo acordado."
+                value={textoPieFactura}
+                onChange={(e) => setTextoPieFactura(e.target.value)}
+              />
+            </Campo>
+          </div>
+
+          {mensajeArca && (
+            <p className="text-sm font-medium text-ok">{mensajeArca}</p>
+          )}
+
+          <BarraAcciones>
+            <Boton type="submit" disabled={guardandoArca}>
+              {guardandoArca ? "Guardando…" : "Guardar facturación"}
+            </Boton>
+          </BarraAcciones>
+        </form>
+      </Tarjeta>
+
+      {/* 3. Tarjeta Presupuestos */}
       <Tarjeta className={`p-6 ${tabConfig === "presupuestos" ? "block" : "hidden md:block"}`}>
+
         <h2 className="text-lg font-semibold text-tinta mb-4">Presupuestos</h2>
 
         {errorPresupuesto && <Aviso variante="peligro" className="mb-4">{errorPresupuesto}</Aviso>}
@@ -614,6 +856,44 @@ export function PaginaConfiguracion() {
           </form>
         </div>
       </Tarjeta>
+
+      {/* Modal de confirmación para ambiente de Producción */}
+      {modalConfirmarProd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Tarjeta className="max-w-md p-6 space-y-4 shadow-xl border-peligro/30">
+            <h3 className="text-lg font-bold text-peligro">
+              Confirmar pase a PRODUCCIÓN
+            </h3>
+            <p className="text-sm text-tinta leading-relaxed">
+              Estás a punto de activar el ambiente de <strong>PRODUCCIÓN</strong> de ARCA.
+              A partir de este momento, todos los comprobantes emitidos tendrán <strong>validez legal y fiscal real</strong>.
+            </p>
+            <p className="text-xs text-tinta-suave">
+              Asegurate de contar con el certificado digital de producción y el punto de venta Web Service habilitado en la web de ARCA.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Boton
+                type="button"
+                variante="secundario"
+                onClick={() => setModalConfirmarProd(false)}
+              >
+                Cancelar
+              </Boton>
+              <Boton
+                type="button"
+                variante="peligro"
+                onClick={() => {
+                  setArcaAmbiente("produccion");
+                  setModalConfirmarProd(false);
+                }}
+              >
+                Sí, pasar a Producción
+              </Boton>
+            </div>
+          </Tarjeta>
+        </div>
+      )}
     </div>
   );
 }
+

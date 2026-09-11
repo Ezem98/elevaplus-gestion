@@ -153,8 +153,18 @@ export interface Empresa {
   presupuesto_condiciones_extra: string | null;
   precio_hora_espera_camion?: number | null;
   precio_hora_espera_autoelevador?: number | null;
+  punto_venta_ws?: number;
+  arca_ambiente?: AmbienteArca;
+  tope_diario_facturas?: number;
+  tope_diario_monto?: number;
+  cbu?: string | null;
+  alias_cbu?: string | null;
+  banco?: string | null;
+  email_facturacion?: string | null;
+  texto_pie_factura?: string | null;
   updated_at?: string;
 }
+
 
 export interface ServicioEvento {
   id: number;
@@ -419,6 +429,17 @@ export interface Factura {
   iva: number;
   total: number;
   cae?: string | null;
+  cae_vencimiento?: string | null;
+  concepto?: number | null;
+  periodo_desde?: string | null;
+  periodo_hasta?: string | null;
+  fecha_vto_pago?: string | null;
+  estado_emision?: EstadoEmision | null;
+  error_emision?: string | null;
+  emitida_at?: string | null;
+  enviada_email_at?: string | null;
+  email_destino?: string | null;
+  lote_id?: string | null;
   pdf_path?: string | null;
   notas?: string | null;
   created_at?: string;
@@ -427,6 +448,43 @@ export interface Factura {
   clientes?: { nombre: string; cuit?: string | null; condicion_iva?: CondicionIva | null } | null;
   factura_asociada?: { tipo: TipoFactura; punto_venta: number; numero: number } | null;
 }
+
+export interface DescartadoLote {
+  cliente_id?: string;
+  cliente?: string;
+  motivo?: string;
+  error?: string;
+  servicios?: Array<{
+    id: string;
+    numero: number;
+    descripcion?: string | null;
+  }>;
+}
+
+export interface LoteEmision {
+  id: string;
+  fecha: string;
+  iniciado_at: string;
+  finalizado_at: string | null;
+  disparado_por: string;
+  facturas_emitidas: number;
+  monto_total: number;
+  descartados: DescartadoLote[];
+  error: string | null;
+}
+
+export interface ArcaLog {
+  id: number;
+  factura_id: string | null;
+  accion: string;
+  ambiente: AmbienteArca;
+  request: any;
+  response: any;
+  exito: boolean;
+  duracion_ms: number;
+  created_at: string;
+}
+
 
 export const ETIQUETA_TIPO_FACTURA: Record<TipoFactura, string> = {
   A: "Factura A",

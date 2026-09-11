@@ -36,11 +36,23 @@ export function Selector({ className = "", children, ...props }: SelectHTMLAttri
   );
 }
 
-export function Campo({ etiqueta, id, children }: { etiqueta: string; id: string; children: ReactNode }) {
+export function Campo({
+  etiqueta,
+  id,
+  ayuda,
+  children,
+}: {
+  etiqueta: string;
+  id: string;
+  ayuda?: string;
+  children: ReactNode;
+}) {
   return (
     <div>
       <Etiqueta htmlFor={id}>{etiqueta}</Etiqueta>
       {children}
+      {ayuda && <p className="mt-1 text-xs text-tinta-suave">{ayuda}</p>}
     </div>
   );
 }
+

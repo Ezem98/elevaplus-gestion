@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { Search, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import type { TipoCliente, CondicionIva, CondicionPago, ModoFacturacion } from "@/lib/tipos";
+import { consultarPadronArca } from "@/lib/worker";
+import type { TipoCliente, CondicionPago, CondicionIva, ModoFacturacion } from "@/lib/tipos";
 import {
   ETIQUETA_TIPO_CLIENTE,
   ETIQUETA_CONDICION_IVA,
@@ -41,10 +43,72 @@ export function FormularioCliente() {
   const [errorNombre, setErrorNombre] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
 
+  const [buscandoArca, setBuscandoArca] = useState(false);
+  const [alertaArca, setAlertaArca] = useState<{
+    tipo: "error" | "alerta" | "info";
+    mensaje: string;
+  } | null>(null);
+
   const esRiSinCuit =
     facturacionAutomatica &&
     condicionIva === "responsable_inscripto" &&
     !cuit.trim();
+
+  const handleBuscarArca = async () => {
+    const cuitLimpio = cuit.replace(/\D/g, "");
+    if (cuitLimpio.length < 10) {
+      setAlertaArca({
+        tipo: "alerta",
+        mensaje: "Ingresá un CUIT válido (11 dígitos) para buscar en ARCA.",
+      });
+      return;
+    }
+
+    setBuscandoArca(true);
+    setAlertaArca(null);
+
+    try {
+      const res = await consultarPadronArca(cuitLimpio);
+      if (!res.ok || !res.cuit) {
+        setAlertaArca({
+          tipo: "error",
+          mensaje: res.error || "El CUIT no fue encontrado en el padrón de ARCA.",
+        });
+        return;
+      }
+
+      if (res.activo === false) {
+        setAlertaArca({
+          tipo: "alerta",
+          mensaje: `Atención: el contribuyente figura INACTIVO en ARCA (${res.razon_social || "sin razón social"}).`,
+        });
+      } else {
+        setAlertaArca({
+          tipo: "info",
+          mensaje: `Contribuyente activo verificado en ARCA: ${res.razon_social}.`,
+        });
+      }
+
+      // Precompletar campos si vinieron datos
+      if (res.razon_social) {
+        setNombre(res.razon_social);
+        if (errorNombre) setErrorNombre(false);
+      }
+      if (res.condicion_iva) {
+        setCondicionIva(res.condicion_iva as CondicionIva);
+      }
+      if (res.domicilio) {
+        setDireccion(res.domicilio);
+      }
+    } catch (err: any) {
+      setAlertaArca({
+        tipo: "error",
+        mensaje: err?.message || "Error al consultar los datos en ARCA.",
+      });
+    } finally {
+      setBuscandoArca(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -190,14 +254,50 @@ export function FormularioCliente() {
               </Selector>
             </Campo>
 
-            <Campo etiqueta="CUIT" id="cuit">
-              <Entrada
-                id="cuit"
-                value={cuit}
-                onChange={(e) => setCuit(e.target.value)}
-                placeholder="Ej: 30-12345678-9"
-              />
-            </Campo>
+            <div>
+              <Campo etiqueta="CUIT" id="cuit">
+                <div className="flex gap-2">
+                  <Entrada
+                    id="cuit"
+                    value={cuit}
+                    onChange={(e) => {
+                      setCuit(e.target.value);
+                      if (alertaArca) setAlertaArca(null);
+                    }}
+                    placeholder="Ej: 30-12345678-9"
+                    className="flex-1"
+                  />
+                  <Boton
+                    type="button"
+                    variante="secundario"
+                    onClick={handleBuscarArca}
+                    disabled={buscandoArca || !cuit.trim()}
+                    className="shrink-0"
+                  >
+                    {buscandoArca ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        Buscando…
+                      </>
+                    ) : (
+                      <>
+                        <Search className="mr-1.5 h-4 w-4" />
+                        Buscar en ARCA
+                      </>
+                    )}
+                  </Boton>
+                </div>
+              </Campo>
+              {alertaArca && (
+                <div className="mt-2">
+                  <Aviso variante={alertaArca.tipo === "error" ? "peligro" : alertaArca.tipo}>
+                    {alertaArca.mensaje}
+                  </Aviso>
+                </div>
+              )}
+
+            </div>
+
 
             <Campo etiqueta="Condición IVA" id="condicion_iva">
               <Selector

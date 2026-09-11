@@ -2,8 +2,16 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { useRealtime } from "@/hooks/use-realtime";
-import type { Factura, Servicio, CondicionIva, IvaMensual, MovimientoCaja } from "@/lib/tipos";
+import {
+  obtenerEstadoWorker,
+  emitirFacturaArca,
+  reenviarFacturaMail,
+  type EstadoWorker,
+  type RespuestaEmitirArca,
+} from "@/lib/worker";
+import type { Factura, Servicio, CondicionIva, IvaMensual, MovimientoCaja, AmbienteArca, EstadoEmision } from "@/lib/tipos";
 import { ETIQUETA_CONDICION_IVA, ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearPesos, formatearFecha, formatearNumeroFactura, formatearMes } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
@@ -14,6 +22,48 @@ import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { MenuAcciones } from "@/components/ui/MenuAcciones";
 import { FormularioFactura } from "./FormularioFactura";
 import { FormularioNotaCredito } from "./FormularioNotaCredito";
+import { ModalProgresoEmision, type EtapaEmision } from "./ModalProgresoEmision";
+import { ModalLogArca } from "./ModalLogArca";
+import { PestanaEmisionesAutomaticas } from "./PestanaEmisionesAutomaticas";
+
+
+function ChipEstadoEmision({
+  estado,
+  error,
+}: {
+  estado?: EstadoEmision | null;
+  error?: string | null;
+}) {
+  if (estado === "emitida") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-ok/20 bg-ok-suave px-2 py-0.5 text-[11px] font-medium text-ok">
+        Emitida ARCA
+      </span>
+    );
+  }
+  if (estado === "error") {
+    return (
+      <span
+        className="inline-flex items-center rounded-full border border-peligro/20 bg-peligro-suave px-2 py-0.5 text-[11px] font-medium text-peligro cursor-help"
+        title={error || "Error al emitir"}
+      >
+        Error ARCA
+      </span>
+    );
+  }
+  if (estado === "emitiendo") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-600 dark:text-sky-400">
+        Emitiendo...
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full border border-borde bg-fondo px-2 py-0.5 text-[11px] font-medium text-tinta-suave">
+      {estado === "borrador" ? "Borrador" : "Manual"}
+    </span>
+  );
+}
 
 interface ClientePendiente {
   id: string;
@@ -31,6 +81,8 @@ export function PaginaFacturacion() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
+  const { perfil } = useAuth();
+  const esAdmin = perfil?.rol === "admin";
 
   const pestanaActiva =
     tabParam === "facturas"
@@ -39,11 +91,38 @@ export function PaginaFacturacion() {
       ? "notas_credito"
       : tabParam === "iva"
       ? "iva"
+      : tabParam === "emisiones_automaticas"
+      ? "emisiones_automaticas"
       : "pendientes";
 
-  const cambiarPestana = (nueva: "pendientes" | "facturas" | "notas_credito" | "iva") => {
+  const cambiarPestana = (
+    nueva: "pendientes" | "facturas" | "notas_credito" | "iva" | "emisiones_automaticas"
+  ) => {
     setSearchParams({ tab: nueva });
   };
+
+  // --- Estado Worker y ARCA ---
+  const [estadoWorker, setEstadoWorker] = useState<EstadoWorker>({ online: false });
+  const [arcaAmbiente, setArcaAmbiente] = useState<AmbienteArca | null>(null);
+
+  // --- Estado Modal Progreso Emisión ARCA ---
+  const [modalEmisionAbierto, setModalEmisionAbierto] = useState(false);
+  const [etapaEmision, setEtapaEmision] = useState<EtapaEmision>("emitiendo");
+  const [clienteEmisionNombre, setClienteEmisionNombre] = useState("");
+  const [cantidadServiciosEmision, setCantidadServiciosEmision] = useState(0);
+  const [resultadoEmision, setResultadoEmision] = useState<RespuestaEmitirArca | null>(null);
+  const [errorEmision, setErrorEmision] = useState<string | null>(null);
+
+  // --- Estado Modal Log ARCA ---
+  const [logFacturaId, setLogFacturaId] = useState<string | null>(null);
+  const [modalLogAbierto, setModalLogAbierto] = useState(false);
+
+  // --- Feedback de reenvío de mail ---
+  const [avisoReenvioMail, setAvisoReenvioMail] = useState<{
+    tipo: "exito" | "error";
+    texto: string;
+  } | null>(null);
+
 
   // --- Estado pestaña Pendientes ---
   const [pendientes, setPendientes] = useState<Servicio[]>([]);
@@ -123,13 +202,16 @@ export function PaginaFacturacion() {
     if (mostrarSpinner) setCargandoFacturas(true);
     const { data: facs, error } = await supabase
       .from("facturas")
-      .select("id, tipo, punto_venta, numero, fecha, cliente_id, neto, iva, total, anulada, notas, clientes(nombre)")
+      .select(
+        "id, tipo, punto_venta, numero, fecha, cliente_id, neto, iva, total, anulada, notas, cae, cae_vencimiento, estado_emision, error_emision, pdf_path, enviada_email_at, email_destino, clientes(nombre)"
+      )
       .in("tipo", ["A", "B", "C"])
       .order("fecha", { ascending: false })
       .limit(200);
 
     if (!error && facs) {
       setFacturas(facs as unknown as Factura[]);
+
       const fIds = facs.map((f: any) => f.id);
       if (fIds.length > 0) {
         const { data: sData } = await supabase
@@ -205,6 +287,92 @@ export function PaginaFacturacion() {
     ["servicios", "facturas", "movimientos_caja"],
     () => cargar(false)
   );
+
+  // Consultar configuración de empresa y salud del worker
+  useEffect(() => {
+    supabase
+      .from("empresa")
+      .select("arca_ambiente")
+      .eq("id", 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.arca_ambiente) {
+          setArcaAmbiente(data.arca_ambiente as AmbienteArca);
+        }
+      });
+
+    obtenerEstadoWorker().then((st) => {
+      setEstadoWorker(st);
+    });
+  }, []);
+
+  const handleDescargarPdf = async (pdfPath?: string | null) => {
+    if (!pdfPath) return;
+    try {
+      const { data, error } = await supabase.storage
+        .from("facturas")
+        .createSignedUrl(pdfPath, 3600);
+
+      if (error || !data?.signedUrl) {
+        alert("No se pudo obtener el enlace de descarga del PDF.");
+        return;
+      }
+
+      window.open(data.signedUrl, "_blank");
+    } catch {
+      alert("Error al intentar descargar el PDF.");
+    }
+  };
+
+  const handleReenviarMail = async (facturaId: string) => {
+    setAvisoReenvioMail(null);
+    try {
+      const res = await reenviarFacturaMail(facturaId);
+      if (!res.ok) {
+        setAvisoReenvioMail({
+          tipo: "error",
+          texto: res.error || "No se pudo reenviar la factura por correo.",
+        });
+      } else {
+        setAvisoReenvioMail({
+          tipo: "exito",
+          texto: `Factura reenviada con éxito a ${res.destinatario || "el cliente"}.`,
+        });
+        setTimeout(() => setAvisoReenvioMail(null), 4000);
+      }
+    } catch (err: any) {
+      setAvisoReenvioMail({
+        tipo: "error",
+        texto: err?.message || "Ocurrió un error al conectar con el servidor de correos.",
+      });
+    }
+  };
+
+  const handleEmitirArca = async (cliente: ClientePendiente, servicioIds: string[]) => {
+    setClienteEmisionNombre(cliente.nombre);
+    setCantidadServiciosEmision(servicioIds.length);
+    setResultadoEmision(null);
+    setErrorEmision(null);
+    setEtapaEmision("emitiendo");
+    setModalEmisionAbierto(true);
+
+    try {
+      const res = await emitirFacturaArca(cliente.id, servicioIds);
+      if (!res.ok || !res.cae) {
+        setEtapaEmision("error");
+        setErrorEmision(res.error || "La solicitud no pudo ser autorizada por ARCA.");
+      } else {
+        setResultadoEmision(res);
+        setEtapaEmision("exito");
+        cargarPendientes(false);
+        cargarFacturas(false);
+      }
+    } catch (err: any) {
+      setEtapaEmision("error");
+      setErrorEmision(err?.message || "Error al conectar con el worker de ARCA.");
+    }
+  };
+
 
   // ==================== Expandir comprobantes de compra ====================
   const toggleExpandirMes = async (mesIso: string) => {
@@ -517,6 +685,18 @@ export function PaginaFacturacion() {
         >
           IVA
         </button>
+
+        <button
+          type="button"
+          onClick={() => cambiarPestana("emisiones_automaticas")}
+          className={`pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+            pestanaActiva === "emisiones_automaticas"
+              ? "border-marca text-marca font-semibold"
+              : "border-transparent text-tinta-suave hover:text-tinta"
+          }`}
+        >
+          Emisiones automáticas
+        </button>
       </div>
 
       {/* ============================================================ */}
@@ -524,6 +704,20 @@ export function PaginaFacturacion() {
       {/* ============================================================ */}
       {pestanaActiva === "pendientes" && (
         <div className="space-y-6">
+          {arcaAmbiente === "homologacion" && (
+            <div className="flex items-center justify-between px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
+              <div className="flex items-center gap-2">
+                <span className="font-bold uppercase tracking-wider bg-amber-500/20 px-2 py-0.5 rounded">
+                  Homologación ARCA
+                </span>
+                <span>Los comprobantes emitidos son de prueba y no tienen validez fiscal.</span>
+              </div>
+              <span className="font-semibold text-amber-700 dark:text-amber-300">
+                Worker: {estadoWorker.online ? "Conectado" : "Desconectado"}
+              </span>
+            </div>
+          )}
+
           {cargandoPendientes ? (
             <div className="py-12 text-center text-tinta-suave">
               Cargando servicios pendientes...
@@ -533,6 +727,7 @@ export function PaginaFacturacion() {
               No hay servicios terminados o cobrados pendientes de facturar.
             </Tarjeta>
           ) : (
+
             gruposPendientes.map((grupo, idx) => {
               const esSinCliente = !grupo.cliente;
               const grupoKey = grupo.cliente?.id || "sin_cliente";
@@ -607,15 +802,36 @@ export function PaginaFacturacion() {
                       </div>
 
                       {!esSinCliente && (
-                        <Boton
-                          disabled={seleccionados.length === 0 || estaFacturando}
-                          onClick={() => setGrupoFacturando(estaFacturando ? null : grupoKey)}
-                        >
-                          Facturar seleccionados ({seleccionados.length})
-                        </Boton>
+                        <div className="flex items-center gap-2">
+                          {estadoWorker.online && arcaAmbiente ? (
+                            <>
+                              <Boton
+                                disabled={seleccionados.length === 0 || estaFacturando}
+                                onClick={() => handleEmitirArca(grupo.cliente!, seleccionados)}
+                              >
+                                Emitir en ARCA ({seleccionados.length})
+                              </Boton>
+                              <Boton
+                                variante="secundario"
+                                disabled={seleccionados.length === 0}
+                                onClick={() => setGrupoFacturando(estaFacturando ? null : grupoKey)}
+                              >
+                                {estaFacturando ? "Cancelar carga" : "Registrar factura del portal"}
+                              </Boton>
+                            </>
+                          ) : (
+                            <Boton
+                              disabled={seleccionados.length === 0 || estaFacturando}
+                              onClick={() => setGrupoFacturando(estaFacturando ? null : grupoKey)}
+                            >
+                              Facturar seleccionados ({seleccionados.length})
+                            </Boton>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
+
 
                   {esSinCliente && (
                     <Aviso variante="alerta">
@@ -712,6 +928,12 @@ export function PaginaFacturacion() {
       {/* ============================================================ */}
       {pestanaActiva === "facturas" && (
         <div className="space-y-4">
+          {avisoReenvioMail && (
+            <Aviso variante={avisoReenvioMail.tipo === "exito" ? "exito" : "peligro"}>
+              {avisoReenvioMail.texto}
+            </Aviso>
+          )}
+
           {/* Buscador */}
           <div className="max-w-md">
             <Entrada
@@ -744,6 +966,33 @@ export function PaginaFacturacion() {
                       onClick: () =>
                         setFacturaExpandida(expandido ? null : f.id),
                     },
+                    ...(f.pdf_path
+                      ? [
+                          {
+                            texto: "Descargar PDF",
+                            onClick: () => handleDescargarPdf(f.pdf_path),
+                          },
+                        ]
+                      : []),
+                    ...(f.cae && f.estado_emision === "emitida"
+                      ? [
+                          {
+                            texto: "Reenviar mail",
+                            onClick: () => handleReenviarMail(f.id),
+                          },
+                        ]
+                      : []),
+                    ...(esAdmin
+                      ? [
+                          {
+                            texto: "Ver log ARCA",
+                            onClick: () => {
+                              setLogFacturaId(f.id);
+                              setModalLogAbierto(true);
+                            },
+                          },
+                        ]
+                      : []),
                     ...(!f.anulada
                       ? [
                           {
@@ -762,20 +1011,31 @@ export function PaginaFacturacion() {
                           <span className="font-semibold text-tinta truncate text-sm">
                             {f.clientes?.nombre || "—"}
                           </span>
-                          {f.anulada ? (
-                            <span className="inline-flex items-center rounded-full border border-peligro/20 bg-peligro-suave px-2 py-0.5 text-xs font-medium text-peligro">
-                              Anulada
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center rounded-full border border-borde bg-fondo px-2 py-0.5 text-xs font-medium text-tinta-suave">
-                              {f.tipo}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <ChipEstadoEmision
+                              estado={f.estado_emision}
+                              error={f.error_emision}
+                            />
+                            {f.anulada ? (
+                              <span className="inline-flex items-center rounded-full border border-peligro/20 bg-peligro-suave px-2 py-0.5 text-xs font-medium text-peligro">
+                                Anulada
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full border border-borde bg-fondo px-2 py-0.5 text-xs font-medium text-tinta-suave">
+                                {f.tipo}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="text-[13px] text-tinta-suave truncate">
                           {formatearFecha(f.fecha)} · {formatearNumeroFactura(f.tipo, f.punto_venta, f.numero)}
                           {servsDeEstaFactura.length > 0 ? ` · ${servsDeEstaFactura.length} serv.` : ""}
                         </div>
+                        {f.cae && (
+                          <div className="text-[11px] font-mono text-tinta-suave">
+                            CAE: {f.cae}
+                          </div>
+                        )}
                         <div className="flex items-center justify-end gap-2 pt-0.5">
                           <span className="text-sm font-semibold tabular-nums text-tinta">
                             {formatearPesos(f.total)}
@@ -846,6 +1106,8 @@ export function PaginaFacturacion() {
                       <th className="p-3.5 text-right">Neto</th>
                       <th className="p-3.5 text-right">IVA</th>
                       <th className="p-3.5 text-right">Total</th>
+                      <th className="p-3.5 text-center">CAE</th>
+                      <th className="p-3.5 text-center">Emisión</th>
                       <th className="p-3.5 text-center">Servicios</th>
                       <th className="p-3.5 text-center">Estado</th>
                       <th className="p-3.5 w-10"></th>
@@ -857,15 +1119,59 @@ export function PaginaFacturacion() {
                       const expandido = facturaExpandida === f.id;
                       const registrandoNC = facturaParaNC?.id === f.id;
 
+                      const acciones = [
+                        {
+                          texto: expandido ? "Ocultar servicios" : "Ver servicios",
+                          onClick: () =>
+                            setFacturaExpandida(expandido ? null : f.id),
+                        },
+                        ...(f.pdf_path
+                          ? [
+                              {
+                                texto: "Descargar PDF",
+                                onClick: () => handleDescargarPdf(f.pdf_path),
+                              },
+                            ]
+                          : []),
+                        ...(f.cae && f.estado_emision === "emitida"
+                          ? [
+                              {
+                                texto: "Reenviar mail",
+                                onClick: () => handleReenviarMail(f.id),
+                              },
+                            ]
+                          : []),
+                        ...(esAdmin
+                          ? [
+                              {
+                                texto: "Ver log ARCA",
+                                onClick: () => {
+                                  setLogFacturaId(f.id);
+                                  setModalLogAbierto(true);
+                                },
+                              },
+                            ]
+                          : []),
+                        ...(!f.anulada
+                          ? [
+                              {
+                                texto: "Registrar nota de crédito",
+                                onClick: () =>
+                                  setFacturaParaNC(registrandoNC ? null : f),
+                              },
+                            ]
+                          : []),
+                      ];
+
                       return (
                         <tr key={f.id} className="hover:bg-fondo/40 transition-colors">
-                          <td colSpan={9} className="p-0">
+                          <td colSpan={11} className="p-0">
                             <div className="flex items-center w-full px-3.5 py-3">
                               <div className="w-24 shrink-0 text-tinta-suave tabular-nums">
                                 {formatearFecha(f.fecha)}
                               </div>
 
-                              <div className="w-40 shrink-0 font-medium tabular-nums text-tinta">
+                              <div className="w-36 shrink-0 font-medium tabular-nums text-tinta">
                                 {formatearNumeroFactura(f.tipo, f.punto_venta, f.numero)}
                               </div>
 
@@ -873,23 +1179,34 @@ export function PaginaFacturacion() {
                                 {f.clientes?.nombre || "—"}
                               </div>
 
-                              <div className="w-24 shrink-0 text-right tabular-nums text-tinta-suave">
+                              <div className="w-20 shrink-0 text-right tabular-nums text-tinta-suave">
                                 {formatearPesos(f.neto)}
                               </div>
 
-                              <div className="w-24 shrink-0 text-right tabular-nums text-tinta-suave">
+                              <div className="w-20 shrink-0 text-right tabular-nums text-tinta-suave">
                                 {formatearPesos(f.iva)}
                               </div>
 
-                              <div className="w-28 shrink-0 text-right font-semibold tabular-nums text-tinta">
+                              <div className="w-24 shrink-0 text-right font-semibold tabular-nums text-tinta">
                                 {formatearPesos(f.total)}
                               </div>
 
-                              <div className="w-20 shrink-0 text-center tabular-nums text-tinta">
+                              <div className="w-28 shrink-0 text-center font-mono text-xs text-tinta-suave truncate" title={f.cae || undefined}>
+                                {f.cae || "—"}
+                              </div>
+
+                              <div className="w-28 shrink-0 text-center">
+                                <ChipEstadoEmision
+                                  estado={f.estado_emision}
+                                  error={f.error_emision}
+                                />
+                              </div>
+
+                              <div className="w-16 shrink-0 text-center tabular-nums text-tinta">
                                 {servsDeEstaFactura.length}
                               </div>
 
-                              <div className="w-24 shrink-0 text-center">
+                              <div className="w-20 shrink-0 text-center">
                                 {f.anulada ? (
                                   <span className="inline-flex items-center rounded-full border border-peligro/20 bg-peligro-suave px-2.5 py-0.5 text-xs font-medium text-peligro">
                                     Anulada
@@ -898,24 +1215,7 @@ export function PaginaFacturacion() {
                               </div>
 
                               <div className="w-10 shrink-0 text-right">
-                                <MenuAcciones
-                                  acciones={[
-                                    {
-                                      texto: expandido ? "Ocultar servicios" : "Ver servicios",
-                                      onClick: () =>
-                                        setFacturaExpandida(expandido ? null : f.id),
-                                    },
-                                    ...(!f.anulada
-                                      ? [
-                                          {
-                                            texto: "Registrar nota de crédito",
-                                            onClick: () =>
-                                              setFacturaParaNC(registrandoNC ? null : f),
-                                          },
-                                        ]
-                                      : []),
-                                  ]}
-                                />
+                                <MenuAcciones acciones={acciones} />
                               </div>
                             </div>
 
@@ -1433,6 +1733,43 @@ export function PaginaFacturacion() {
             </Tarjeta>
           )}
         </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* PESTAÑA: EMISIONES AUTOMÁTICAS */}
+      {/* ============================================================ */}
+      {pestanaActiva === "emisiones_automaticas" && (
+        <PestanaEmisionesAutomaticas esAdmin={esAdmin} />
+      )}
+
+      {/* ============================================================ */}
+      {/* MODALES DE EMISIÓN Y LOGS ARCA */}
+      {/* ============================================================ */}
+      {modalEmisionAbierto && (
+        <ModalProgresoEmision
+          abierto={modalEmisionAbierto}
+          etapa={etapaEmision}
+          clienteNombre={clienteEmisionNombre}
+          cantidadServicios={cantidadServiciosEmision}
+          resultado={resultadoEmision}
+          error={errorEmision}
+          onCerrar={() => setModalEmisionAbierto(false)}
+          onVerFacturas={() => {
+            setModalEmisionAbierto(false);
+            cambiarPestana("facturas");
+          }}
+        />
+      )}
+
+      {modalLogAbierto && logFacturaId && (
+        <ModalLogArca
+          facturaId={logFacturaId}
+          abierto={modalLogAbierto}
+          onCerrar={() => {
+            setModalLogAbierto(false);
+            setLogFacturaId(null);
+          }}
+        />
       )}
     </div>
   );

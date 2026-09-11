@@ -4,8 +4,10 @@ import { requerirAdminUOficina, requerirWorkerSecretOAdmin } from "./auth";
 import { emitirFactura } from "../emision/emitir";
 import { correrLote } from "../emision/lote";
 import { enviarFacturaEmail } from "../mail/enviar";
+import { consultarPadron } from "../arca/padron";
 
 export const enrutador = Router();
+
 
 // Health check
 enrutador.get("/health", (_req, res) => {
@@ -106,5 +108,39 @@ enrutador.post("/reenviar-mail", requerirAdminUOficina, async (req, res) => {
     });
   }
 });
+
+// Consulta de constancia de inscripción en padrón de ARCA
+enrutador.get("/padron/:cuit", requerirAdminUOficina, async (req, res) => {
+  const cuitParam = req.params.cuit;
+  const cuit = Array.isArray(cuitParam) ? cuitParam[0] : cuitParam;
+  if (!cuit) {
+    res.status(400).json({ error: "Falta el parámetro CUIT." });
+    return;
+  }
+
+
+  try {
+    const datos = await consultarPadron(cuit);
+    if (!datos) {
+      res.status(404).json({
+        ok: false,
+        error: "El CUIT no se encuentra en el padrón de ARCA.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      ok: true,
+      ...datos,
+    });
+  } catch (err: any) {
+    console.error("Error al consultar padrón de ARCA:", err);
+    res.status(500).json({
+      ok: false,
+      error: err?.message || "Ocurrió un error al consultar el padrón de ARCA.",
+    });
+  }
+});
+
 
 
