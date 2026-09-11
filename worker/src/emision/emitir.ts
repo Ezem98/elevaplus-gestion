@@ -1,4 +1,4 @@
-﻿import { supabaseAdmin } from "../supabase";
+import { supabaseAdmin } from "../supabase";
 import {
   TIPO_COMPROBANTE,
   obtenerCondicionIvaReceptorId,
@@ -13,6 +13,7 @@ import {
   solicitarComprobanteArca,
   type AmbienteArca,
 } from "../arca/cliente";
+import { generarYSubirPdfFactura } from "../pdf/generar";
 
 export interface ParametrosEmitirFactura {
   clienteId: string;
@@ -29,6 +30,7 @@ export interface ResultadoEmisionFactura {
   numero: number;
   cae: string;
   cae_vencimiento: string;
+  pdf_path?: string | null;
 }
 
 function redondearDosDecimales(num: number): number {
@@ -219,6 +221,15 @@ export async function emitirFactura(
       }
     }
 
+    // Paso 7: Generar PDF y subir a Storage
+    let pdfPath: string | null = null;
+    try {
+      const resPdf = await generarYSubirPdfFactura(factura.id);
+      pdfPath = resPdf.pdfPath;
+    } catch (errPdf) {
+      console.error(`Error al generar/subir PDF de factura ${factura.id}:`, errPdf);
+    }
+
     return {
       factura_id: factura.id,
       tipo,
@@ -226,6 +237,7 @@ export async function emitirFactura(
       numero: proximoNumero,
       cae: resArca.CAE,
       cae_vencimiento: resArca.CAEFchVto,
+      pdf_path: pdfPath,
     };
   } catch (errEmision: any) {
     // Error en paso 3 o 4: marcar factura como 'error' y desvincular servicios
