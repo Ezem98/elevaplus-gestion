@@ -15,6 +15,7 @@ import {
 } from "../arca/cliente";
 import { generarYSubirPdfFactura } from "../pdf/generar";
 import { enviarFacturaEmail } from "../mail/enviar";
+import { formatearFechaArca } from "./recuperar";
 
 export interface ParametrosEmitirFactura {
   clienteId: string;
@@ -130,6 +131,7 @@ export async function emitirFactura(
       tipo,
       punto_venta: puntoVentaWs,
       numero: null,
+      fecha: new Date().toISOString().slice(0, 10),
       neto,
       iva,
       total,
@@ -202,7 +204,7 @@ export async function emitirFactura(
       .update({
         numero: proximoNumero,
         cae: resArca.CAE,
-        cae_vencimiento: resArca.CAEFchVto,
+        cae_vencimiento: formatearFechaArca(resArca.CAEFchVto) || null,
         estado_emision: "emitida",
         emitida_at: new Date().toISOString(),
       })
