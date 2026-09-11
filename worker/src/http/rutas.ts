@@ -77,7 +77,7 @@ enrutador.post("/lote", requerirWorkerSecretOAdmin, async (req, res) => {
 });
 
 // Reenvío de factura por correo electrónico
-enrutador.post("/reenviar-mail", requerirAdminUOficina, async (req, res) => {
+enrutador.post("/reenviar-mail", requerirWorkerSecretOAdmin, async (req, res) => {
   const { factura_id } = req.body;
 
   if (!factura_id || typeof factura_id !== "string") {
