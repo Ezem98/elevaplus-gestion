@@ -3,7 +3,13 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useRealtime } from "@/hooks/use-realtime";
 import type { Cliente, CuentaCorrienteCliente, Servicio } from "@/lib/tipos";
-import { ETIQUETA_TIPO, ETIQUETA_TIPO_CLIENTE, ETIQUETA_CONDICION_IVA, ETIQUETA_CONDICION_PAGO } from "@/lib/tipos";
+import {
+  ETIQUETA_TIPO,
+  ETIQUETA_TIPO_CLIENTE,
+  ETIQUETA_CONDICION_IVA,
+  ETIQUETA_CONDICION_PAGO,
+  ETIQUETA_MODO_FACTURACION,
+} from "@/lib/tipos";
 import { formatearPesos, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado } from "@/components/ui/Chip";
@@ -255,6 +261,29 @@ export function PaginaCliente() {
               <dt className="text-tinta-suave">Notas</dt>
               <dd className="mt-0.5 text-tinta font-medium whitespace-pre-wrap">{cliente.notas || "—"}</dd>
             </div>
+            <div className="pt-2 border-t border-borde">
+              <dt className="text-tinta-suave">Facturación</dt>
+              <dd className="mt-0.5 text-tinta font-medium">
+                {cliente.facturacion_modo
+                  ? ETIQUETA_MODO_FACTURACION[cliente.facturacion_modo]
+                  : "Manual"}
+                {cliente.facturacion_automatica ? " · Automática (21:30)" : " · Manual"}
+              </dd>
+              <p className="mt-1 text-xs text-tinta-suave">
+                {cliente.enviar_factura_email
+                  ? `Envía por email${cliente.email_facturacion ? ` a ${cliente.email_facturacion}` : ""}`
+                  : "Sin envío automático de email"}
+              </p>
+            </div>
+            {cliente.facturacion_automatica &&
+              cliente.condicion_iva === "responsable_inscripto" &&
+              !cliente.cuit && (
+                <div className="pt-1">
+                  <Aviso variante="peligro" className="text-xs py-2">
+                    Responsable inscripto sin CUIT: no podrá emitir automáticamente.
+                  </Aviso>
+                </div>
+              )}
           </dl>
         </Tarjeta>
       </div>

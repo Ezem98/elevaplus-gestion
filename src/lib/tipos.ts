@@ -22,6 +22,9 @@ export interface Perfil {
 export type TipoCliente = "empresa" | "particular" | "municipio";
 export type CondicionIva = "responsable_inscripto" | "monotributo" | "exento" | "consumidor_final";
 export type CondicionPago = "contado" | "transferencia_diferida" | "cuenta_corriente";
+export type ModoFacturacion = "por_servicio" | "diaria" | "quincenal" | "mensual" | "manual";
+export type EstadoEmision = "manual" | "borrador" | "emitiendo" | "emitida" | "error";
+export type AmbienteArca = "homologacion" | "produccion";
 
 export interface Cliente {
   id: string;
@@ -37,6 +40,10 @@ export interface Cliente {
   dias_pago: number;
   notas: string | null;
   activo: boolean;
+  facturacion_modo?: ModoFacturacion;
+  facturacion_automatica?: boolean;
+  enviar_factura_email?: boolean;
+  email_facturacion?: string | null;
   created_at?: string;
 }
 
@@ -315,6 +322,22 @@ export const ETIQUETA_CONDICION_PAGO: Record<CondicionPago, string> = {
   contado: "Contado",
   transferencia_diferida: "Transferencia diferida",
   cuenta_corriente: "Cuenta corriente",
+};
+
+export const ETIQUETA_MODO_FACTURACION: Record<ModoFacturacion, string> = {
+  por_servicio: "Por servicio",
+  diaria: "Diaria",
+  quincenal: "Quincenal",
+  mensual: "Mensual",
+  manual: "Manual",
+};
+
+export const ETIQUETA_ESTADO_EMISION: Record<EstadoEmision, string> = {
+  manual: "Manual",
+  borrador: "Borrador",
+  emitiendo: "Emitiendo",
+  emitida: "Emitida",
+  error: "Error",
 };
 
 export const ETIQUETA_TIPO_MAQUINA: Record<TipoMaquina, string> = {

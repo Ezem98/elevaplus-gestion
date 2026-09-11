@@ -1,13 +1,19 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import type { TipoCliente, CondicionIva, CondicionPago } from "@/lib/tipos";
-import { ETIQUETA_TIPO_CLIENTE, ETIQUETA_CONDICION_IVA, ETIQUETA_CONDICION_PAGO } from "@/lib/tipos";
+import type { TipoCliente, CondicionIva, CondicionPago, ModoFacturacion } from "@/lib/tipos";
+import {
+  ETIQUETA_TIPO_CLIENTE,
+  ETIQUETA_CONDICION_IVA,
+  ETIQUETA_CONDICION_PAGO,
+  ETIQUETA_MODO_FACTURACION,
+} from "@/lib/tipos";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Campo, Entrada, Selector, AreaTexto } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
+import { Aviso } from "@/components/ui/Aviso";
 
 export function FormularioCliente() {
   const { id } = useParams<{ id: string }>();
@@ -25,11 +31,20 @@ export function FormularioCliente() {
   const [condicionPago, setCondicionPago] = useState<CondicionPago>("contado");
   const [diasPago, setDiasPago] = useState<number | string>(0);
   const [notas, setNotas] = useState("");
+  const [facturacionModo, setFacturacionModo] = useState<ModoFacturacion>("manual");
+  const [facturacionAutomatica, setFacturacionAutomatica] = useState(false);
+  const [enviarFacturaEmail, setEnviarFacturaEmail] = useState(true);
+  const [emailFacturacion, setEmailFacturacion] = useState("");
 
   const [cargando, setCargando] = useState(esEdicion);
   const [guardando, setGuardando] = useState(false);
   const [errorNombre, setErrorNombre] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  const esRiSinCuit =
+    facturacionAutomatica &&
+    condicionIva === "responsable_inscripto" &&
+    !cuit.trim();
 
   useEffect(() => {
     if (!id) return;
@@ -52,6 +67,10 @@ export function FormularioCliente() {
           setCondicionPago(data.condicion_pago ?? "contado");
           setDiasPago(data.dias_pago ?? 0);
           setNotas(data.notas ?? "");
+          setFacturacionModo(data.facturacion_modo ?? "manual");
+          setFacturacionAutomatica(data.facturacion_automatica ?? false);
+          setEnviarFacturaEmail(data.enviar_factura_email ?? true);
+          setEmailFacturacion(data.email_facturacion ?? "");
         }
         setCargando(false);
       });
@@ -61,6 +80,12 @@ export function FormularioCliente() {
     e.preventDefault();
     if (!nombre.trim()) {
       setErrorNombre(true);
+      return;
+    }
+    if (esRiSinCuit) {
+      setErrorGuardar(
+        "Un cliente Responsable Inscripto con facturación automática requiere CUIT cargado para emitir comprobantes."
+      );
       return;
     }
     setErrorNombre(false);
@@ -79,6 +104,10 @@ export function FormularioCliente() {
       condicion_pago: condicionPago,
       dias_pago: condicionPago !== "contado" ? Number(diasPago) || 0 : 0,
       notas: notas.trim() || null,
+      facturacion_modo: facturacionModo,
+      facturacion_automatica: facturacionAutomatica,
+      enviar_factura_email: enviarFacturaEmail,
+      email_facturacion: emailFacturacion.trim() || null,
     };
 
     try {
@@ -258,6 +287,69 @@ export function FormularioCliente() {
                 />
               </Campo>
             </div>
+
+            <div className="md:col-span-2 pt-4 border-t border-borde space-y-4">
+              <h3 className="text-base font-semibold text-tinta">Facturación</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Campo etiqueta="Modo de facturación" id="facturacion_modo">
+                  <Selector
+                    id="facturacion_modo"
+                    value={facturacionModo}
+                    onChange={(e) => setFacturacionModo(e.target.value as ModoFacturacion)}
+                  >
+                    <option value="manual">{ETIQUETA_MODO_FACTURACION.manual}</option>
+                    <option value="por_servicio">{ETIQUETA_MODO_FACTURACION.por_servicio}</option>
+                    <option value="diaria">{ETIQUETA_MODO_FACTURACION.diaria}</option>
+                    <option value="quincenal">{ETIQUETA_MODO_FACTURACION.quincenal}</option>
+                    <option value="mensual">{ETIQUETA_MODO_FACTURACION.mensual}</option>
+                  </Selector>
+                </Campo>
+
+                <Campo etiqueta="Email de facturación (opcional)" id="email_facturacion">
+                  <Entrada
+                    id="email_facturacion"
+                    type="email"
+                    value={emailFacturacion}
+                    onChange={(e) => setEmailFacturacion(e.target.value)}
+                    placeholder="Si difiere del email principal"
+                  />
+                </Campo>
+              </div>
+
+              <div className="space-y-3 pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={facturacionAutomatica}
+                    onChange={(e) => setFacturacionAutomatica(e.target.checked)}
+                    className="mt-0.5 rounded border-borde text-marca focus:ring-marca"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-tinta">Facturación automática</span>
+                    <p className="text-xs text-tinta-suave">
+                      El sistema emite solo, todas las noches a las 21:30
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={enviarFacturaEmail}
+                    onChange={(e) => setEnviarFacturaEmail(e.target.checked)}
+                    className="rounded border-borde text-marca focus:ring-marca"
+                  />
+                  <span className="text-sm text-tinta">Enviar factura por email</span>
+                </label>
+              </div>
+
+              {esRiSinCuit && (
+                <Aviso variante="peligro">
+                  Para activar la facturación automática en un cliente Responsable Inscripto es obligatorio cargar el CUIT.
+                </Aviso>
+              )}
+            </div>
           </div>
 
           {errorGuardar && (
@@ -274,7 +366,7 @@ export function FormularioCliente() {
             </Boton>
             <Boton
               type="submit"
-              disabled={guardando}
+              disabled={guardando || esRiSinCuit}
             >
               Guardar cliente
             </Boton>
