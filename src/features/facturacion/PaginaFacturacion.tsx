@@ -83,6 +83,7 @@ export function PaginaFacturacion() {
   const tabParam = searchParams.get("tab");
   const { perfil } = useAuth();
   const esAdmin = perfil?.rol === "admin";
+  const esModoPrueba = esAdmin && searchParams.get("prueba") === "1";
 
   const pestanaActiva =
     tabParam === "facturas"
@@ -104,6 +105,7 @@ export function PaginaFacturacion() {
   // --- Estado Worker y ARCA ---
   const [estadoWorker, setEstadoWorker] = useState<EstadoWorker>({ online: false });
   const [arcaAmbiente, setArcaAmbiente] = useState<AmbienteArca | null>(null);
+  const puedeEmitir = arcaAmbiente === "produccion" || esModoPrueba;
 
   // --- Estado Modal Progreso Emisión ARCA ---
   const [modalEmisionAbierto, setModalEmisionAbierto] = useState(false);
@@ -627,7 +629,16 @@ export function PaginaFacturacion() {
     <div className="space-y-6">
       {/* Encabezado */}
       <EncabezadoPagina
-        titulo="Facturación"
+        titulo={
+          <div className="flex items-center gap-3">
+            <span>Facturación</span>
+            {esModoPrueba && (
+              <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                Homologación
+              </span>
+            )}
+          </div>
+        }
         subtitulo="Control de pendientes, emisión y notas de crédito"
       />
 
@@ -803,13 +814,13 @@ export function PaginaFacturacion() {
 
                       {!esSinCliente && (
                         <div className="flex items-center gap-2">
-                          {estadoWorker.online && arcaAmbiente ? (
+                          {estadoWorker.online && puedeEmitir ? (
                             <>
                               <Boton
                                 disabled={seleccionados.length === 0 || estaFacturando}
                                 onClick={() => handleEmitirArca(grupo.cliente!, seleccionados)}
                               >
-                                Emitir en ARCA ({seleccionados.length})
+                                {esModoPrueba ? "Emitir en ARCA (prueba)" : "Emitir en ARCA"} ({seleccionados.length})
                               </Boton>
                               <Boton
                                 variante="secundario"
@@ -1739,7 +1750,7 @@ export function PaginaFacturacion() {
       {/* PESTAÑA: EMISIONES AUTOMÁTICAS */}
       {/* ============================================================ */}
       {pestanaActiva === "emisiones_automaticas" && (
-        <PestanaEmisionesAutomaticas esAdmin={esAdmin} />
+        <PestanaEmisionesAutomaticas esAdmin={esAdmin} puedeEmitir={puedeEmitir} />
       )}
 
       {/* ============================================================ */}

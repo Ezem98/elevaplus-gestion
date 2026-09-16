@@ -51,6 +51,29 @@ export async function correrLote(params: ParametrosCorrerLote = {}): Promise<Res
   const fechaHoy = params.fechaHoy || obtenerFechaHoy(config.TZ);
   const disparadoPor = params.disparadoPor || "cron";
 
+  // En ambiente de homologación, la corrida por cron no emite salvo permiso explícito
+  if (disparadoPor === "cron") {
+    const { data: empresa } = await supabaseAdmin
+      .from("empresa")
+      .select("arca_ambiente")
+      .limit(1)
+      .maybeSingle();
+
+    const ambiente = empresa?.arca_ambiente || "homologacion";
+    const permitirHomologacion = process.env.PERMITIR_LOTE_HOMOLOGACION === "true";
+
+    if (ambiente === "homologacion" && !permitirHomologacion) {
+      console.log("Lote omitido: ambiente homologación");
+      return {
+        loteId: "",
+        facturasEmitidas: 0,
+        montoTotal: 0,
+        descartados: [],
+        error: null,
+      };
+    }
+  }
+
   console.log(`[LOTE] Iniciando corrida de facturación (${disparadoPor}) para la fecha ${fechaHoy}...`);
 
   // 1. Recuperación previa de comprobantes interrumpidos

@@ -478,7 +478,7 @@ export function PaginaConfiguracion() {
             <Campo
               etiqueta="Ambiente ARCA"
               id="arca-ambiente"
-              ayuda="En homologación los comprobantes no tienen validez fiscal."
+              ayuda="En homologación no se emite nada automáticamente ni desde los botones normales. Para probar, entrá a Facturación con ?prueba=1."
             >
               <Selector
                 id="arca-ambiente"

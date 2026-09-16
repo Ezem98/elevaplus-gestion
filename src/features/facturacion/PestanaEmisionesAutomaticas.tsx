@@ -21,9 +21,10 @@ const MOTIVOS_DESCARTE: Record<string, string> = {
 
 interface PestanaEmisionesAutomaticasProps {
   esAdmin: boolean;
+  puedeEmitir?: boolean;
 }
 
-export function PestanaEmisionesAutomaticas({ esAdmin }: PestanaEmisionesAutomaticasProps) {
+export function PestanaEmisionesAutomaticas({ esAdmin, puedeEmitir = false }: PestanaEmisionesAutomaticasProps) {
   const [lotes, setLotes] = useState<LoteEmision[]>([]);
   const [cargando, setCargando] = useState(false);
   const [corriendo, setCorriendo] = useState(false);
@@ -98,7 +99,7 @@ export function PestanaEmisionesAutomaticas({ esAdmin }: PestanaEmisionesAutomat
           </p>
         </div>
 
-        {esAdmin && (
+        {esAdmin && puedeEmitir && (
           <Boton
             type="button"
             onClick={handleCorrerAhora}
