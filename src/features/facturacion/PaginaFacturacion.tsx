@@ -83,6 +83,7 @@ export function PaginaFacturacion() {
   const tabParam = searchParams.get("tab");
   const { perfil } = useAuth();
   const esAdmin = perfil?.rol === "admin";
+  // Guarda de seguridad: en homologación requiere ?prueba=1 y rol admin para emitir
   const esModoPrueba = esAdmin && searchParams.get("prueba") === "1";
 
   const pestanaActiva =
