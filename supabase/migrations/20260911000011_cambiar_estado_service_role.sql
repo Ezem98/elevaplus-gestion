@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- ELEVAPLUS Gestión — 0011 Permitir a service_role ejecutar cambiar_estado
 -- Permite al worker de facturación ARCA (que corre con service_role) marcar
 -- servicios como 'facturado'.

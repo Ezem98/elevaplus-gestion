@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Códigos oficiales de ARCA (ex-AFIP) utilizados por el Web Service WSFEv1.
  * Fuente: Documentación oficial Afip SDK (https://docs.afipsdk.com/)
  */

@@ -1,4 +1,4 @@
-﻿import {
+import {
   TIPO_COMPROBANTE,
   CONCEPTO,
   TIPO_DOCUMENTO,

@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { generarUrlQrArca, generarImagenQrArca } from "./qr";
 
 describe("generarUrlQrArca", () => {

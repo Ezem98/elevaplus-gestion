@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Document, Page, StyleSheet, Text, View, Image } from "@react-pdf/renderer";
 import { registrarFuentes } from "./fuentes";
 

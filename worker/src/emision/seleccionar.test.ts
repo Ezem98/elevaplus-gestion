@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { seleccionarFacturasHoy, type ClienteSeleccion, type ServicioSeleccion } from "./seleccionar";
 
 describe("seleccionarFacturasHoy", () => {

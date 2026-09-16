@@ -1,4 +1,4 @@
-﻿export type ModoFacturacion = "por_servicio" | "diaria" | "quincenal" | "mensual" | "manual";
+export type ModoFacturacion = "por_servicio" | "diaria" | "quincenal" | "mensual" | "manual";
 
 export interface ClienteSeleccion {
   id: string;
