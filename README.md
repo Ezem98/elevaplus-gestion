@@ -40,12 +40,44 @@ npm run dev
 
 ## Deploy (Railway)
 
-Es un sitio estático. En Railway:
+El proyecto cuenta con dos servicios en Railway:
+
+### 1. App Web (`elevaplus-gestion`)
+Sitio estático (SPA React + PWA):
+- Repo: `Ezem98/elevaplus-gestion` (rama `main`)
 - Build command: `npm run build`
 - Start command: `npx serve -s dist -l $PORT` (o servir `dist/` con cualquier estático)
-- Variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY`
+- Variables:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+  - `VITE_VAPID_PUBLIC_KEY`
+  - `VITE_WORKER_URL`: URL del worker (ej. `https://elevaplus-worker-production.up.railway.app`)
+- Dominio: `https://gestion.eleva-plus.com.ar`
 
-Dominio sugerido: `gestion.elevaplus.com.ar`.
+### 2. Worker de Procesamiento (`elevaplus-worker`)
+Servicio Node.js para tareas en segundo plano (lote nocturno ARCA, generación de PDFs, envío de correos, recordatorios y sincronización con Google Calendar):
+- Repo: `Ezem98/elevaplus-gestion` (rama `main`)
+- Root Directory: `worker/`
+- Build command: `npm run build` (o automático vía `Dockerfile` / `package.json`)
+- Start command: `npm start` (ejecuta `node dist/index.js`)
+- Variables de entorno:
+  - `PORT`: puerto del servidor HTTP (por defecto `3000`, Railway asigna `$PORT`)
+  - `NODE_ENV`: `production` o `staging`
+  - `TZ`: `America/Argentina/Buenos_Aires`
+  - `SUPABASE_URL`: URL del proyecto Supabase
+  - `SUPABASE_SERVICE_ROLE_KEY`: Service Role Key de Supabase para acceso administrativo
+  - `WORKER_SECRET`: Token aleatorio para autenticar llamadas internas y webhooks
+  - `AFIPSDK_ACCESS_TOKEN`: Access token de Afip SDK
+  - `ARCA_CUIT`: CUIT del emisor
+  - `ARCA_CERT`: Certificado digital X.509 de ARCA
+  - `ARCA_KEY`: Clave privada del certificado ARCA
+  - `RESEND_API_KEY`: Clave de API de Resend
+  - `RESEND_REMITENTE`: Remitente de correo (ej. `ELEVAPLUS Facturación <facturacion@eleva-plus.com.ar>`)
+  - `MAIL_LISTA_BLANCA`: Lista blanca de correos autorizados en staging (opcional)
+  - `PERMITIR_LOTE_HOMOLOGACION`: Solo para forzar emisión nocturna en homologación (`true`/`false`)
+  - `GOOGLE_OAUTH_CLIENT_ID`: Client ID de Google OAuth para Calendar API
+  - `GOOGLE_OAUTH_CLIENT_SECRET`: Client Secret de Google OAuth
+  - `GOOGLE_OAUTH_REDIRECT_URI`: URI de redirección OAuth hacia el endpoint del worker (`/gcal/callback`)
 
 ## Notificaciones Push (Web Push + Supabase Edge Functions)
 
