@@ -1,6 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { calcularDiasAlquiler, calcularCantidadAlquiler } from "./alquiler";
-import { formatearUnidadPlural, ETIQUETA_UNIDAD_ALQUILER } from "./tipos";
+import { describe, expect, it } from "vitest";
+import {
+  calcularCantidadAlquiler,
+  calcularDiasAlquiler,
+  calcularRangoRenovacion,
+} from "./alquiler";
+import { ETIQUETA_UNIDAD_ALQUILER, formatearUnidadPlural } from "./tipos";
 
 describe("cálculos de alquiler", () => {
   it("calcula correctamente la cantidad de días inclusivos (diferencia + 1)", () => {
@@ -58,5 +62,25 @@ describe("cálculos de alquiler", () => {
     expect(formatearUnidadPlural("quincena", 2)).toBe("quincenas");
     expect(formatearUnidadPlural("mes", 1)).toBe("mes");
     expect(formatearUnidadPlural("mes", 2)).toBe("meses");
+  });
+
+  it("calcula correctamente el rango de renovación (Desde = hasta + 1, misma duración)", () => {
+    // Alquiler mensual de 30 días
+    const res1 = calcularRangoRenovacion("2026-09-01", "2026-09-30");
+    expect(res1.nuevaDesde).toBe("2026-10-01");
+    expect(res1.nuevaHasta).toBe("2026-10-30");
+    expect(calcularDiasAlquiler(res1.nuevaDesde, res1.nuevaHasta)).toBe(30);
+
+    // Alquiler semanal de 7 días
+    const res2 = calcularRangoRenovacion("2026-09-10", "2026-09-16");
+    expect(res2.nuevaDesde).toBe("2026-09-17");
+    expect(res2.nuevaHasta).toBe("2026-09-23");
+    expect(calcularDiasAlquiler(res2.nuevaDesde, res2.nuevaHasta)).toBe(7);
+
+    // Alquiler diario de 1 día
+    const res3 = calcularRangoRenovacion("2026-09-15", "2026-09-15");
+    expect(res3.nuevaDesde).toBe("2026-09-16");
+    expect(res3.nuevaHasta).toBe("2026-09-16");
+    expect(calcularDiasAlquiler(res3.nuevaDesde, res3.nuevaHasta)).toBe(1);
   });
 });

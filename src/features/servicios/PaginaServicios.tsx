@@ -1,17 +1,27 @@
+import { Boton } from "@/components/ui/Boton";
+import { ChipEstado } from "@/components/ui/Chip";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
+import {
+  ConMenuContextual,
+  MenuAcciones,
+  type AccionMenu,
+} from "@/components/ui/MenuAcciones";
+import { Tarjeta } from "@/components/ui/Tarjeta";
+import { useRealtime } from "@/hooks/use-realtime";
+import { formatearFecha, formatearPesos } from "@/lib/formato";
+import { supabase } from "@/lib/supabase";
+import type { EstadoServicio, Servicio } from "@/lib/tipos";
+import { ETIQUETA_TIPO } from "@/lib/tipos";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import { useRealtime } from "@/hooks/use-realtime";
-import type { Servicio, EstadoServicio } from "@/lib/tipos";
-import { ETIQUETA_TIPO } from "@/lib/tipos";
-import { formatearPesos, formatearFecha } from "@/lib/formato";
-import { Tarjeta } from "@/components/ui/Tarjeta";
-import { ChipEstado } from "@/components/ui/Chip";
-import { Boton } from "@/components/ui/Boton";
-import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
-import { MenuAcciones, ConMenuContextual, type AccionMenu } from "@/components/ui/MenuAcciones";
 
-type ClaveFiltro = "todos" | "presupuestos" | "en_curso" | "cobrados" | "cancelados";
+type ClaveFiltro =
+  | "todos"
+  | "presupuestos"
+  | "en_curso"
+  | "alquileres_activos"
+  | "cobrados"
+  | "cancelados";
 
 interface PestanaFiltro {
   id: ClaveFiltro;
@@ -21,8 +31,21 @@ interface PestanaFiltro {
 
 const PESTANAS: PestanaFiltro[] = [
   { id: "todos", etiqueta: "Todos", estados: [] },
-  { id: "presupuestos", etiqueta: "Presupuestos", estados: ["consulta", "presupuestado"] },
-  { id: "en_curso", etiqueta: "En curso", estados: ["aceptado", "programado", "en_curso", "terminado"] },
+  {
+    id: "presupuestos",
+    etiqueta: "Presupuestos",
+    estados: ["consulta", "presupuestado"],
+  },
+  {
+    id: "en_curso",
+    etiqueta: "En curso",
+    estados: ["aceptado", "programado", "en_curso", "terminado"],
+  },
+  {
+    id: "alquileres_activos",
+    etiqueta: "Alquileres activos",
+    estados: ["en_curso"],
+  },
   { id: "cobrados", etiqueta: "Cobrados", estados: ["cobrado", "facturado"] },
   { id: "cancelados", etiqueta: "Cancelados", estados: ["cancelado"] },
 ];
@@ -30,7 +53,14 @@ const PESTANAS: PestanaFiltro[] = [
 function normalizarFiltro(param: string | null): ClaveFiltro {
   if (!param) return "en_curso";
   const p = param.toLowerCase().replace("-", "_");
-  if (p === "todos" || p === "presupuestos" || p === "en_curso" || p === "cobrados" || p === "cancelados") {
+  if (
+    p === "todos" ||
+    p === "presupuestos" ||
+    p === "en_curso" ||
+    p === "alquileres_activos" ||
+    p === "cobrados" ||
+    p === "cancelados"
+  ) {
     return p;
   }
   return "en_curso";
@@ -46,6 +76,7 @@ export function PaginaServicios() {
     todos: 0,
     presupuestos: 0,
     en_curso: 0,
+    alquileres_activos: 0,
     cobrados: 0,
     cancelados: 0,
   });
@@ -59,11 +90,12 @@ export function PaginaServicios() {
   };
 
   const cargarConteos = useCallback(async () => {
-    const { data } = await supabase.from("servicios").select("estado");
+    const { data } = await supabase.from("servicios").select("tipo, estado");
     const nuevos: Record<ClaveFiltro, number> = {
       todos: 0,
       presupuestos: 0,
       en_curso: 0,
+      alquileres_activos: 0,
       cobrados: 0,
       cancelados: 0,
     };
@@ -71,9 +103,17 @@ export function PaginaServicios() {
       nuevos.todos = data.length;
       for (const item of data) {
         const e = item.estado as EstadoServicio;
+        if (item.tipo === "alquiler_periodo" && e === "en_curso") {
+          nuevos.alquileres_activos++;
+        }
         if (e === "consulta" || e === "presupuestado") {
           nuevos.presupuestos++;
-        } else if (e === "aceptado" || e === "programado" || e === "en_curso" || e === "terminado") {
+        } else if (
+          e === "aceptado" ||
+          e === "programado" ||
+          e === "en_curso" ||
+          e === "terminado"
+        ) {
           nuevos.en_curso++;
         } else if (e === "cobrado" || e === "facturado") {
           nuevos.cobrados++;
@@ -88,13 +128,17 @@ export function PaginaServicios() {
   const cargarServicios = useCallback(async () => {
     let q = supabase
       .from("servicios")
-      .select("*, clientes(nombre)")
+      .select("*, clientes(nombre), alquileres(fecha_desde, fecha_hasta)")
       .order("fecha_programada", { ascending: false })
       .limit(100);
 
-    const pestana = PESTANAS.find((p) => p.id === filtroActivo);
-    if (pestana && pestana.estados.length > 0) {
-      q = q.in("estado", pestana.estados);
+    if (filtroActivo === "alquileres_activos") {
+      q = q.eq("tipo", "alquiler_periodo").eq("estado", "en_curso");
+    } else {
+      const pestana = PESTANAS.find((p) => p.id === filtroActivo);
+      if (pestana && pestana.estados.length > 0) {
+        q = q.in("estado", pestana.estados);
+      }
     }
 
     const { data } = await q;
@@ -112,7 +156,9 @@ export function PaginaServicios() {
   useRealtime(["servicios"], cargar);
 
   const handleCancelar = async (s: Servicio) => {
-    const confirmado = window.confirm(`¿Seguro que querés cancelar el servicio #${s.numero}?`);
+    const confirmado = window.confirm(
+      `¿Seguro que querés cancelar el servicio #${s.numero}?`,
+    );
     if (!confirmado) return;
 
     await supabase.rpc("cambiar_estado", {
@@ -150,7 +196,8 @@ export function PaginaServicios() {
                   : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
               }`}
             >
-              {p.etiqueta} <span className="text-tinta-suave">({conteos[p.id]})</span>
+              {p.etiqueta}{" "}
+              <span className="text-tinta-suave">({conteos[p.id]})</span>
             </button>
           );
         })}
@@ -190,13 +237,19 @@ export function PaginaServicios() {
                     <ChipEstado estado={s.estado} />
                   </div>
                   <div className="text-[13px] text-tinta-suave truncate">
-                    {formatearFecha(s.fecha_programada)} · {ETIQUETA_TIPO[s.tipo]}
+                    {filtroActivo === "alquileres_activos" &&
+                    s.alquileres?.fecha_hasta
+                      ? `Vence ${formatearFecha(s.alquileres.fecha_hasta)} · ${ETIQUETA_TIPO[s.tipo]}`
+                      : `${formatearFecha(s.fecha_programada)} · ${ETIQUETA_TIPO[s.tipo]}`}
                   </div>
                   <div className="text-right text-sm font-medium tabular-nums text-tinta">
                     {formatearPesos(s.monto)}
                   </div>
                 </div>
-                <div className="pt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="pt-0.5 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <MenuAcciones acciones={acciones} />
                 </div>
               </div>
@@ -216,6 +269,9 @@ export function PaginaServicios() {
               <tr className="border-b border-borde">
                 <th className="px-4 py-3 font-medium">#</th>
                 <th className="px-4 py-3 font-medium">Fecha</th>
+                {filtroActivo === "alquileres_activos" && (
+                  <th className="px-4 py-3 font-medium">Vence</th>
+                )}
                 <th className="px-4 py-3 font-medium">Cliente</th>
                 <th className="px-4 py-3 font-medium">Tipo</th>
                 <th className="px-4 py-3 text-right font-medium">Monto</th>
@@ -249,7 +305,16 @@ export function PaginaServicios() {
                       className="border-b border-borde last:border-0 hover:bg-fondo cursor-pointer"
                     >
                       <td className="px-4 py-3 text-tinta-suave">{s.numero}</td>
-                      <td className="px-4 py-3">{formatearFecha(s.fecha_programada)}</td>
+                      <td className="px-4 py-3">
+                        {formatearFecha(s.fecha_programada)}
+                      </td>
+                      {filtroActivo === "alquileres_activos" && (
+                        <td className="px-4 py-3 font-medium text-tinta">
+                          {s.alquileres?.fecha_hasta
+                            ? formatearFecha(s.alquileres.fecha_hasta)
+                            : "—"}
+                        </td>
+                      )}
                       <td className="px-4 py-3 font-medium">
                         <Link
                           to={`/servicios/${s.id}`}
@@ -259,13 +324,22 @@ export function PaginaServicios() {
                           {s.clientes?.nombre ?? "—"}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-tinta-suave">{ETIQUETA_TIPO[s.tipo]}</td>
-                      <td className="px-4 py-3 text-right">{formatearPesos(s.monto)}</td>
-                      <td className="px-4 py-3 text-right">{formatearPesos(s.monto_cobrado)}</td>
+                      <td className="px-4 py-3 text-tinta-suave">
+                        {ETIQUETA_TIPO[s.tipo]}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {formatearPesos(s.monto)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {formatearPesos(s.monto_cobrado)}
+                      </td>
                       <td className="px-4 py-3">
                         <ChipEstado estado={s.estado} />
                       </td>
-                      <td className="w-12 px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="w-12 px-2 py-3 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <MenuAcciones acciones={acciones} />
                       </td>
                     </tr>
@@ -274,7 +348,10 @@ export function PaginaServicios() {
               })}
               {servicios.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-tinta-suave">
+                  <td
+                    colSpan={filtroActivo === "alquileres_activos" ? 9 : 8}
+                    className="px-4 py-10 text-center text-tinta-suave"
+                  >
                     No hay servicios con ese filtro.
                   </td>
                 </tr>

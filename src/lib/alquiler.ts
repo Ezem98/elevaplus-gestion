@@ -11,7 +11,10 @@ export function calcularDiasAlquiler(desde: string, hasta: string): number {
   return Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
 }
 
-export function calcularCantidadAlquiler(dias: number, unidad: UnidadAlquiler): number {
+export function calcularCantidadAlquiler(
+  dias: number,
+  unidad: UnidadAlquiler,
+): number {
   if (dias <= 0) return 0;
   switch (unidad) {
     case "dia":
@@ -23,4 +26,22 @@ export function calcularCantidadAlquiler(dias: number, unidad: UnidadAlquiler): 
     case "mes":
       return Math.ceil(dias / 30);
   }
+}
+
+export function calcularRangoRenovacion(
+  desdeOriginal: string,
+  hastaOriginal: string,
+): { nuevaDesde: string; nuevaHasta: string } {
+  const dias = calcularDiasAlquiler(desdeOriginal, hastaOriginal);
+  if (!hastaOriginal) return { nuevaDesde: "", nuevaHasta: "" };
+
+  const [yH, mH, dH] = hastaOriginal.split("-").map(Number);
+  const dDesde = new Date(Date.UTC(yH, mH - 1, dH + 1));
+  const nuevaDesde = dDesde.toISOString().slice(0, 10);
+
+  const [yD, mD, dD] = nuevaDesde.split("-").map(Number);
+  const dHasta = new Date(Date.UTC(yD, mD - 1, dD + Math.max(0, dias - 1)));
+  const nuevaHasta = dHasta.toISOString().slice(0, 10);
+
+  return { nuevaDesde, nuevaHasta };
 }

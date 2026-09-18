@@ -1,22 +1,56 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowRight, FileText, Plus } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/features/auth/AuthProvider";
-import { useRealtime } from "@/hooks/use-realtime";
-import type { Servicio, EstadoServicio, ServicioChofer, TipoMaquina, MedioPago, EstadoCobro, Alquiler, Empresa } from "@/lib/tipos";
-import { ETIQUETA_TIPO, ETIQUETA_TIPO_MAQUINA, ETIQUETA_MEDIO_PAGO, formatearUnidadPlural } from "@/lib/tipos";
-import { formatearPesos, formatearFecha, formatearNumeroFactura, proximoCuartoDeHora } from "@/lib/formato";
-import { Tarjeta } from "@/components/ui/Tarjeta";
-import { ChipEstado } from "@/components/ui/Chip";
-import { Boton } from "@/components/ui/Boton";
-import { BarraAcciones } from "@/components/ui/BarraAcciones";
-import { Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
+import { Boton } from "@/components/ui/Boton";
+import { Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
+import { ChipEstado } from "@/components/ui/Chip";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
-import { LineaTiempo, type EventoLineaTiempo } from "@/components/ui/LineaTiempo";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
+import {
+  LineaTiempo,
+  type EventoLineaTiempo,
+} from "@/components/ui/LineaTiempo";
+import { Tarjeta } from "@/components/ui/Tarjeta";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { FormularioCobro } from "@/features/cobros/FormularioCobro";
 import { TarjetaPresupuesto } from "@/features/presupuestos/TarjetaPresupuesto";
+import { useRealtime } from "@/hooks/use-realtime";
+import {
+  calcularCantidadAlquiler,
+  calcularDiasAlquiler,
+  calcularRangoRenovacion,
+} from "@/lib/alquiler";
+import {
+  formatearFecha,
+  formatearNumeroFactura,
+  formatearPesos,
+  proximoCuartoDeHora,
+} from "@/lib/formato";
+import { supabase } from "@/lib/supabase";
+import type {
+  Alquiler,
+  Empresa,
+  EstadoCobro,
+  EstadoServicio,
+  MedioPago,
+  Servicio,
+  ServicioChofer,
+  TipoMaquina,
+  UnidadAlquiler,
+} from "@/lib/tipos";
+import {
+  ETIQUETA_MEDIO_PAGO,
+  ETIQUETA_TIPO,
+  ETIQUETA_TIPO_MAQUINA,
+  formatearUnidadPlural,
+} from "@/lib/tipos";
+import { ArrowRight, FileText, Plus } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 
 interface CobroAplicadoItem {
   monto: number;
@@ -40,7 +74,9 @@ interface AdjuntoItem {
 
 function esExtensionImagen(path: string): boolean {
   const extension = path.split(".").pop()?.toLowerCase() ?? "";
-  return ["jpg", "jpeg", "png", "webp", "gif", "avif", "svg"].includes(extension);
+  return ["jpg", "jpeg", "png", "webp", "gif", "avif", "svg"].includes(
+    extension,
+  );
 }
 
 function obtenerNombreArchivo(storagePath: string): string {
@@ -66,6 +102,8 @@ function formatearDuracion(inicioIso: string, finIso: string): string {
 
 export function PaginaServicio() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { session } = useAuth();
 
   const [servicio, setServicio] = useState<Servicio | null>(null);
@@ -78,19 +116,48 @@ export function PaginaServicio() {
   const [mostrarProgramar, setMostrarProgramar] = useState(false);
   const [guardandoProg, setGuardandoProg] = useState(false);
   const [mostrarCobro, setMostrarCobro] = useState(false);
-  const [cobrosAplicados, setCobrosAplicados] = useState<CobroAplicadoItem[]>([]);
+  const [cobrosAplicados, setCobrosAplicados] = useState<CobroAplicadoItem[]>(
+    [],
+  );
   const [alquiler, setAlquiler] = useState<Alquiler | null>(null);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
+
+  // Estados de renovación
+  const [servicioRenovado, setServicioRenovado] = useState<{
+    id: string;
+    numero: number;
+  } | null>(null);
+  const [servicioOriginal, setServicioOriginal] = useState<{
+    id: string;
+    numero: number;
+  } | null>(null);
+  const [mostrarRenovar, setMostrarRenovar] = useState(false);
+  const [renvDesde, setRenvDesde] = useState("");
+  const [renvHasta, setRenvHasta] = useState("");
+  const [renvUnidad, setRenvUnidad] = useState<UnidadAlquiler>("dia");
+  const [renvCantidad, setRenvCantidad] = useState<number>(1);
+  const [renvPrecioUnidad, setRenvPrecioUnidad] = useState<number | null>(null);
+  const [renvMonto, setRenvMonto] = useState<number | null>(null);
+  const [guardandoRenovacion, setGuardandoRenovacion] = useState(false);
+  const [errorRenovacion, setErrorRenovacion] = useState<string | null>(null);
 
   const [fechaProg, setFechaProg] = useState("");
   const [horaProg, setHoraProg] = useState("");
   const [vehiculoId, setVehiculoId] = useState("");
   const [maquinaId, setMaquinaId] = useState("");
-  const [choferesSeleccionados, setChoferesSeleccionados] = useState<string[]>([]);
+  const [choferesSeleccionados, setChoferesSeleccionados] = useState<string[]>(
+    [],
+  );
 
-  const [listaVehiculos, setListaVehiculos] = useState<{ id: string; nombre: string }[]>([]);
-  const [listaMaquinas, setListaMaquinas] = useState<{ id: string; codigo_interno: string | null; tipo: TipoMaquina }[]>([]);
-  const [listaChoferes, setListaChoferes] = useState<{ id: string; nombre: string }[]>([]);
+  const [listaVehiculos, setListaVehiculos] = useState<
+    { id: string; nombre: string }[]
+  >([]);
+  const [listaMaquinas, setListaMaquinas] = useState<
+    { id: string; codigo_interno: string | null; tipo: TipoMaquina }[]
+  >([]);
+  const [listaChoferes, setListaChoferes] = useState<
+    { id: string; nombre: string }[]
+  >([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [subiendoArchivos, setSubiendoArchivos] = useState(false);
@@ -121,80 +188,112 @@ export function PaginaServicio() {
           nombreArchivo: nombre,
           esImagen: esExtensionImagen(a.storage_path),
         };
-      })
+      }),
     );
 
     return items;
   }, []);
 
-  const cargarDatos = useCallback(async (mostrarSpinner = false) => {
-    if (!id) return;
-    if (mostrarSpinner) {
-      setCargando(true);
-    }
-    const [
-      { data: sData, error: sError },
-      { data: eData },
-      { data: scData },
-      { data: caData },
-      { data: alqData },
-      { data: empData },
-      adjuntosLista,
-    ] = await Promise.all([
-      supabase
-        .from("servicios")
-        .select("*, clientes(nombre, cuit, condicion_iva, telefono, email, direccion, localidad), vehiculos(nombre), maquinas(codigo_interno, tipo), facturas(id, tipo, punto_venta, numero, fecha)")
-        .eq("id", id)
-        .single(),
-      supabase
-        .from("servicio_eventos")
-        .select("*, perfiles(nombre)")
-        .eq("servicio_id", id)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("servicio_choferes")
-        .select("chofer_id, perfiles(nombre)")
-        .eq("servicio_id", id),
-      supabase
-        .from("cobro_aplicaciones")
-        .select("monto, cobros(fecha, medio, estado, referencia)")
-        .eq("servicio_id", id),
-      supabase
-        .from("alquileres")
-        .select("*")
-        .eq("servicio_id", id)
-        .maybeSingle(),
-      supabase
-        .from("empresa")
-        .select("*")
-        .eq("id", 1)
-        .maybeSingle(),
-      cargarAdjuntos(id),
-    ]);
+  const cargarDatos = useCallback(
+    async (mostrarSpinner = false) => {
+      if (!id) return;
+      if (mostrarSpinner) {
+        setCargando(true);
+      }
+      const [
+        { data: sData, error: sError },
+        { data: eData },
+        { data: scData },
+        { data: caData },
+        { data: alqData },
+        { data: empData },
+        adjuntosLista,
+        { data: renvData },
+      ] = await Promise.all([
+        supabase
+          .from("servicios")
+          .select(
+            "*, clientes(nombre, cuit, condicion_iva, telefono, email, direccion, localidad), vehiculos(nombre), maquinas(codigo_interno, tipo), facturas(id, tipo, punto_venta, numero, fecha)",
+          )
+          .eq("id", id)
+          .single(),
+        supabase
+          .from("servicio_eventos")
+          .select("*, perfiles(nombre)")
+          .eq("servicio_id", id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("servicio_choferes")
+          .select("chofer_id, perfiles(nombre)")
+          .eq("servicio_id", id),
+        supabase
+          .from("cobro_aplicaciones")
+          .select("monto, cobros(fecha, medio, estado, referencia)")
+          .eq("servicio_id", id),
+        supabase
+          .from("alquileres")
+          .select("*")
+          .eq("servicio_id", id)
+          .maybeSingle(),
+        supabase.from("empresa").select("*").eq("id", 1).maybeSingle(),
+        cargarAdjuntos(id),
+        supabase
+          .from("alquileres")
+          .select("servicio_id, fecha_desde, servicios(id, numero)")
+          .eq("renovado_de", id)
+          .order("fecha_desde", { ascending: false })
+          .limit(1),
+      ]);
 
-    if (sError || !sData) {
-      setServicio(null);
+      if (sError || !sData) {
+        setServicio(null);
+        setCargando(false);
+        return;
+      }
+
+      setServicio(sData as Servicio);
+      setEmpresa((empData as Empresa) ?? null);
+      const alqObj = (alqData as Alquiler) ?? null;
+      setAlquiler(alqObj);
+
+      const primerRenv = Array.isArray(renvData) ? renvData[0] : null;
+      if (primerRenv?.servicios) {
+        setServicioRenovado(
+          primerRenv.servicios as unknown as { id: string; numero: number },
+        );
+      } else {
+        setServicioRenovado(null);
+      }
+
+      if (alqObj?.renovado_de) {
+        const { data: origData } = await supabase
+          .from("servicios")
+          .select("id, numero")
+          .eq("id", alqObj.renovado_de)
+          .maybeSingle();
+        setServicioOriginal(
+          origData ? (origData as { id: string; numero: number }) : null,
+        );
+      } else {
+        setServicioOriginal(null);
+      }
+
+      setEventos(
+        (eData ?? []).map((e: any) => ({
+          id: e.id,
+          estado_nuevo: e.estado_nuevo,
+          created_at: e.created_at,
+          nombre_usuario: e.perfiles?.nombre ?? null,
+          nota: e.nota ?? null,
+        })),
+      );
+      setChoferes((scData as unknown as ServicioChofer[]) ?? []);
+      setCobrosAplicados((caData as any) ?? []);
+      setAdjuntos(adjuntosLista);
       setCargando(false);
-      return;
-    }
-
-    setServicio(sData as Servicio);
-    setEmpresa((empData as Empresa) ?? null);
-    setAlquiler((alqData as Alquiler) ?? null);
-    setEventos(
-      (eData ?? []).map((e: any) => ({
-        id: e.id,
-        estado_nuevo: e.estado_nuevo,
-        created_at: e.created_at,
-        nombre_usuario: e.perfiles?.nombre ?? null,
-        nota: e.nota ?? null,
-      }))
-    );
-    setChoferes((scData as unknown as ServicioChofer[]) ?? []);
-    setCobrosAplicados((caData as any) ?? []);
-    setAdjuntos(adjuntosLista);
-    setCargando(false);
-  }, [id, cargarAdjuntos]);
+    },
+    [id, cargarAdjuntos],
+  );
 
   const cargar = useCallback(() => {
     return cargarDatos(false);
@@ -205,8 +304,14 @@ export function PaginaServicio() {
   }, [cargarDatos]);
 
   useRealtime(
-    ["servicios", "servicio_eventos", "cobros", "cobro_aplicaciones", "adjuntos"],
-    cargar
+    [
+      "servicios",
+      "servicio_eventos",
+      "cobros",
+      "cobro_aplicaciones",
+      "adjuntos",
+    ],
+    cargar,
   );
 
   useEffect(() => {
@@ -238,7 +343,9 @@ export function PaginaServicio() {
     if (!servicio) return;
     if (servicio.fecha_programada) {
       setFechaProg(servicio.fecha_programada);
-      setHoraProg(servicio.hora_programada ? servicio.hora_programada.slice(0, 5) : "");
+      setHoraProg(
+        servicio.hora_programada ? servicio.hora_programada.slice(0, 5) : "",
+      );
     } else {
       setFechaProg(new Date().toISOString().slice(0, 10));
       setHoraProg(proximoCuartoDeHora(new Date()));
@@ -251,7 +358,9 @@ export function PaginaServicio() {
 
   const toggleChofer = (choferId: string) => {
     setChoferesSeleccionados((prev) =>
-      prev.includes(choferId) ? prev.filter((cid) => cid !== choferId) : [...prev, choferId]
+      prev.includes(choferId)
+        ? prev.filter((cid) => cid !== choferId)
+        : [...prev, choferId],
     );
   };
 
@@ -289,7 +398,7 @@ export function PaginaServicio() {
             choferesSeleccionados.map((chofer_id) => ({
               servicio_id: servicio.id,
               chofer_id,
-            }))
+            })),
           );
 
         if (errInsert) throw errInsert;
@@ -313,7 +422,10 @@ export function PaginaServicio() {
     }
   };
 
-  const ejecutarCambioEstado = async (nuevoEstado: EstadoServicio, nota?: string | null) => {
+  const ejecutarCambioEstado = async (
+    nuevoEstado: EstadoServicio,
+    nota?: string | null,
+  ) => {
     if (!servicio) return;
     setErrorEstado(null);
     const { error } = await supabase.rpc("cambiar_estado", {
@@ -330,7 +442,9 @@ export function PaginaServicio() {
     await cargarDatos();
   };
 
-  const handleSeleccionarArchivos = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSeleccionarArchivos = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !servicio) return;
 
@@ -357,7 +471,9 @@ export function PaginaServicio() {
 
         if (uploadError) throw uploadError;
 
-        const tipo = file.name.toLowerCase().includes("remito") ? "remito" : "foto";
+        const tipo = file.name.toLowerCase().includes("remito")
+          ? "remito"
+          : "foto";
 
         const { error: insertError } = await supabase.from("adjuntos").insert({
           servicio_id: servicio.id,
@@ -415,7 +531,9 @@ export function PaginaServicio() {
       partes.push(servicio.maquinas.codigo_interno);
     }
     if (servicio.maquinas.tipo) {
-      partes.push(ETIQUETA_TIPO_MAQUINA[servicio.maquinas.tipo] ?? servicio.maquinas.tipo);
+      partes.push(
+        ETIQUETA_TIPO_MAQUINA[servicio.maquinas.tipo] ?? servicio.maquinas.tipo,
+      );
     }
     maquinaTexto = partes.join(" · ") || "—";
   }
@@ -425,7 +543,9 @@ export function PaginaServicio() {
       ? choferes
           .map((c) => {
             if (!c.perfiles) return null;
-            return Array.isArray(c.perfiles) ? c.perfiles[0]?.nombre : c.perfiles.nombre;
+            return Array.isArray(c.perfiles)
+              ? c.perfiles[0]?.nombre
+              : c.perfiles.nombre;
           })
           .filter(Boolean)
           .join(", ") || "—"
@@ -449,15 +569,197 @@ export function PaginaServicio() {
       const [y, m, d] = partes;
       const hastaUtc = Date.UTC(y, m - 1, d);
       const ahora = new Date();
-      const hoyUtc = Date.UTC(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+      const hoyUtc = Date.UTC(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        ahora.getDate(),
+      );
       const diffDias = Math.round((hastaUtc - hoyUtc) / (1000 * 60 * 60 * 24));
       return diffDias <= (alquiler.alertar_dias_antes ?? 5);
-    })()
+    })(),
   );
 
   const fechaHastaDdMm = alquiler?.fecha_hasta
     ? `${alquiler.fecha_hasta.split("-")[2]}/${alquiler.fecha_hasta.split("-")[1]}`
     : "";
+
+  const puedeRenovar = Boolean(
+    servicio.tipo === "alquiler_periodo" &&
+    alquiler?.fecha_hasta &&
+    (servicio.estado === "en_curso" ||
+      (servicio.estado === "terminado" &&
+        (() => {
+          const partes = alquiler.fecha_hasta.split("-").map(Number);
+          if (partes.length !== 3) return false;
+          const [y, m, d] = partes;
+          const hastaUtc = Date.UTC(y, m - 1, d);
+          const ahora = new Date();
+          const hoyUtc = Date.UTC(
+            ahora.getFullYear(),
+            ahora.getMonth(),
+            ahora.getDate(),
+          );
+          const diffDias = Math.round(
+            (hoyUtc - hastaUtc) / (1000 * 60 * 60 * 24),
+          );
+          return diffDias <= 15;
+        })())),
+  );
+
+  const abrirRenovar = useCallback(() => {
+    if (!alquiler) return;
+    const { nuevaDesde, nuevaHasta } = calcularRangoRenovacion(
+      alquiler.fecha_desde,
+      alquiler.fecha_hasta,
+    );
+
+    setRenvDesde(nuevaDesde);
+    setRenvHasta(nuevaHasta);
+    setRenvUnidad(alquiler.unidad);
+    setRenvCantidad(alquiler.cantidad);
+    setRenvPrecioUnidad(alquiler.precio_unidad);
+    setRenvMonto(alquiler.cantidad * alquiler.precio_unidad);
+    setErrorRenovacion(null);
+    setMostrarRenovar(true);
+  }, [alquiler]);
+
+  useEffect(() => {
+    if (
+      searchParams.get("renovar") === "1" &&
+      alquiler &&
+      puedeRenovar &&
+      !servicioRenovado
+    ) {
+      abrirRenovar();
+    }
+  }, [searchParams, alquiler, puedeRenovar, servicioRenovado, abrirRenovar]);
+
+  const handleCambioPrecioOCantidad = (cant: number, precio: number | null) => {
+    setRenvCantidad(cant);
+    setRenvPrecioUnidad(precio);
+    if (precio != null && cant > 0) {
+      setRenvMonto(cant * precio);
+    }
+  };
+
+  const handleCambioFechas = (nuevaDesde: string, nuevaHasta: string) => {
+    setRenvDesde(nuevaDesde);
+    setRenvHasta(nuevaHasta);
+    if (nuevaDesde && nuevaHasta) {
+      const dias = calcularDiasAlquiler(nuevaDesde, nuevaHasta);
+      const cant = calcularCantidadAlquiler(dias, renvUnidad);
+      setRenvCantidad(cant);
+      if (renvPrecioUnidad != null) {
+        setRenvMonto(cant * renvPrecioUnidad);
+      }
+    }
+  };
+
+  const handleCambioUnidad = (u: UnidadAlquiler) => {
+    setRenvUnidad(u);
+    if (renvDesde && renvHasta) {
+      const dias = calcularDiasAlquiler(renvDesde, renvHasta);
+      const cant = calcularCantidadAlquiler(dias, u);
+      setRenvCantidad(cant);
+      if (renvPrecioUnidad != null) {
+        setRenvMonto(cant * renvPrecioUnidad);
+      }
+    }
+  };
+
+  const handleConfirmarRenovacion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!servicio || !alquiler) return;
+    setGuardandoRenovacion(true);
+    setErrorRenovacion(null);
+
+    try {
+      const descBase = servicio.descripcion
+        ? servicio.descripcion.trim()
+        : "Alquiler";
+      const descripcionNueva = descBase.endsWith("(renovación)")
+        ? descBase
+        : `${descBase} (renovación)`;
+
+      // 1. Insert servicio copiando campos
+      const { data: nuevoServicio, error: errServicio } = await supabase
+        .from("servicios")
+        .insert({
+          cliente_id: servicio.cliente_id,
+          tipo: "alquiler_periodo",
+          estado: "consulta",
+          descripcion: descripcionNueva,
+          origen: servicio.origen,
+          destino: servicio.destino,
+          carga: servicio.carga,
+          vehiculo_id: servicio.vehiculo_id,
+          maquina_id: servicio.maquina_id,
+          fecha_programada: renvDesde,
+          hora_programada: servicio.hora_programada,
+          monto: renvMonto,
+          aplica_iva: servicio.aplica_iva,
+          no_planificado: false,
+          creado_por: session?.user?.id ?? null,
+        })
+        .select()
+        .single();
+
+      if (errServicio || !nuevoServicio) {
+        throw new Error(
+          errServicio?.message ?? "Error al crear el nuevo servicio",
+        );
+      }
+
+      // 2. Insert alquiler con renovado_de = servicio original
+      const { error: errAlquiler } = await supabase.from("alquileres").insert({
+        servicio_id: nuevoServicio.id,
+        fecha_desde: renvDesde,
+        fecha_hasta: renvHasta,
+        unidad: renvUnidad,
+        cantidad: renvCantidad,
+        precio_unidad: renvPrecioUnidad ?? 0,
+        renovado_de: servicio.id,
+        renovacion_automatica: alquiler.renovacion_automatica ?? false,
+        alertar_dias_antes: alquiler.alertar_dias_antes ?? 5,
+      });
+
+      if (errAlquiler) {
+        throw new Error(errAlquiler.message);
+      }
+
+      // 3. Insert servicio_choferes
+      if (choferes.length > 0) {
+        const { error: errChoferes } = await supabase
+          .from("servicio_choferes")
+          .insert(
+            choferes.map((c) => ({
+              servicio_id: nuevoServicio.id,
+              chofer_id: c.chofer_id,
+            })),
+          );
+        if (errChoferes) {
+          throw new Error(errChoferes.message);
+        }
+      }
+
+      // 4. RPC consulta → programado con nota "Renovación del #<numero original>"
+      const { error: errRpc } = await supabase.rpc("cambiar_estado", {
+        p_servicio_id: nuevoServicio.id,
+        p_nuevo: "programado",
+        p_nota: `Renovación del #${servicio.numero}`,
+      });
+
+      if (errRpc) {
+        throw new Error(errRpc.message);
+      }
+
+      // 5. Navegar al nuevo servicio
+      navigate(`/servicios/${nuevoServicio.id}`);
+    } catch (err: any) {
+      setErrorRenovacion(err.message ?? "Error al procesar la renovación");
+      setGuardandoRenovacion(false);
+    }
+  };
 
   let cobroPillTexto = "Pendiente de cobro";
   let cobroPillClase = "bg-alerta-suave text-alerta";
@@ -496,7 +798,10 @@ export function PaginaServicio() {
         subtitulo={
           <>
             {servicio.cliente_id ? (
-              <Link to={`/clientes/${servicio.cliente_id}`} className="hover:underline text-tinta font-medium">
+              <Link
+                to={`/clientes/${servicio.cliente_id}`}
+                className="hover:underline text-tinta font-medium"
+              >
                 {servicio.clientes?.nombre ?? "—"}
               </Link>
             ) : (
@@ -508,15 +813,247 @@ export function PaginaServicio() {
         }
       />
 
+      {servicioRenovado && (
+        <Aviso
+          variante="info"
+          className="flex flex-wrap items-center justify-between gap-3"
+        >
+          <span>
+            Este servicio fue renovado en el{" "}
+            <Link
+              to={`/servicios/${servicioRenovado.id}`}
+              className="font-bold underline hover:opacity-80"
+            >
+              #{servicioRenovado.numero}
+            </Link>
+          </span>
+          {servicio.estado === "en_curso" && (
+            <Boton
+              type="button"
+              variante="secundario"
+              className="h-8 px-3 text-xs"
+              onClick={() =>
+                ejecutarCambioEstado("terminado", "Cerrado por renovación")
+              }
+            >
+              Marcar terminado
+            </Boton>
+          )}
+        </Aviso>
+      )}
+
+      {servicioOriginal && (
+        <Aviso variante="neutro" className="flex items-center gap-2">
+          <span>
+            Renovación del servicio{" "}
+            <Link
+              to={`/servicios/${servicioOriginal.id}`}
+              className="font-bold underline text-marca hover:opacity-80"
+            >
+              #{servicioOriginal.numero}
+            </Link>
+          </span>
+        </Aviso>
+      )}
+
       {servicio.no_planificado && (
         <Aviso variante="alerta">
           Cargado por el chofer en la calle. Completá cliente y monto.
         </Aviso>
       )}
+
       {mostrarAvisoVencimiento && (
-        <Aviso variante="alerta">
-          Este alquiler vence el {fechaHastaDdMm}. ¿Renovar?
+        <Aviso
+          variante="alerta"
+          className="flex flex-wrap items-center justify-between gap-3"
+        >
+          <span>Este alquiler vence el {fechaHastaDdMm}. ¿Renovar?</span>
+          {puedeRenovar && !servicioRenovado && (
+            <Boton
+              type="button"
+              className="h-8 px-3 text-xs"
+              onClick={abrirRenovar}
+            >
+              Renovar alquiler
+            </Boton>
+          )}
         </Aviso>
+      )}
+
+      {/* Formulario inline Renovar alquiler */}
+      {mostrarRenovar && (
+        <Tarjeta className="p-5 space-y-4 border-marca">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-tinta">
+                Renovar alquiler
+              </h2>
+              <p className="text-xs text-tinta-suave">
+                Crea un nuevo servicio encadenado a partir del #
+                {servicio.numero}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMostrarRenovar(false)}
+              className="text-xs text-tinta-suave hover:text-tinta"
+            >
+              Cerrar
+            </button>
+          </div>
+
+          {errorRenovacion && (
+            <Aviso variante="peligro">{errorRenovacion}</Aviso>
+          )}
+
+          <form onSubmit={handleConfirmarRenovacion} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <Etiqueta htmlFor="renv_desde">Desde</Etiqueta>
+                <Entrada
+                  id="renv_desde"
+                  type="date"
+                  required
+                  value={renvDesde}
+                  onChange={(e) =>
+                    handleCambioFechas(e.target.value, renvHasta)
+                  }
+                />
+              </div>
+
+              <div>
+                <Etiqueta htmlFor="renv_hasta">Hasta</Etiqueta>
+                <Entrada
+                  id="renv_hasta"
+                  type="date"
+                  required
+                  value={renvHasta}
+                  onChange={(e) =>
+                    handleCambioFechas(renvDesde, e.target.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <Etiqueta htmlFor="renv_unidad">Unidad</Etiqueta>
+                <Selector
+                  id="renv_unidad"
+                  value={renvUnidad}
+                  onChange={(e) =>
+                    handleCambioUnidad(e.target.value as UnidadAlquiler)
+                  }
+                >
+                  <option value="dia">Día</option>
+                  <option value="semana">Semana</option>
+                  <option value="quincena">Quincena</option>
+                  <option value="mes">Mes</option>
+                </Selector>
+              </div>
+
+              <div>
+                <Etiqueta htmlFor="renv_cantidad">Cantidad</Etiqueta>
+                <Entrada
+                  id="renv_cantidad"
+                  type="number"
+                  min="1"
+                  required
+                  value={renvCantidad}
+                  onChange={(e) =>
+                    handleCambioPrecioOCantidad(
+                      Math.max(1, Number(e.target.value)),
+                      renvPrecioUnidad,
+                    )
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Etiqueta htmlFor="renv_precio_unidad">
+                  Precio por unidad
+                </Etiqueta>
+                <EntradaMonto
+                  id="renv_precio_unidad"
+                  required
+                  valor={renvPrecioUnidad}
+                  onChange={(v) => handleCambioPrecioOCantidad(renvCantidad, v)}
+                />
+                <p className="mt-1 text-xs text-tinta-suave">
+                  Mismo precio original o actualizado
+                </p>
+              </div>
+
+              <div>
+                <Etiqueta htmlFor="renv_monto">Monto recalculado</Etiqueta>
+                <EntradaMonto
+                  id="renv_monto"
+                  required
+                  valor={renvMonto}
+                  onChange={setRenvMonto}
+                />
+                <p className="mt-1 text-xs text-tinta-suave">
+                  {renvCantidad}{" "}
+                  {formatearUnidadPlural(renvUnidad, renvCantidad)} ×{" "}
+                  {formatearPesos(renvPrecioUnidad)}
+                </p>
+              </div>
+            </div>
+
+            {/* Datos informativos heredados */}
+            <div className="rounded-md border border-borde bg-fondo p-3 text-xs text-tinta-suave space-y-1">
+              <div>
+                <strong className="text-tinta">Cliente:</strong>{" "}
+                {servicio.clientes?.nombre ?? "—"}
+              </div>
+              <div>
+                <strong className="text-tinta">Máquina:</strong>{" "}
+                {servicio.maquinas?.codigo_interno
+                  ? `${servicio.maquinas.codigo_interno} (${servicio.maquinas.tipo})`
+                  : "—"}
+              </div>
+              {servicio.vehiculos?.nombre && (
+                <div>
+                  <strong className="text-tinta">Vehículo:</strong>{" "}
+                  {servicio.vehiculos.nombre}
+                </div>
+              )}
+              {choferes.length > 0 && (
+                <div>
+                  <strong className="text-tinta">Choferes:</strong>{" "}
+                  {choferes
+                    .map((c) => (c.perfiles as any)?.nombre)
+                    .filter(Boolean)
+                    .join(", ") || "—"}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Boton
+                type="button"
+                variante="secundario"
+                onClick={() => setMostrarRenovar(false)}
+                disabled={guardandoRenovacion}
+              >
+                Cancelar
+              </Boton>
+              <Boton
+                type="submit"
+                disabled={
+                  guardandoRenovacion ||
+                  !renvDesde ||
+                  !renvHasta ||
+                  renvMonto == null
+                }
+              >
+                {guardandoRenovacion
+                  ? "Creando renovación…"
+                  : "Confirmar renovación"}
+              </Boton>
+            </div>
+          </form>
+        </Tarjeta>
       )}
 
       {/* Formulario inline Registrar cobro */}
@@ -543,10 +1080,11 @@ export function PaginaServicio() {
 
       {/* Formulario inline Programar */}
       {mostrarProgramar && (
-
         <Tarjeta className="p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-tinta">Programar servicio</h2>
+            <h2 className="text-base font-semibold text-tinta">
+              Programar servicio
+            </h2>
             <button
               type="button"
               onClick={() => setMostrarProgramar(false)}
@@ -555,7 +1093,10 @@ export function PaginaServicio() {
               Cerrar
             </button>
           </div>
-          <form onSubmit={handleConfirmarProgramacion} className="space-y-4 pb-[72px] md:pb-0">
+          <form
+            onSubmit={handleConfirmarProgramacion}
+            className="space-y-4 pb-[72px] md:pb-0"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Etiqueta htmlFor="fecha_prog">Fecha</Etiqueta>
@@ -612,7 +1153,9 @@ export function PaginaServicio() {
             <div>
               <Etiqueta>Choferes</Etiqueta>
               {listaChoferes.length === 0 ? (
-                <p className="text-xs text-tinta-suave">No hay choferes disponibles.</p>
+                <p className="text-xs text-tinta-suave">
+                  No hay choferes disponibles.
+                </p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {listaChoferes.map((ch) => {
@@ -661,7 +1204,9 @@ export function PaginaServicio() {
           <Tarjeta className="p-5 space-y-4">
             {/* Encabezado con 'Datos del servicio' y 'Registrado el...' */}
             <div className="flex items-center justify-between pb-3 border-b border-borde">
-              <h2 className="text-base font-semibold text-tinta">Datos del servicio</h2>
+              <h2 className="text-base font-semibold text-tinta">
+                Datos del servicio
+              </h2>
               <span className="text-xs text-tinta-suave">
                 Registrado el {formatearFecha(servicio.created_at)}
               </span>
@@ -671,7 +1216,9 @@ export function PaginaServicio() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               {/* Recorrido ocupando 2 columnas */}
               <div className="md:col-span-2">
-                <span className="text-xs font-medium text-tinta-suave block">Recorrido</span>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Recorrido
+                </span>
                 <div className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-tinta">
                   {servicio.origen && servicio.destino ? (
                     <>
@@ -690,57 +1237,94 @@ export function PaginaServicio() {
               </div>
 
               <div>
-                <span className="text-xs font-medium text-tinta-suave block">Fecha programada</span>
-                <div className="text-tinta font-medium mt-0.5">{fechaTexto}</div>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Fecha programada
+                </span>
+                <div className="text-tinta font-medium mt-0.5">
+                  {fechaTexto}
+                </div>
               </div>
 
               {servicio.fecha_inicio && servicio.fecha_fin && (
                 <div>
-                  <span className="text-xs font-medium text-tinta-suave block">Duración</span>
+                  <span className="text-xs font-medium text-tinta-suave block">
+                    Duración
+                  </span>
                   <div className="text-tinta font-medium mt-0.5">
-                    {formatearDuracion(servicio.fecha_inicio, servicio.fecha_fin)}
+                    {formatearDuracion(
+                      servicio.fecha_inicio,
+                      servicio.fecha_fin,
+                    )}
                   </div>
                 </div>
               )}
 
               <div>
-                <span className="text-xs font-medium text-tinta-suave block">Carga</span>
-                <div className="text-tinta font-medium mt-0.5">{servicio.carga || "—"}</div>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Carga
+                </span>
+                <div className="text-tinta font-medium mt-0.5">
+                  {servicio.carga || "—"}
+                </div>
               </div>
 
               <div>
-                <span className="text-xs font-medium text-tinta-suave block">Km</span>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Km
+                </span>
                 <div className="text-tinta font-medium mt-0.5">{kmTexto}</div>
               </div>
 
               <div>
-                <span className="text-xs font-medium text-tinta-suave block">Vehículo</span>
-                <div className="text-tinta font-medium mt-0.5">{servicio.vehiculos?.nombre || "—"}</div>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Vehículo
+                </span>
+                <div className="text-tinta font-medium mt-0.5">
+                  {servicio.vehiculos?.nombre || "—"}
+                </div>
               </div>
 
               <div>
-                <span className="text-xs font-medium text-tinta-suave block">Máquina</span>
-                <div className="text-tinta font-medium mt-0.5">{maquinaTexto}</div>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Máquina
+                </span>
+                <div className="text-tinta font-medium mt-0.5">
+                  {maquinaTexto}
+                </div>
               </div>
 
               <div>
-                <span className="text-xs font-medium text-tinta-suave block">Choferes</span>
-                <div className="text-tinta font-medium mt-0.5">{choferesTexto}</div>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Choferes
+                </span>
+                <div className="text-tinta font-medium mt-0.5">
+                  {choferesTexto}
+                </div>
               </div>
 
               <div>
-                <span className="text-xs font-medium text-tinta-suave block">Remito</span>
-                <div className="text-tinta font-medium mt-0.5 tabular-nums">{servicio.remito || "—"}</div>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Remito
+                </span>
+                <div className="text-tinta font-medium mt-0.5 tabular-nums">
+                  {servicio.remito || "—"}
+                </div>
               </div>
 
               <div>
-                <span className="text-xs font-medium text-tinta-suave block">Orden de compra</span>
-                <div className="text-tinta font-medium mt-0.5 tabular-nums">{servicio.orden_compra || "—"}</div>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Orden de compra
+                </span>
+                <div className="text-tinta font-medium mt-0.5 tabular-nums">
+                  {servicio.orden_compra || "—"}
+                </div>
               </div>
 
               {servicio.factura_id && (
                 <div>
-                  <span className="text-xs font-medium text-tinta-suave block">Factura</span>
+                  <span className="text-xs font-medium text-tinta-suave block">
+                    Factura
+                  </span>
                   <div className="text-tinta font-medium mt-0.5">
                     <Link
                       to="/facturacion?tab=facturas"
@@ -751,7 +1335,7 @@ export function PaginaServicio() {
                         ? `${formatearNumeroFactura(
                             servicio.facturas.tipo,
                             servicio.facturas.punto_venta,
-                            servicio.facturas.numero
+                            servicio.facturas.numero,
                           )} · ${formatearFecha(servicio.facturas.fecha)}`
                         : "Ver en facturación"}
                     </Link>
@@ -762,28 +1346,41 @@ export function PaginaServicio() {
               {servicio.tipo === "alquiler_periodo" && alquiler && (
                 <>
                   <div>
-                    <span className="text-xs font-medium text-tinta-suave block">Período</span>
+                    <span className="text-xs font-medium text-tinta-suave block">
+                      Período
+                    </span>
                     <div className="text-tinta font-medium mt-0.5">
-                      {formatearFecha(alquiler.fecha_desde)} → {formatearFecha(alquiler.fecha_hasta)}
+                      {formatearFecha(alquiler.fecha_desde)} →{" "}
+                      {formatearFecha(alquiler.fecha_hasta)}
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-xs font-medium text-tinta-suave block">Unidad y cantidad</span>
+                    <span className="text-xs font-medium text-tinta-suave block">
+                      Unidad y cantidad
+                    </span>
                     <div className="text-tinta font-medium mt-0.5">
-                      {alquiler.cantidad} {formatearUnidadPlural(alquiler.unidad, alquiler.cantidad)}
+                      {alquiler.cantidad}{" "}
+                      {formatearUnidadPlural(
+                        alquiler.unidad,
+                        alquiler.cantidad,
+                      )}
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-xs font-medium text-tinta-suave block">Precio por unidad</span>
+                    <span className="text-xs font-medium text-tinta-suave block">
+                      Precio por unidad
+                    </span>
                     <div className="text-tinta font-medium mt-0.5 tabular-nums">
                       {formatearPesos(alquiler.precio_unidad)}
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-xs font-medium text-tinta-suave block">Renovación automática</span>
+                    <span className="text-xs font-medium text-tinta-suave block">
+                      Renovación automática
+                    </span>
                     <div className="text-tinta font-medium mt-0.5">
                       {alquiler.renovacion_automatica ? "Sí" : "No"}
                     </div>
@@ -792,25 +1389,37 @@ export function PaginaServicio() {
               )}
 
               <div className="md:col-span-2">
-                <span className="text-xs font-medium text-tinta-suave block">Descripción</span>
-                <div className="text-tinta whitespace-pre-wrap mt-0.5">{servicio.descripcion || "—"}</div>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Descripción
+                </span>
+                <div className="text-tinta whitespace-pre-wrap mt-0.5">
+                  {servicio.descripcion || "—"}
+                </div>
               </div>
 
               {/* Monto y Cobrado van últimos con pt-3 border-t border-borde */}
               <div className="pt-3 border-t border-borde">
-                <span className="text-xs font-medium text-tinta-suave block">Monto</span>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Monto
+                </span>
                 <div className="text-base font-semibold text-tinta tabular-nums mt-0.5">
                   {formatearPesos(servicio.monto)}
                 </div>
               </div>
 
               <div className="pt-3 border-t border-borde">
-                <span className="text-xs font-medium text-tinta-suave block">Cobrado</span>
+                <span className="text-xs font-medium text-tinta-suave block">
+                  Cobrado
+                </span>
                 <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                  <span className={`text-base font-semibold tabular-nums ${cobroColor}`}>
+                  <span
+                    className={`text-base font-semibold tabular-nums ${cobroColor}`}
+                  >
                     {formatearPesos(servicio.monto_cobrado)}
                   </span>
-                  <span className={`inline-flex items-center text-[12px] font-medium rounded-full px-2 py-px ${cobroPillClase}`}>
+                  <span
+                    className={`inline-flex items-center text-[12px] font-medium rounded-full px-2 py-px ${cobroPillClase}`}
+                  >
                     {cobroPillTexto}
                   </span>
                 </div>
@@ -819,9 +1428,12 @@ export function PaginaServicio() {
                     {cobrosAplicados.map((ca, idx) => {
                       const c = ca.cobros;
                       if (!c) return null;
-                      const fechaObj = new Date(c.fecha.length === 10 ? `${c.fecha}T00:00:00` : c.fecha);
+                      const fechaObj = new Date(
+                        c.fecha.length === 10 ? `${c.fecha}T00:00:00` : c.fecha,
+                      );
                       const diaMes = `${String(fechaObj.getDate()).padStart(2, "0")}/${String(fechaObj.getMonth() + 1).padStart(2, "0")}`;
-                      const medioTexto = ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio;
+                      const medioTexto =
+                        ETIQUETA_MEDIO_PAGO[c.medio] ?? c.medio;
 
                       return (
                         <div key={idx} className="text-xs text-tinta-suave">
@@ -836,7 +1448,6 @@ export function PaginaServicio() {
                 )}
               </div>
             </div>
-
 
             {/* Sección Adjuntos (N) */}
             <div className="pt-5 border-t border-borde">
@@ -913,30 +1524,50 @@ export function PaginaServicio() {
             {/* Barra de acciones dentro de la tarjeta Datos con pt-6 mt-6 border-t border-borde */}
             <div className="pt-6 mt-6 border-t border-borde space-y-3">
               <div className="flex flex-wrap items-center gap-2">
+                {puedeRenovar && !servicioRenovado && (
+                  <Boton onClick={abrirRenovar}>Renovar alquiler</Boton>
+                )}
+
                 {servicio.estado === "consulta" && (
-                  <Boton onClick={() => ejecutarCambioEstado("presupuestado", "Presupuestado")}>
+                  <Boton
+                    onClick={() =>
+                      ejecutarCambioEstado("presupuestado", "Presupuestado")
+                    }
+                  >
                     Marcar presupuestado
                   </Boton>
                 )}
 
                 {servicio.estado === "presupuestado" && (
-                  <Boton onClick={() => ejecutarCambioEstado("aceptado", "Aceptado por el cliente")}>
+                  <Boton
+                    onClick={() =>
+                      ejecutarCambioEstado(
+                        "aceptado",
+                        "Aceptado por el cliente",
+                      )
+                    }
+                  >
                     Aceptado por el cliente
                   </Boton>
                 )}
 
                 {servicio.estado === "aceptado" && (
-                  <Boton onClick={abrirProgramar}>
-                    Programar
-                  </Boton>
+                  <Boton onClick={abrirProgramar}>Programar</Boton>
                 )}
 
                 {servicio.estado === "programado" && (
                   <>
-                    <Boton onClick={() => ejecutarCambioEstado("en_curso", "Iniciado")}>
+                    <Boton
+                      onClick={() =>
+                        ejecutarCambioEstado("en_curso", "Iniciado")
+                      }
+                    >
                       Iniciar
                     </Boton>
-                    <Boton variante="secundario" onClick={() => setMostrarCobro(true)}>
+                    <Boton
+                      variante="secundario"
+                      onClick={() => setMostrarCobro(true)}
+                    >
                       Registrar cobro
                     </Boton>
                     <Boton variante="secundario" onClick={abrirProgramar}>
@@ -947,10 +1578,17 @@ export function PaginaServicio() {
 
                 {servicio.estado === "en_curso" && (
                   <>
-                    <Boton onClick={() => ejecutarCambioEstado("terminado", "Terminado")}>
+                    <Boton
+                      onClick={() =>
+                        ejecutarCambioEstado("terminado", "Terminado")
+                      }
+                    >
                       Terminé
                     </Boton>
-                    <Boton variante="secundario" onClick={() => setMostrarCobro(true)}>
+                    <Boton
+                      variante="secundario"
+                      onClick={() => setMostrarCobro(true)}
+                    >
                       Registrar cobro
                     </Boton>
                   </>
@@ -971,7 +1609,10 @@ export function PaginaServicio() {
 
                 {servicio.estado === "cobrado" && (
                   <>
-                    <Boton variante="secundario" onClick={() => setMostrarCobro(true)}>
+                    <Boton
+                      variante="secundario"
+                      onClick={() => setMostrarCobro(true)}
+                    >
                       Registrar cobro
                     </Boton>
                     {!servicio.factura_id && !servicio.no_facturable && (
@@ -999,31 +1640,36 @@ export function PaginaServicio() {
                   </Boton>
                 )}
 
-
-                {servicio.estado !== "cancelado" && servicio.estado !== "facturado" && (
-                  <Boton
-                    variante="peligro"
-                    onClick={async () => {
-                      if (window.confirm(`¿Seguro que querés cancelar el servicio #${servicio.numero}?`)) {
-                        await ejecutarCambioEstado("cancelado", "Cancelado desde oficina");
-                      }
-                    }}
-                  >
-                    Cancelar
-                  </Boton>
-                )}
+                {servicio.estado !== "cancelado" &&
+                  servicio.estado !== "facturado" && (
+                    <Boton
+                      variante="peligro"
+                      onClick={async () => {
+                        if (
+                          window.confirm(
+                            `¿Seguro que querés cancelar el servicio #${servicio.numero}?`,
+                          )
+                        ) {
+                          await ejecutarCambioEstado(
+                            "cancelado",
+                            "Cancelado desde oficina",
+                          );
+                        }
+                      }}
+                    >
+                      Cancelar
+                    </Boton>
+                  )}
               </div>
 
-              {errorEstado && (
-                <Aviso variante="peligro">
-                  {errorEstado}
-                </Aviso>
-              )}
+              {errorEstado && <Aviso variante="peligro">{errorEstado}</Aviso>}
             </div>
           </Tarjeta>
 
           {/* Tarjeta Presupuesto debajo de Datos para consulta, presupuestado y aceptado */}
-          {["consulta", "presupuestado", "aceptado"].includes(servicio.estado) && (
+          {["consulta", "presupuestado", "aceptado"].includes(
+            servicio.estado,
+          ) && (
             <TarjetaPresupuesto
               servicio={servicio}
               empresa={empresa}
@@ -1053,4 +1699,3 @@ export function PaginaServicio() {
     </div>
   );
 }
-
