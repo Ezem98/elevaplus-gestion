@@ -1,0 +1,1164 @@
+<!doctype html>
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @layer base {
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          overscroll-behavior: none;
+        }
+        main > :first-child {
+          margin-top: 0 !important;
+        }
+        main > :last-child {
+          margin-bottom: 0 !important;
+        }
+      }
+      ::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-low": "#edf4ff",
+              "on-primary-container": "#b2c7ff",
+              "surface-container-highest": "#d9e3f1",
+              "on-primary": "#ffffff",
+              "marca-suave": "#E6EDF9",
+              "on-secondary-fixed": "#0c1d2a",
+              "error-container": "#ffdad6",
+              background: "#f7f9ff",
+              "on-primary-fixed-variant": "#04429b",
+              "peligro-suave": "#FBE9E9",
+              "inverse-on-surface": "#e8f2ff",
+              borde: "#D9E0E8",
+              "on-primary-fixed": "#001945",
+              "primary-fixed": "#d9e2ff",
+              primary: "#003887",
+              "primary-container": "#1e4fa8",
+              "outline-variant": "#c3c6d4",
+              "tinta-suave": "#5B6B7B",
+              fondo: "#F5F7FA",
+              "secondary-container": "#d1e1f4",
+              "surface-dim": "#d1dbe9",
+              "on-background": "#121c26",
+              "surface-container": "#e4effd",
+              superficie: "#FFFFFF",
+              "inverse-surface": "#27313c",
+              "surface-container-lowest": "#ffffff",
+              "secondary-fixed": "#d4e4f7",
+              "on-secondary": "#ffffff",
+              "marca-oscuro": "#163B7D",
+              "on-secondary-fixed-variant": "#394857",
+              "on-surface": "#121c26",
+              secondary: "#506070",
+              "inverse-primary": "#b0c6ff",
+              "surface-container-high": "#dfe9f7",
+              "primary-fixed-dim": "#b0c6ff",
+              "tertiary-fixed-dim": "#ffb68f",
+              outline: "#737783",
+              "ok-suave": "#E4F5EA",
+              "on-tertiary": "#ffffff",
+              "on-error": "#ffffff",
+              "surface-bright": "#f7f9ff",
+              "surface-tint": "#2d5bb4",
+              error: "#ba1a1a",
+              "on-tertiary-fixed-variant": "#773200",
+              "secondary-fixed-dim": "#b8c8db",
+              tertiary: "#672b00",
+              "on-error-container": "#93000a",
+              "tinta-tenue": "#8D9AA8",
+              "tertiary-container": "#8b3c00",
+              ok: "#15803D",
+              "on-surface-variant": "#434652",
+              "alerta-suave": "#FDF0E0",
+              "on-tertiary-container": "#ffb892",
+              "surface-variant": "#d9e3f1",
+              marca: "#1E4FA8",
+              "on-secondary-container": "#546474",
+              surface: "#f7f9ff",
+              "on-tertiary-fixed": "#331200",
+              "tertiary-fixed": "#ffdbca",
+              peligro: "#B91C1C",
+              alerta: "#B45309",
+              tinta: "#17212B",
+            },
+            borderRadius: {
+              DEFAULT: "0.125rem",
+              lg: "0.25rem",
+              xl: "0.5rem",
+              full: "0.75rem",
+            },
+            spacing: {
+              "space-24": "1.5rem",
+              "space-4": "0.25rem",
+              "space-20": "1.25rem",
+              "space-48": "3rem",
+              "space-12": "0.75rem",
+              "max-width-desktop": "1280px",
+              "space-8": "0.5rem",
+              "page-padding-desktop": "2rem",
+              "space-32": "2rem",
+              "space-16": "1rem",
+              "page-padding-mobile": "1rem",
+            },
+            fontFamily: {
+              "caption-medium": ["IBM Plex Sans"],
+              "headline-md": ["IBM Plex Sans"],
+              "headline-lg": ["IBM Plex Sans"],
+              "headline-xl": ["IBM Plex Sans"],
+              "body-default": ["IBM Plex Sans"],
+              "body-md": ["IBM Plex Sans"],
+              "label-mobile-nav": ["IBM Plex Sans"],
+              caption: ["IBM Plex Sans"],
+            },
+            fontSize: {
+              "caption-medium": [
+                "12px",
+                { lineHeight: "16px", fontWeight: "500" },
+              ],
+              "headline-md": [
+                "18px",
+                { lineHeight: "24px", fontWeight: "600" },
+              ],
+              "headline-lg": [
+                "24px",
+                { lineHeight: "32px", fontWeight: "600" },
+              ],
+              "headline-xl": [
+                "30px",
+                { lineHeight: "38px", fontWeight: "600" },
+              ],
+              "body-default": [
+                "14px",
+                { lineHeight: "20px", fontWeight: "400" },
+              ],
+              "body-md": ["14px", { lineHeight: "20px", fontWeight: "500" }],
+              "label-mobile-nav": [
+                "11px",
+                { lineHeight: "14px", fontWeight: "500" },
+              ],
+              caption: ["12px", { lineHeight: "16px", fontWeight: "400" }],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-fondo font-body-default text-tinta min-h-screen antialiased">
+    <aside
+      class="fixed top-0 left-0 h-screen w-[240px] bg-superficie border-r border-borde z-50 flex flex-col justify-between"
+    >
+      <div class="flex flex-col">
+        <div
+          class="h-16 px-space-20 flex items-center gap-space-12 border-b border-borde"
+        >
+          <img
+            alt="Brand logo. - Primary color: #1e4fa8 - Font: ibmPlexSans - Mode: light - Roundness: rounded-sm"
+            class="h-8 w-auto object-contain"
+            src="https://lh3.googleusercontent.com/aida/AEtjO1UbwPALaybP5OWGrXKb2YHJy8ESopKeol500G6nCnYiNz-3nzrXCVMBozlrcMrwwpf2yc5siBMGxRFqnxslO4RRIv8kigG_YHBNFD2O9YSQPVgRMvA1eVRMEFF_0KCeyTZuU1CxOJqQtfF1As-d0hqCrG4R0HeSGDCNY1LxE61Qc-ecRDs6gWtDRXS3oOKI5WjWUSS4dyrWW63UyLQ1sYia_Jo21x86yUUcU7n6FzUc9oo78il4MA898wzD"
+          /><span
+            class="font-headline-md text-headline-md tracking-tight text-marca"
+            >ELEVAPLUS</span
+          >
+        </div>
+        <nav
+          class="flex flex-col py-space-12 px-space-8 space-y-space-4"
+          data-active-classes="bg-marca-suave text-marca font-body-md"
+        >
+          <a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded text-tinta-suave hover:bg-fondo hover:text-tinta font-body-md text-body-md transition-colors"
+            data-path="hoy"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]">dashboard</span
+            ><span>Hoy</span></a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded text-tinta-suave hover:bg-fondo hover:text-tinta font-body-md text-body-md transition-colors"
+            data-path="servicios"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]"
+              >local_shipping</span
+            ><span>Servicios</span></a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded text-tinta-suave hover:bg-fondo hover:text-tinta font-body-md text-body-md transition-colors"
+            data-path="cotizador"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]">calculate</span
+            ><span>Cotizador</span></a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded text-tinta-suave hover:bg-fondo hover:text-tinta font-body-md text-body-md transition-colors"
+            data-path="clientes"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]">group</span
+            ><span>Clientes</span></a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded text-tinta-suave hover:bg-fondo hover:text-tinta font-body-md text-body-md transition-colors"
+            data-path="cobros"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]"
+              >account_balance_wallet</span
+            ><span>Cobros</span></a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded text-tinta-suave hover:bg-fondo hover:text-tinta font-body-md text-body-md transition-colors"
+            data-path="facturacion"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]"
+              >receipt_long</span
+            ><span>Facturación</span></a
+          ><a
+            aria-current="page"
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded transition-colors bg-marca-suave text-marca font-body-md"
+            data-path="flota"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]"
+              >inventory_2</span
+            ><span>Flota</span></a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded text-tinta-suave hover:bg-fondo hover:text-tinta font-body-md text-body-md transition-colors"
+            data-path="alquileres"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]"
+              >calendar_month</span
+            ><span>Alquileres</span></a
+          ><a
+            class="flex items-center gap-space-12 px-space-12 py-space-8 rounded text-tinta-suave hover:bg-fondo hover:text-tinta font-body-md text-body-md transition-colors"
+            data-path="configuracion"
+            href="#"
+            ><span class="material-symbols-outlined text-[16px]">settings</span
+            ><span>Configuración</span></a
+          >
+        </nav>
+      </div>
+      <div class="p-space-12 border-t border-borde flex flex-col gap-space-8">
+        <div class="flex items-center justify-between px-space-8 py-space-4">
+          <div class="flex items-center gap-space-8">
+            <div
+              class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"
+            >
+              <span
+                class="material-symbols-outlined text-on-primary text-[18px]"
+                >person</span
+              >
+            </div>
+            <div class="flex flex-col">
+              <span class="font-body-md text-body-md text-tinta leading-tight"
+                >Ana</span
+              ><span class="font-caption text-caption text-tinta-suave"
+                >Administración</span
+              >
+            </div>
+          </div>
+        </div>
+        <a
+          class="flex items-center gap-space-8 px-space-8 py-space-8 rounded text-tinta-suave hover:bg-peligro-suave hover:text-peligro font-body-md text-body-md transition-colors"
+          data-path="login"
+          href="#"
+          ><span class="material-symbols-outlined text-[16px]">logout</span
+          ><span>Salir</span></a
+        >
+      </div>
+    </aside>
+    <div class="pl-[240px] w-full min-h-screen">
+      <header
+        class="fixed top-0 left-[240px] right-0 h-16 bg-superficie border-b border-borde z-40 px-space-32 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-space-12">
+          <span class="font-body-md text-body-md text-tinta-suave"
+            >Operaciones logísticas</span
+          >
+        </div>
+        <div class="flex items-center gap-space-16">
+          <div
+            class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"
+          >
+            <span class="material-symbols-outlined text-on-primary text-[18px]"
+              >person</span
+            >
+          </div>
+        </div>
+      </header>
+      <main class="w-full pt-16 bg-fondo">
+        <div
+          class="max-w-max-width-desktop px-space-32 py-space-32 ml-0 mr-auto"
+        >
+          <div class="flex flex-col w-full">
+            <div class="flex flex-col gap-space-24">
+              <!-- Header row -->
+              <div
+                class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-16 pb-space-12 border-b border-borde"
+              >
+                <div class="flex flex-col gap-space-4">
+                  <h1
+                    class="font-headline-lg text-headline-lg text-tinta tracking-tight"
+                  >
+                    Flota
+                  </h1>
+                  <p
+                    class="font-body-default text-body-default text-tinta-suave"
+                  >
+                    Control de disponibilidad técnica, asignación de alquileres
+                    y unidades de transporte.
+                  </p>
+                </div>
+                <div class="flex items-center gap-space-12">
+                  <div
+                    class="flex items-center gap-space-8 px-space-12 py-space-8 bg-superficie rounded border border-borde text-caption font-caption text-tinta-suave"
+                  >
+                    <span
+                      class="inline-block w-2 h-2 rounded-full bg-ok"
+                    ></span>
+                    <span>4 disponibles</span>
+                    <span class="text-borde">|</span>
+                    <span
+                      class="inline-block w-2 h-2 rounded-full bg-marca"
+                    ></span>
+                    <span>3 en cliente</span>
+                    <span class="text-borde">|</span>
+                    <span
+                      class="inline-block w-2 h-2 rounded-full bg-alerta"
+                    ></span>
+                    <span>1 en taller</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Navigation tabs and CTA -->
+              <div
+                class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-16 border-b border-borde"
+              >
+                <div class="flex items-center gap-space-24 -mb-[1px]">
+                  <button
+                    class="pb-space-12 border-b-2 border-marca font-headline-md text-body-md text-marca flex items-center gap-space-8 transition-colors"
+                    id="tab-maquinas"
+                    onclick="switchTab('maquinas')"
+                  >
+                    <span>Máquinas</span>
+                    <span
+                      class="px-space-8 py-0.5 rounded-full text-caption-medium font-caption-medium bg-marca-suave text-marca"
+                      >6</span
+                    >
+                  </button>
+                  <button
+                    class="pb-space-12 border-b-2 border-transparent font-headline-md text-body-md text-tinta-suave hover:text-tinta flex items-center gap-space-8 transition-colors"
+                    id="tab-vehiculos"
+                    onclick="switchTab('vehiculos')"
+                  >
+                    <span>Vehículos</span>
+                    <span
+                      class="px-space-8 py-0.5 rounded-full text-caption-medium font-caption-medium bg-fondo text-tinta-suave border border-borde"
+                      >4</span
+                    >
+                  </button>
+                </div>
+                <div class="flex items-center gap-space-12 pb-space-8 sm:pb-0">
+                  <div class="relative">
+                    <input
+                      class="h-10 pl-space-32 pr-space-12 bg-superficie border border-borde rounded text-body-default text-tinta placeholder-tinta-tenue focus:outline-none focus:border-marca w-64"
+                      placeholder="Filtrar por código o modelo..."
+                      type="text"
+                    />
+                    <span
+                      class="material-symbols-outlined absolute left-2.5 top-2.5 text-[18px] text-tinta-tenue pointer-events-none"
+                      >search</span
+                    >
+                  </div>
+                  <button
+                    class="h-10 px-space-16 rounded bg-marca hover:bg-marca-oscuro text-on-primary font-body-md text-body-md flex items-center gap-space-8 transition-colors shrink-0"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[18px]"
+                      >add</span
+                    >
+                    <span>Agregar máquina</span>
+                  </button>
+                </div>
+              </div>
+              <!-- TAB 1: MÁQUINAS -->
+              <div class="flex flex-col gap-space-32" id="panel-maquinas">
+                <!-- Cards grid: 3 columns, 16px gap -->
+                <div
+                  class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-16"
+                >
+                  <!-- Tarjeta 1: AE-01 -->
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16 hover:border-marca transition-colors"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-[20px] leading-[24px] font-semibold text-tinta"
+                          >AE-01</span
+                        >
+                        <div class="flex items-center gap-space-8">
+                          <span
+                            class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-marca-suave text-marca border border-marca/20"
+                            >Alquilada</span
+                          >
+                          <button
+                            aria-label="Opciones de AE-01"
+                            class="w-8 h-8 rounded flex items-center justify-center text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors"
+                            type="button"
+                          >
+                            <span class="material-symbols-outlined text-[20px]"
+                              >more_horiz</span
+                            >
+                          </button>
+                        </div>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Autoelevador Toyota</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Capacidad 2,5 t / Combustión</span
+                        >
+                      </div>
+                      <div
+                        class="flex items-center gap-space-8 p-space-8 rounded bg-fondo border border-borde/60"
+                      >
+                        <span
+                          class="w-2 h-2 rounded-full bg-marca shrink-0"
+                        ></span>
+                        <span
+                          class="font-body-default text-[13px] leading-tight text-tinta"
+                          >Alquilada a Huma S.A. hasta 15/09</span
+                        >
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span>Horómetro: 3.420 h</span>
+                      <span class="text-tinta font-caption-medium"
+                        >Próximo service: en 180 h</span
+                      >
+                    </div>
+                  </div>
+                  <!-- Tarjeta 2: AE-02 -->
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16 hover:border-marca transition-colors"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-[20px] leading-[24px] font-semibold text-tinta"
+                          >AE-02</span
+                        >
+                        <div class="flex items-center gap-space-8">
+                          <span
+                            class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-marca-suave text-marca border border-marca/20"
+                            >Alquilada</span
+                          >
+                          <button
+                            aria-label="Opciones de AE-02"
+                            class="w-8 h-8 rounded flex items-center justify-center text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors"
+                            type="button"
+                          >
+                            <span class="material-symbols-outlined text-[20px]"
+                              >more_horiz</span
+                            >
+                          </button>
+                        </div>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Autoelevador Heli</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Capacidad 3 t / Diésel</span
+                        >
+                      </div>
+                      <div
+                        class="flex items-center gap-space-8 p-space-8 rounded bg-fondo border border-borde/60"
+                      >
+                        <span
+                          class="w-2 h-2 rounded-full bg-marca shrink-0"
+                        ></span>
+                        <span
+                          class="font-body-default text-[13px] leading-tight text-tinta"
+                          >Alquilada a Baco hasta 10/09</span
+                        >
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span>Horómetro: 1.890 h</span>
+                      <span class="text-tinta font-caption-medium"
+                        >Último service: 12/08</span
+                      >
+                    </div>
+                  </div>
+                  <!-- Tarjeta 3: PL-01 -->
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16 hover:border-marca transition-colors"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-[20px] leading-[24px] font-semibold text-tinta"
+                          >PL-01</span
+                        >
+                        <div class="flex items-center gap-space-8">
+                          <span
+                            class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-marca-suave text-marca border border-marca/20"
+                            >Alquilada</span
+                          >
+                          <button
+                            aria-label="Opciones de PL-01"
+                            class="w-8 h-8 rounded flex items-center justify-center text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors"
+                            type="button"
+                          >
+                            <span class="material-symbols-outlined text-[20px]"
+                              >more_horiz</span
+                            >
+                          </button>
+                        </div>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Plataforma tijera Haulotte</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Altura 12 m / Eléctrica</span
+                        >
+                      </div>
+                      <div
+                        class="flex items-center gap-space-8 p-space-8 rounded bg-fondo border border-borde/60"
+                      >
+                        <span
+                          class="w-2 h-2 rounded-full bg-marca shrink-0"
+                        ></span>
+                        <span
+                          class="font-body-default text-[13px] leading-tight text-tinta"
+                          >Alquilada a Almatec hasta 18/09</span
+                        >
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span class="flex items-center gap-1">
+                        <span
+                          class="material-symbols-outlined text-[14px] text-ok"
+                          >bolt</span
+                        >
+                        Baterías 94 %
+                      </span>
+                      <span class="text-tinta font-caption-medium"
+                        >Inspección técnica al día</span
+                      >
+                    </div>
+                  </div>
+                  <!-- Tarjeta 4: ZO-01 -->
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16 hover:border-marca transition-colors"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-[20px] leading-[24px] font-semibold text-tinta"
+                          >ZO-01</span
+                        >
+                        <div class="flex items-center gap-space-8">
+                          <span
+                            class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                            >Disponible</span
+                          >
+                          <button
+                            aria-label="Opciones de ZO-01"
+                            class="w-8 h-8 rounded flex items-center justify-center text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors"
+                            type="button"
+                          >
+                            <span class="material-symbols-outlined text-[20px]"
+                              >more_horiz</span
+                            >
+                          </button>
+                        </div>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Zorra eléctrica Noblelift</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Capacidad 1,5 t</span
+                        >
+                      </div>
+                      <div
+                        class="flex items-center gap-space-8 p-space-8 rounded bg-fondo border border-borde/60"
+                      >
+                        <span
+                          class="w-2 h-2 rounded-full bg-ok shrink-0"
+                        ></span>
+                        <span
+                          class="font-body-default text-[13px] leading-tight text-tinta"
+                          >En base Adrogué · Lista para despacho</span
+                        >
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span class="flex items-center gap-1">
+                        <span
+                          class="material-symbols-outlined text-[14px] text-ok"
+                          >bolt</span
+                        >
+                        Batería 100 %
+                      </span>
+                      <span class="text-tinta font-caption-medium"
+                        >Último uso 02/09</span
+                      >
+                    </div>
+                  </div>
+                  <!-- Tarjeta 5: AE-03 -->
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16 hover:border-marca transition-colors"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-[20px] leading-[24px] font-semibold text-tinta"
+                          >AE-03</span
+                        >
+                        <div class="flex items-center gap-space-8">
+                          <span
+                            class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-alerta-suave text-alerta border border-alerta/20"
+                            >En taller</span
+                          >
+                          <button
+                            aria-label="Opciones de AE-03"
+                            class="w-8 h-8 rounded flex items-center justify-center text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors"
+                            type="button"
+                          >
+                            <span class="material-symbols-outlined text-[20px]"
+                              >more_horiz</span
+                            >
+                          </button>
+                        </div>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Autoelevador Nissan</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Capacidad 2,5 t / Nafta-GNC</span
+                        >
+                      </div>
+                      <div
+                        class="flex items-center gap-space-8 p-space-8 rounded bg-alerta-suave/60 border border-alerta/20"
+                      >
+                        <span
+                          class="w-2 h-2 rounded-full bg-alerta shrink-0"
+                        ></span>
+                        <span
+                          class="font-body-default text-[13px] leading-tight text-alerta font-body-md"
+                          >En taller mecánico por bomba de freno</span
+                        >
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span>Ingreso: 01/09</span>
+                      <span class="text-tinta font-caption-medium"
+                        >Estimado entrega: 08/09</span
+                      >
+                    </div>
+                  </div>
+                  <!-- Tarjeta 6: PL-02 -->
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16 hover:border-marca transition-colors"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-[20px] leading-[24px] font-semibold text-tinta"
+                          >PL-02</span
+                        >
+                        <div class="flex items-center gap-space-8">
+                          <span
+                            class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                            >Disponible</span
+                          >
+                          <button
+                            aria-label="Opciones de PL-02"
+                            class="w-8 h-8 rounded flex items-center justify-center text-tinta-suave hover:bg-fondo hover:text-tinta transition-colors"
+                            type="button"
+                          >
+                            <span class="material-symbols-outlined text-[20px]"
+                              >more_horiz</span
+                            >
+                          </button>
+                        </div>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >Plataforma tijera Genie</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Altura 10 m / Eléctrica</span
+                        >
+                      </div>
+                      <div
+                        class="flex items-center gap-space-8 p-space-8 rounded bg-fondo border border-borde/60"
+                      >
+                        <span
+                          class="w-2 h-2 rounded-full bg-ok shrink-0"
+                        ></span>
+                        <span
+                          class="font-body-default text-[13px] leading-tight text-tinta"
+                          >En base Adrogué · Lista para despacho</span
+                        >
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span class="flex items-center gap-1">
+                        <span
+                          class="material-symbols-outlined text-[14px] text-ok"
+                          >bolt</span
+                        >
+                        Baterías 100 %
+                      </span>
+                      <span class="text-tinta font-caption-medium"
+                        >Próximo mantenimiento en 45 días</span
+                      >
+                    </div>
+                  </div>
+                </div>
+                <!-- Resumen de vehículos de transporte en la misma vista operativa -->
+                <div
+                  class="flex flex-col gap-space-16 pt-space-16 border-t border-borde"
+                >
+                  <div
+                    class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-8"
+                  >
+                    <div>
+                      <h2 class="font-headline-md text-headline-md text-tinta">
+                        Vehículos de transporte y logística
+                      </h2>
+                      <p
+                        class="font-body-default text-body-default text-tinta-suave"
+                      >
+                        Unidades operativas afectadas a traslados de maquinaria
+                        y asistencia mecánica.
+                      </p>
+                    </div>
+                    <a
+                      class="text-marca font-body-md text-body-md hover:underline flex items-center gap-space-4 self-start sm:self-auto"
+                      href="#"
+                      onclick="
+                        switchTab('vehiculos');
+                        return false;
+                      "
+                    >
+                      <span>Ver detalle completo</span>
+                      <span class="material-symbols-outlined text-[16px]"
+                        >arrow_forward</span
+                      >
+                    </a>
+                  </div>
+                  <div
+                    class="bg-superficie rounded-[10px] border border-borde overflow-hidden"
+                  >
+                    <table class="w-full text-left border-collapse">
+                      <thead>
+                        <tr
+                          class="bg-fondo border-b border-borde text-caption-medium font-caption-medium text-tinta-suave"
+                        >
+                          <th class="py-space-12 px-space-16">Vehículo</th>
+                          <th class="py-space-12 px-space-16">Dominio</th>
+                          <th class="py-space-12 px-space-16">Estado</th>
+                          <th class="py-space-12 px-space-16">
+                            Vigencia técnica
+                          </th>
+                          <th class="py-space-12 px-space-16 text-right">
+                            Acción
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody
+                        class="divide-y divide-borde text-body-default text-tinta"
+                      >
+                        <tr class="hover:bg-fondo transition-colors">
+                          <td class="py-space-12 px-space-16 font-body-md">
+                            <div class="flex items-center gap-space-8">
+                              <span
+                                class="material-symbols-outlined text-[18px] text-tinta-suave"
+                                >local_shipping</span
+                              >
+                              <span>Ford Cargo</span>
+                            </div>
+                          </td>
+                          <td
+                            class="py-space-12 px-space-16 font-body-default text-tinta-suave"
+                          >
+                            AA 924 CD
+                          </td>
+                          <td class="py-space-12 px-space-16">
+                            <span
+                              class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                              >Operativo</span
+                            >
+                          </td>
+                          <td
+                            class="py-space-12 px-space-16 text-tinta-suave font-caption"
+                          >
+                            VTV vence 03/2027
+                          </td>
+                          <td class="py-space-12 px-space-16 text-right">
+                            <button
+                              class="text-marca font-body-md text-caption hover:underline"
+                              type="button"
+                            >
+                              Ver ficha
+                            </button>
+                          </td>
+                        </tr>
+                        <tr class="hover:bg-fondo transition-colors">
+                          <td class="py-space-12 px-space-16 font-body-md">
+                            <div class="flex items-center gap-space-8">
+                              <span
+                                class="material-symbols-outlined text-[18px] text-tinta-suave"
+                                >rv_hookup</span
+                              >
+                              <span>Ranger + Trailer</span>
+                            </div>
+                          </td>
+                          <td
+                            class="py-space-12 px-space-16 font-body-default text-tinta-suave"
+                          >
+                            AF 112 LK
+                          </td>
+                          <td class="py-space-12 px-space-16">
+                            <span
+                              class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                              >Operativo</span
+                            >
+                          </td>
+                          <td
+                            class="py-space-12 px-space-16 text-tinta-suave font-caption"
+                          >
+                            VTV vence 03/2027
+                          </td>
+                          <td class="py-space-12 px-space-16 text-right">
+                            <button
+                              class="text-marca font-body-md text-caption hover:underline"
+                              type="button"
+                            >
+                              Ver ficha
+                            </button>
+                          </td>
+                        </tr>
+                        <tr class="hover:bg-fondo transition-colors">
+                          <td class="py-space-12 px-space-16 font-body-md">
+                            <div class="flex items-center gap-space-8">
+                              <span
+                                class="material-symbols-outlined text-[18px] text-tinta-suave"
+                                >local_shipping</span
+                              >
+                              <span>VW 1517</span>
+                            </div>
+                          </td>
+                          <td
+                            class="py-space-12 px-space-16 font-body-default text-tinta-suave"
+                          >
+                            AD 450 MN
+                          </td>
+                          <td class="py-space-12 px-space-16">
+                            <span
+                              class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                              >Operativo</span
+                            >
+                          </td>
+                          <td
+                            class="py-space-12 px-space-16 text-tinta-suave font-caption"
+                          >
+                            VTV vence 03/2027
+                          </td>
+                          <td class="py-space-12 px-space-16 text-right">
+                            <button
+                              class="text-marca font-body-md text-caption hover:underline"
+                              type="button"
+                            >
+                              Ver ficha
+                            </button>
+                          </td>
+                        </tr>
+                        <tr class="hover:bg-fondo transition-colors">
+                          <td class="py-space-12 px-space-16 font-body-md">
+                            <div class="flex items-center gap-space-8">
+                              <span
+                                class="material-symbols-outlined text-[18px] text-tinta-suave"
+                                >directions_car</span
+                              >
+                              <span>Fiorino</span>
+                            </div>
+                          </td>
+                          <td
+                            class="py-space-12 px-space-16 font-body-default text-tinta-suave"
+                          >
+                            AG 789 OP
+                          </td>
+                          <td class="py-space-12 px-space-16">
+                            <span
+                              class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                              >Operativo</span
+                            >
+                          </td>
+                          <td
+                            class="py-space-12 px-space-16 text-tinta-suave font-caption"
+                          >
+                            VTV vence 03/2027
+                          </td>
+                          <td class="py-space-12 px-space-16 text-right">
+                            <button
+                              class="text-marca font-body-md text-caption hover:underline"
+                              type="button"
+                            >
+                              Ver ficha
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <!-- TAB 2: VEHÍCULOS (VISTA DEDICADA) -->
+              <div class="hidden flex-col gap-space-24" id="panel-vehiculos">
+                <div
+                  class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-16"
+                >
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-headline-md text-tinta"
+                          >Ford Cargo</span
+                        >
+                        <span
+                          class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                          >Operativo</span
+                        >
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >AA 924 CD</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Camión plancha pesada</span
+                        >
+                      </div>
+                      <div
+                        class="p-space-8 rounded bg-fondo border border-borde/60 flex flex-col gap-1 text-caption text-tinta-suave"
+                      >
+                        <span
+                          >Chofer asignado:
+                          <strong>Carlos Benítez</strong></span
+                        >
+                        <span>Carga útil máx: 12.000 kg</span>
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span>VTV vence 03/2027</span>
+                      <span class="text-ok font-caption-medium"
+                        >Habilitado</span
+                      >
+                    </div>
+                  </div>
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-headline-md text-tinta"
+                          >Ranger + Trailer</span
+                        >
+                        <span
+                          class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                          >Operativo</span
+                        >
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >AF 112 LK</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Unidad rápida de auxilio</span
+                        >
+                      </div>
+                      <div
+                        class="p-space-8 rounded bg-fondo border border-borde/60 flex flex-col gap-1 text-caption text-tinta-suave"
+                      >
+                        <span
+                          >Chofer asignado: <strong>Matías Rossi</strong></span
+                        >
+                        <span>Enganche trailer homologado</span>
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span>VTV vence 03/2027</span>
+                      <span class="text-ok font-caption-medium"
+                        >Habilitado</span
+                      >
+                    </div>
+                  </div>
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-headline-md text-tinta"
+                          >VW 1517</span
+                        >
+                        <span
+                          class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                          >Operativo</span
+                        >
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >AD 450 MN</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Camión semirremolque</span
+                        >
+                      </div>
+                      <div
+                        class="p-space-8 rounded bg-fondo border border-borde/60 flex flex-col gap-1 text-caption text-tinta-suave"
+                      >
+                        <span
+                          >Chofer asignado: <strong>Esteban Gómez</strong></span
+                        >
+                        <span>Ruta provincial habilitada</span>
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span>VTV vence 03/2027</span>
+                      <span class="text-ok font-caption-medium"
+                        >Habilitado</span
+                      >
+                    </div>
+                  </div>
+                  <div
+                    class="bg-superficie border border-borde rounded-[10px] p-[20px] flex flex-col justify-between gap-space-16"
+                  >
+                    <div class="flex flex-col gap-space-12">
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="font-headline-md text-headline-md text-tinta"
+                          >Fiorino</span
+                        >
+                        <span
+                          class="px-[10px] py-[2px] rounded-full text-caption-medium font-caption-medium bg-ok-suave text-ok border border-ok/20"
+                          >Operativo</span
+                        >
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-body-md text-body-md text-tinta"
+                          >AG 789 OP</span
+                        >
+                        <span
+                          class="font-body-default text-body-default text-tinta-suave"
+                          >Utilitario taller y repuestos</span
+                        >
+                      </div>
+                      <div
+                        class="p-space-8 rounded bg-fondo border border-borde/60 flex flex-col gap-1 text-caption text-tinta-suave"
+                      >
+                        <span
+                          >Chofer asignado:
+                          <strong>Mecánica general</strong></span
+                        >
+                        <span>Herramientas neumáticas a bordo</span>
+                      </div>
+                    </div>
+                    <div
+                      class="pt-space-12 border-t border-borde flex items-center justify-between text-caption font-caption text-tinta-suave"
+                    >
+                      <span>VTV vence 03/2027</span>
+                      <span class="text-ok font-caption-medium"
+                        >Habilitado</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <script>
+            function switchTab(tab) {
+              const tabMaquinas = document.getElementById("tab-maquinas");
+              const tabVehiculos = document.getElementById("tab-vehiculos");
+              const panelMaquinas = document.getElementById("panel-maquinas");
+              const panelVehiculos = document.getElementById("panel-vehiculos");
+
+              if (tab === "maquinas") {
+                tabMaquinas.className =
+                  "pb-space-12 border-b-2 border-marca font-headline-md text-body-md text-marca flex items-center gap-space-8 transition-colors";
+                tabVehiculos.className =
+                  "pb-space-12 border-b-2 border-transparent font-headline-md text-body-md text-tinta-suave hover:text-tinta flex items-center gap-space-8 transition-colors";
+                panelMaquinas.classList.remove("hidden");
+                panelVehiculos.classList.add("hidden");
+              } else {
+                tabVehiculos.className =
+                  "pb-space-12 border-b-2 border-marca font-headline-md text-body-md text-marca flex items-center gap-space-8 transition-colors";
+                tabMaquinas.className =
+                  "pb-space-12 border-b-2 border-transparent font-headline-md text-body-md text-tinta-suave hover:text-tinta flex items-center gap-space-8 transition-colors";
+                panelVehiculos.classList.remove("hidden");
+                panelMaquinas.classList.add("hidden");
+              }
+            }
+          </script>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

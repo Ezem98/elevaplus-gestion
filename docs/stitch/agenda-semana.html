@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agenda — ELEVAPLUS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      body {
+        font-family: "IBM Plex Sans", sans-serif;
+        background-color: #f5f7fa;
+        color: #17212b;
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+      .tabular-nums {
+        font-variant-numeric: tabular-nums;
+      }
+      /* Brand tokens */
+      :root {
+        --color-fondo: #f5f7fa;
+        --color-superficie: #ffffff;
+        --color-borde: #d9e0e8;
+        --color-tinta: #17212b;
+        --color-tinta-suave: #5b6b7b;
+        --color-tinta-tenue: #8d9aa8;
+        --color-marca: #1e4fa8;
+        --color-marca-oscuro: #163b7d;
+        --color-marca-suave: #e6edf9;
+        --color-ok: #15803d;
+        --color-ok-suave: #e4f5ea;
+        --color-alerta: #b45309;
+        --color-alerta-suave: #fdf0e0;
+        --color-peligro: #b91c1c;
+        --color-peligro-suave: #fbe9e9;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex text-[#17212B] bg-[#F5F7FA]">
+    <!-- Barra lateral izquierda fija 240px -->
+    <aside
+      class="w-[240px] min-h-screen bg-white border-r border-[#D9E0E8] flex flex-col justify-between shrink-0 fixed left-0 top-0 bottom-0 z-20"
+    >
+      <div>
+        <!-- Logo Header -->
+        <div class="h-16 px-5 border-b border-[#D9E0E8] flex items-center">
+          <img
+            src="https://lh3.googleusercontent.com/aida/AEtjO1Vv7rlLTApqtNPdE0RsVZ0ErRsIM0-zgIzfFC_PEazOOndcQsYn-iKXNWa2mhp-faduzUoVLBTGuCPvRUhRMG0NzKBQk8FV7XzyCtxpzF8WtX-dhVaOj58UaG7tE2fzuOpq3bi49nB56y5wwsKYU9egoNkYBvtYm8FOEi5yWQhY684e7a8RF8Wg5095p8gRQPFd5YkIkjAfrc8vxndyUwOq_e_I2HSkwoT9Nq3JZ-9WFRlgEkn-laNbeUvR"
+            alt="ELEVAPLUS"
+            class="h-7 w-auto object-contain"
+          />
+        </div>
+
+        <!-- Navegación principal -->
+        <nav class="p-3 space-y-1">
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium text-[#5B6B7B] hover:bg-[#F5F7FA] hover:text-[#17212B] transition-colors"
+          >
+            <i
+              data-lucide="layout-dashboard"
+              class="w-4 h-4 text-[#5B6B7B]"
+            ></i>
+            <span>Hoy</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium bg-[#E6EDF9] text-[#1E4FA8]"
+          >
+            <i data-lucide="calendar" class="w-4 h-4 text-[#1E4FA8]"></i>
+            <span>Agenda</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium text-[#5B6B7B] hover:bg-[#F5F7FA] hover:text-[#17212B] transition-colors"
+          >
+            <i data-lucide="truck" class="w-4 h-4 text-[#5B6B7B]"></i>
+            <span>Servicios</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium text-[#5B6B7B] hover:bg-[#F5F7FA] hover:text-[#17212B] transition-colors"
+          >
+            <i data-lucide="calculator" class="w-4 h-4 text-[#5B6B7B]"></i>
+            <span>Cotizador</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium text-[#5B6B7B] hover:bg-[#F5F7FA] hover:text-[#17212B] transition-colors"
+          >
+            <i data-lucide="users" class="w-4 h-4 text-[#5B6B7B]"></i>
+            <span>Clientes</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium text-[#5B6B7B] hover:bg-[#F5F7FA] hover:text-[#17212B] transition-colors"
+          >
+            <i data-lucide="wallet" class="w-4 h-4 text-[#5B6B7B]"></i>
+            <span>Cobros</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium text-[#5B6B7B] hover:bg-[#F5F7FA] hover:text-[#17212B] transition-colors"
+          >
+            <i data-lucide="file-text" class="w-4 h-4 text-[#5B6B7B]"></i>
+            <span>Facturación</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium text-[#5B6B7B] hover:bg-[#F5F7FA] hover:text-[#17212B] transition-colors"
+          >
+            <i data-lucide="calendar-range" class="w-4 h-4 text-[#5B6B7B]"></i>
+            <span>Alquileres</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium text-[#5B6B7B] hover:bg-[#F5F7FA] hover:text-[#17212B] transition-colors"
+          >
+            <i data-lucide="container" class="w-4 h-4 text-[#5B6B7B]"></i>
+            <span>Flota</span>
+          </a>
+          <a
+            href="#"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-[14px] font-medium text-[#5B6B7B] hover:bg-[#F5F7FA] hover:text-[#17212B] transition-colors"
+          >
+            <i data-lucide="settings" class="w-4 h-4 text-[#5B6B7B]"></i>
+            <span>Configuración</span>
+          </a>
+        </nav>
+      </div>
+
+      <!-- Usuario al pie -->
+      <div
+        class="p-4 border-t border-[#D9E0E8] flex items-center justify-between"
+      >
+        <div class="flex items-center gap-2.5">
+          <div
+            class="w-8 h-8 rounded-full bg-[#1E4FA8] text-white flex items-center justify-center text-xs font-semibold"
+          >
+            AG
+          </div>
+          <div>
+            <p class="text-[13px] font-medium text-[#17212B] leading-tight">
+              Ana Gómez
+            </p>
+            <p class="text-[11px] text-[#5B6B7B]">Administración</p>
+          </div>
+        </div>
+        <button
+          title="Salir"
+          class="p-1.5 text-[#5B6B7B] hover:text-[#17212B] hover:bg-[#F5F7FA] rounded"
+        >
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Contenedor Principal (1440px viewport context, pl-[240px]) -->
+    <main class="flex-1 ml-[240px] p-8 max-w-[1240px]">
+      <!-- Franja ámbar discreta de avisos -->
+      <div
+        class="mb-6 px-4 py-3 bg-[#FDF0E0] border border-[#F5D0A9] rounded-[6px] flex items-center justify-between"
+      >
+        <div class="flex items-center gap-2 text-[13px] text-[#B45309]">
+          <i
+            data-lucide="alert-circle"
+            class="w-4 h-4 shrink-0 text-[#B45309]"
+          ></i>
+          <span
+            ><strong>3 vencimientos atrasados</strong> · Cheque Galicia $
+            180.000 (12/09), Seguro Resp. Civil $ 95.000 (10/09), Factura gasoil
+            YPF $ 320.000 (08/09)</span
+          >
+        </div>
+        <a
+          href="#"
+          class="text-[13px] font-medium text-[#B45309] hover:underline shrink-0 ml-4"
+          >Ver pendientes</a
+        >
+      </div>
+
+      <!-- Encabezado de página y controles -->
+      <header class="mb-6 flex flex-col gap-4">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <!-- Título -->
+          <div>
+            <h1 class="text-[24px] font-semibold text-[#17212B] tracking-tight">
+              Agenda
+            </h1>
+            <p class="text-[13px] text-[#5B6B7B] mt-0.5">
+              Control de vencimientos, compromisos financieros, novedades y
+              cobros previstos.
+            </p>
+          </div>
+
+          <!-- Controles a la derecha -->
+          <div class="flex items-center gap-3 flex-wrap">
+            <!-- Toggle Semana · Mes · Lista -->
+            <div
+              class="inline-flex bg-white border border-[#D9E0E8] rounded-[6px] p-0.5 h-10"
+            >
+              <button
+                class="px-3 text-[13px] font-medium rounded-[4px] bg-[#E6EDF9] text-[#1E4FA8]"
+              >
+                Semana
+              </button>
+              <button
+                class="px-3 text-[13px] font-medium text-[#5B6B7B] hover:text-[#17212B]"
+              >
+                Mes
+              </button>
+              <button
+                class="px-3 text-[13px] font-medium text-[#5B6B7B] hover:text-[#17212B]"
+              >
+                Lista
+              </button>
+            </div>
+
+            <!-- Toggle Todo · Empresa · Personal -->
+            <div
+              class="inline-flex bg-white border border-[#D9E0E8] rounded-[6px] p-0.5 h-10"
+            >
+              <button
+                class="px-3 text-[13px] font-medium rounded-[4px] bg-[#E6EDF9] text-[#1E4FA8]"
+              >
+                Todo
+              </button>
+              <button
+                class="px-3 text-[13px] font-medium text-[#5B6B7B] hover:text-[#17212B]"
+              >
+                Empresa
+              </button>
+              <button
+                class="px-3 text-[13px] font-medium text-[#5B6B7B] hover:text-[#17212B]"
+              >
+                Personal
+              </button>
+            </div>
+
+            <!-- Navegación temporal ‹ › con rango -->
+            <div
+              class="flex items-center bg-white border border-[#D9E0E8] rounded-[6px] h-10 px-2 gap-1.5"
+            >
+              <button
+                class="p-1 hover:bg-[#F5F7FA] rounded text-[#5B6B7B] hover:text-[#17212B]"
+              >
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              </button>
+              <span
+                class="text-[13px] font-medium text-[#17212B] px-1 whitespace-nowrap"
+                >15 – 21 de septiembre 2026</span
+              >
+              <button
+                class="p-1 hover:bg-[#F5F7FA] rounded text-[#5B6B7B] hover:text-[#17212B]"
+              >
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Botón primario Nuevo vencimiento -->
+            <button
+              class="h-10 px-4 bg-[#1E4FA8] hover:bg-[#163B7D] text-white text-[14px] font-medium rounded-[6px] flex items-center gap-2 transition-colors"
+            >
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Nuevo vencimiento</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Grilla de 7 columnas (Lunes a Domingo) -->
+      <div
+        class="bg-white border border-[#D9E0E8] rounded-[10px] overflow-hidden mb-8"
+      >
+        <div class="grid grid-cols-7 divide-x divide-[#D9E0E8]">
+          <!-- Columna 1: Lunes 15 -->
+          <div class="flex flex-col min-h-[460px]">
+            <div class="p-3 border-b border-[#D9E0E8] bg-[#F5F7FA] text-center">
+              <div class="text-[12px] font-medium text-[#5B6B7B]">Lunes</div>
+              <div class="text-[16px] font-semibold text-[#17212B]">15</div>
+            </div>
+            <div class="p-2 flex-1 space-y-2 bg-[#FAFBFD]">
+              <!-- Novedad transversal -->
+              <div
+                class="p-2 rounded-[6px] border border-[#E2E8F0] bg-[#F8FAFC]"
+              >
+                <div class="flex items-start gap-1.5">
+                  <i
+                    data-lucide="user"
+                    class="w-3.5 h-3.5 text-[#8D9AA8] mt-0.5 shrink-0"
+                  ></i>
+                  <div>
+                    <p
+                      class="text-[12px] font-medium text-[#5B6B7B] leading-tight"
+                    >
+                      Mario
+                    </p>
+                    <p class="text-[11px] text-[#8D9AA8]">
+                      Vacaciones hasta 22/09
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Acreditación Transferencia Deza -->
+              <div
+                class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white hover:border-[#B4C6E7] transition-colors"
+              >
+                <div class="flex items-start justify-between gap-1">
+                  <div class="flex items-start gap-1.5 min-w-0">
+                    <i
+                      data-lucide="arrow-down-left"
+                      class="w-4 h-4 text-[#15803D] mt-0.5 shrink-0"
+                    ></i>
+                    <div class="min-w-0">
+                      <p
+                        class="text-[13px] font-medium text-[#17212B] leading-snug truncate"
+                      >
+                        Transferencia Deza
+                      </p>
+                      <p class="text-[11px] text-[#5B6B7B]">
+                        Acreditación banco
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-semibold text-[#15803D] tabular-nums"
+                    >+$ 456.218</span
+                  >
+                </div>
+              </div>
+
+              <!-- Servicio cobrado adicional -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="file-check"
+                    class="w-4 h-4 text-[#1E4FA8] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug truncate"
+                    >
+                      Frig. Santa Giulia
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">
+                      Cobro servicio #1039
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-semibold text-[#15803D] tabular-nums"
+                    >+$ 320.000</span
+                  >
+                </div>
+              </div>
+
+              <!-- Gasto combustible menor -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="receipt"
+                    class="w-4 h-4 text-[#5B6B7B] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug truncate"
+                    >
+                      Gasoil Ford Cargo
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">
+                      Estación Shell Burzaco
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-medium text-[#17212B] tabular-nums"
+                    >$ 670.000</span
+                  >
+                </div>
+              </div>
+            </div>
+            <!-- Pie columna -->
+            <div
+              class="p-2.5 border-t border-[#D9E0E8] bg-white flex items-center justify-between"
+            >
+              <span class="text-[11px] text-[#5B6B7B]">Neto</span>
+              <span
+                class="text-[13px] font-semibold text-[#15803D] tabular-nums"
+                >+$ 106.218</span
+              >
+            </div>
+          </div>
+
+          <!-- Columna 2: Martes 16 -->
+          <div class="flex flex-col min-h-[460px]">
+            <div class="p-3 border-b border-[#D9E0E8] bg-[#F5F7FA] text-center">
+              <div class="text-[12px] font-medium text-[#5B6B7B]">Martes</div>
+              <div class="text-[16px] font-semibold text-[#17212B]">16</div>
+            </div>
+            <div class="p-2 flex-1 space-y-2 bg-[#FAFBFD]">
+              <!-- Novedad transversal -->
+              <div
+                class="p-2 rounded-[6px] border border-[#E2E8F0] bg-[#F8FAFC]"
+              >
+                <div class="flex items-start gap-1.5">
+                  <i
+                    data-lucide="user"
+                    class="w-3.5 h-3.5 text-[#8D9AA8] mt-0.5 shrink-0"
+                  ></i>
+                  <div>
+                    <p
+                      class="text-[12px] font-medium text-[#5B6B7B] leading-tight"
+                    >
+                      Mario
+                    </p>
+                    <p class="text-[11px] text-[#8D9AA8]">
+                      Vacaciones hasta 22/09
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cheque a cobrar Huma S.A. -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="banknote"
+                    class="w-4 h-4 text-[#15803D] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug"
+                    >
+                      Cobrar cheque Huma
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">
+                      BBVA 5678 · En cartera
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-semibold text-[#15803D] tabular-nums"
+                    >+$ 200.000</span
+                  >
+                </div>
+              </div>
+
+              <!-- Pago Repuesto Autoelevador -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="receipt"
+                    class="w-4 h-4 text-[#5B6B7B] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug truncate"
+                    >
+                      Filtros y bomba AE-03
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">Repuestos Del Sur</p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-medium text-[#17212B] tabular-nums"
+                    >$ 85.000</span
+                  >
+                </div>
+              </div>
+            </div>
+            <!-- Pie columna -->
+            <div
+              class="p-2.5 border-t border-[#D9E0E8] bg-white flex items-center justify-between"
+            >
+              <span class="text-[11px] text-[#5B6B7B]">Neto</span>
+              <span
+                class="text-[13px] font-semibold text-[#15803D] tabular-nums"
+                >+$ 115.000</span
+              >
+            </div>
+          </div>
+
+          <!-- Columna 3: Miércoles 17 (HOY - resaltado) -->
+          <div
+            class="flex flex-col min-h-[460px] bg-[#F7F9FD] ring-2 ring-[#1E4FA8] ring-inset z-10 rounded-[4px]"
+          >
+            <!-- Encabezado resaltado en #E6EDF9 -->
+            <div class="p-3 border-b border-[#D9E0E8] bg-[#E6EDF9] text-center">
+              <div
+                class="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1E4FA8] uppercase tracking-wider"
+              >
+                <span>Hoy</span>
+              </div>
+              <div class="text-[16px] font-bold text-[#1E4FA8]">
+                Miércoles 17
+              </div>
+            </div>
+            <div class="p-2 flex-1 space-y-2">
+              <!-- Novedad transversal -->
+              <div class="p-2 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5">
+                  <i
+                    data-lucide="user"
+                    class="w-3.5 h-3.5 text-[#8D9AA8] mt-0.5 shrink-0"
+                  ></i>
+                  <div>
+                    <p
+                      class="text-[12px] font-medium text-[#5B6B7B] leading-tight"
+                    >
+                      Mario
+                    </p>
+                    <p class="text-[11px] text-[#8D9AA8]">
+                      Vacaciones hasta 22/09
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Vencimiento Servicio Telefónico y Luz -->
+              <div
+                class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white shadow-sm"
+              >
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="receipt"
+                    class="w-4 h-4 text-[#5B6B7B] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug"
+                    >
+                      Edesur base Adrogué
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">
+                      Vencimiento factura
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-medium text-[#17212B] tabular-nums"
+                    >$ 142.000</span
+                  >
+                </div>
+              </div>
+
+              <!-- Cobro en mano previsto -->
+              <div
+                class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white shadow-sm"
+              >
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="arrow-down-left"
+                    class="w-4 h-4 text-[#15803D] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug"
+                    >
+                      Carpas D'Angiola
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">
+                      Efectivo servicio Lanús
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-semibold text-[#15803D] tabular-nums"
+                    >+$ 185.000</span
+                  >
+                </div>
+              </div>
+            </div>
+            <!-- Pie columna -->
+            <div
+              class="p-2.5 border-t border-[#D9E0E8] bg-white flex items-center justify-between"
+            >
+              <span class="text-[11px] text-[#5B6B7B]">Neto</span>
+              <span
+                class="text-[13px] font-semibold text-[#15803D] tabular-nums"
+                >+$ 43.000</span
+              >
+            </div>
+          </div>
+
+          <!-- Columna 4: Jueves 18 -->
+          <div class="flex flex-col min-h-[460px]">
+            <div class="p-3 border-b border-[#D9E0E8] bg-[#F5F7FA] text-center">
+              <div class="text-[12px] font-medium text-[#5B6B7B]">Jueves</div>
+              <div class="text-[16px] font-semibold text-[#17212B]">18</div>
+            </div>
+            <div class="p-2 flex-1 space-y-2 bg-[#FAFBFD]">
+              <!-- Novedad transversal -->
+              <div
+                class="p-2 rounded-[6px] border border-[#E2E8F0] bg-[#F8FAFC]"
+              >
+                <div class="flex items-start gap-1.5">
+                  <i
+                    data-lucide="user"
+                    class="w-3.5 h-3.5 text-[#8D9AA8] mt-0.5 shrink-0"
+                  ></i>
+                  <div>
+                    <p
+                      class="text-[12px] font-medium text-[#5B6B7B] leading-tight"
+                    >
+                      Mario
+                    </p>
+                    <p class="text-[11px] text-[#8D9AA8]">
+                      Vacaciones hasta 22/09
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cheque a cubrir Galicia 1234 -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="banknote"
+                    class="w-4 h-4 text-[#B45309] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug"
+                    >
+                      Cubrir cheque Galicia
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">
+                      N° 1234 · Seguro flota
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-medium text-[#17212B] tabular-nums"
+                    >$ 350.000</span
+                  >
+                </div>
+              </div>
+
+              <!-- Cuota alquiler galpón -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="receipt"
+                    class="w-4 h-4 text-[#5B6B7B] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug"
+                    >
+                      Alquiler depósito
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">Inmobiliaria Brown</p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-medium text-[#17212B] tabular-nums"
+                    >$ 420.000</span
+                  >
+                </div>
+              </div>
+            </div>
+            <!-- Pie columna -->
+            <div
+              class="p-2.5 border-t border-[#D9E0E8] bg-white flex items-center justify-between"
+            >
+              <span class="text-[11px] text-[#5B6B7B]">Neto</span>
+              <span
+                class="text-[13px] font-semibold text-[#B91C1C] tabular-nums"
+                >−$ 770.000</span
+              >
+            </div>
+          </div>
+
+          <!-- Columna 5: Viernes 19 -->
+          <div class="flex flex-col min-h-[460px]">
+            <div class="p-3 border-b border-[#D9E0E8] bg-[#F5F7FA] text-center">
+              <div class="text-[12px] font-medium text-[#5B6B7B]">Viernes</div>
+              <div class="text-[16px] font-semibold text-[#17212B]">19</div>
+            </div>
+            <div class="p-2 flex-1 space-y-2 bg-[#FAFBFD]">
+              <!-- Novedad transversal -->
+              <div
+                class="p-2 rounded-[6px] border border-[#E2E8F0] bg-[#F8FAFC]"
+              >
+                <div class="flex items-start gap-1.5">
+                  <i
+                    data-lucide="user"
+                    class="w-3.5 h-3.5 text-[#8D9AA8] mt-0.5 shrink-0"
+                  ></i>
+                  <div>
+                    <p
+                      class="text-[12px] font-medium text-[#5B6B7B] leading-tight"
+                    >
+                      Mario
+                    </p>
+                    <p class="text-[11px] text-[#8D9AA8]">
+                      Vacaciones hasta 22/09
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sueldos quincena -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="receipt"
+                    class="w-4 h-4 text-[#5B6B7B] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug"
+                    >
+                      Sueldos quincena
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">Mauro, Fede, Mario</p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-medium text-[#17212B] tabular-nums"
+                    >$ 1.200.000</span
+                  >
+                </div>
+              </div>
+
+              <!-- Aporte sindical y cargas -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="receipt"
+                    class="w-4 h-4 text-[#5B6B7B] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug"
+                    >
+                      Cargas sociales 931
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">AFIP F931 agosto</p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="text-[13px] font-medium text-[#17212B] tabular-nums"
+                    >$ 350.000</span
+                  >
+                </div>
+              </div>
+            </div>
+            <!-- Pie columna -->
+            <div
+              class="p-2.5 border-t border-[#D9E0E8] bg-white flex items-center justify-between"
+            >
+              <span class="text-[11px] text-[#5B6B7B]">Neto</span>
+              <span
+                class="text-[13px] font-semibold text-[#B91C1C] tabular-nums"
+                >−$ 1.550.000</span
+              >
+            </div>
+          </div>
+
+          <!-- Columna 6: Sábado 20 -->
+          <div class="flex flex-col min-h-[460px]">
+            <div class="p-3 border-b border-[#D9E0E8] bg-[#F5F7FA] text-center">
+              <div class="text-[12px] font-medium text-[#5B6B7B]">Sábado</div>
+              <div class="text-[16px] font-semibold text-[#17212B]">20</div>
+            </div>
+            <div class="p-2 flex-1 space-y-2 bg-[#FAFBFD]">
+              <!-- Novedad transversal -->
+              <div
+                class="p-2 rounded-[6px] border border-[#E2E8F0] bg-[#F8FAFC]"
+              >
+                <div class="flex items-start gap-1.5">
+                  <i
+                    data-lucide="user"
+                    class="w-3.5 h-3.5 text-[#8D9AA8] mt-0.5 shrink-0"
+                  ></i>
+                  <div>
+                    <p
+                      class="text-[12px] font-medium text-[#5B6B7B] leading-tight"
+                    >
+                      Mario
+                    </p>
+                    <p class="text-[11px] text-[#8D9AA8]">
+                      Vacaciones hasta 22/09
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Alquiler que vence -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="truck"
+                    class="w-4 h-4 text-[#1E4FA8] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug truncate"
+                    >
+                      Vence alquiler AE-01
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">
+                      Almatec · Gestión retorno
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span
+                    class="inline-block text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#E6EDF9] text-[#1E4FA8]"
+                    >Informativo</span
+                  >
+                </div>
+              </div>
+
+              <!-- Guardia técnica -->
+              <div class="p-2.5 rounded-[6px] border border-[#D9E0E8] bg-white">
+                <div class="flex items-start gap-1.5 min-w-0">
+                  <i
+                    data-lucide="wrench"
+                    class="w-4 h-4 text-[#5B6B7B] mt-0.5 shrink-0"
+                  ></i>
+                  <div class="min-w-0">
+                    <p
+                      class="text-[13px] font-medium text-[#17212B] leading-snug"
+                    >
+                      Guardia fin de semana
+                    </p>
+                    <p class="text-[11px] text-[#5B6B7B]">
+                      Mauro Gómez a cargo
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-2 text-right">
+                  <span class="inline-block text-[11px] text-[#8D9AA8]"
+                    >Sin movimiento</span
+                  >
+                </div>
+              </div>
+            </div>
+            <!-- Pie columna -->
+            <div
+              class="p-2.5 border-t border-[#D9E0E8] bg-white flex items-center justify-between"
+            >
+              <span class="text-[11px] text-[#5B6B7B]">Neto</span>
+              <span class="text-[13px] font-medium text-[#5B6B7B] tabular-nums"
+                >$ 0</span
+              >
+            </div>
+          </div>
+
+          <!-- Columna 7: Domingo 21 -->
+          <div class="flex flex-col min-h-[460px]">
+            <div class="p-3 border-b border-[#D9E0E8] bg-[#F5F7FA] text-center">
+              <div class="text-[12px] font-medium text-[#5B6B7B]">Domingo</div>
+              <div class="text-[16px] font-semibold text-[#17212B]">21</div>
+            </div>
+            <div class="p-2 flex-1 space-y-2 bg-[#FAFBFD]">
+              <!-- Novedad transversal -->
+              <div
+                class="p-2 rounded-[6px] border border-[#E2E8F0] bg-[#F8FAFC]"
+              >
+                <div class="flex items-start gap-1.5">
+                  <i
+                    data-lucide="user"
+                    class="w-3.5 h-3.5 text-[#8D9AA8] mt-0.5 shrink-0"
+                  ></i>
+                  <div>
+                    <p
+                      class="text-[12px] font-medium text-[#5B6B7B] leading-tight"
+                    >
+                      Mario
+                    </p>
+                    <p class="text-[11px] text-[#8D9AA8]">
+                      Vacaciones hasta 22/09
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sin actividades -->
+              <div class="py-12 text-center">
+                <p class="text-[12px] text-[#8D9AA8]">Sin compromisos</p>
+              </div>
+            </div>
+            <!-- Pie columna -->
+            <div
+              class="p-2.5 border-t border-[#D9E0E8] bg-white flex items-center justify-between"
+            >
+              <span class="text-[11px] text-[#5B6B7B]">Neto</span>
+              <span class="text-[13px] font-medium text-[#5B6B7B] tabular-nums"
+                >$ 0</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tarjeta: Proyección de caja · próximos 14 días -->
+      <section class="bg-white border border-[#D9E0E8] rounded-[10px] p-6">
+        <div class="mb-5 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 class="text-[16px] font-semibold text-[#17212B]">
+              Proyección de caja · próximos 14 días
+            </h2>
+            <p class="text-[13px] text-[#5B6B7B] mt-0.5">
+              Evolución de saldos bancarios considerando cobros esperados y
+              compromisos agendados.
+            </p>
+          </div>
+          <div class="flex items-center gap-4 text-[12px] text-[#5B6B7B]">
+            <span class="flex items-center gap-1.5"
+              ><span class="w-3 h-3 rounded-[2px] bg-[#1E4FA8]"></span> Saldo
+              positivo</span
+            >
+            <span class="flex items-center gap-1.5"
+              ><span class="w-3 h-3 rounded-[2px] bg-[#B91C1C]"></span>
+              Descubierto / Saldo negativo</span
+            >
+            <span class="flex items-center gap-1.5"
+              ><span
+                class="w-4 border-t-2 border-dashed border-[#5B6B7B]"
+              ></span>
+              Saldo actual</span
+            >
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <!-- Izquierda: 3 cifras compactas (col-span-3) -->
+          <div
+            class="lg:col-span-3 space-y-3.5 pr-4 lg:border-r border-[#D9E0E8]"
+          >
+            <div class="p-3 bg-[#F5F7FA] rounded-[6px]">
+              <p class="text-[12px] text-[#5B6B7B]">Saldo hoy (17/09)</p>
+              <p
+                class="text-[20px] font-semibold text-[#17212B] tabular-nums mt-0.5"
+              >
+                $ 2.140.000
+              </p>
+            </div>
+
+            <div class="p-3 bg-[#FBE9E9] border border-[#F5C2C2] rounded-[6px]">
+              <p class="text-[12px] text-[#B91C1C] font-medium">
+                Mínimo proyectado (el 19/09)
+              </p>
+              <p
+                class="text-[20px] font-semibold text-[#B91C1C] tabular-nums mt-0.5"
+              >
+                −$ 410.000
+              </p>
+              <p class="text-[11px] text-[#B91C1C] mt-1">
+                Impacto sueldos y AFIP
+              </p>
+            </div>
+
+            <div class="p-3 bg-[#F5F7FA] rounded-[6px]">
+              <p class="text-[12px] text-[#5B6B7B]">Saldo al 30/09</p>
+              <p
+                class="text-[20px] font-semibold text-[#17212B] tabular-nums mt-0.5"
+              >
+                $ 890.000
+              </p>
+            </div>
+          </div>
+
+          <!-- Derecha: Gráfico de barras simple en divs (col-span-9) -->
+          <div class="lg:col-span-9 relative pt-6 pb-2">
+            <!-- Línea punteada horizontal en saldo actual ($ 2.140.000) -->
+            <div
+              class="absolute left-0 right-0 top-[38%] border-b border-dashed border-[#5B6B7B] z-0 flex items-center justify-end"
+            >
+              <span
+                class="bg-white px-1.5 text-[11px] text-[#5B6B7B] tabular-nums font-medium -mt-2"
+                >Hoy: $ 2.140.000</span
+              >
+            </div>
+
+            <!-- Línea de cero (eje base de positivos y negativos) -->
+            <div
+              class="absolute left-0 right-0 top-[70%] border-b border-[#D9E0E8] z-0"
+            ></div>
+
+            <!-- Contenedor flex de 14 barras (1 por día) -->
+            <div
+              class="grid grid-cols-14 gap-2 items-end h-[190px] relative z-10"
+              style="grid-template-columns: repeat(14, minmax(0, 1fr))"
+            >
+              <!-- Día 1: 17/09 Hoy ($ 2.140.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1 group-hover:scale-110 transition-transform"
+                  >2.14M</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px] transition-all hover:bg-[#163B7D]"
+                  style="height: 105px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <!-- Compensación eje negativo -->
+                <span class="text-[11px] text-[#1E4FA8] font-bold mt-1"
+                  >17</span
+                >
+              </div>
+
+              <!-- Día 2: 18/09 ($ 1.370.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >1.37M</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 67px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">18</span>
+              </div>
+
+              <!-- Día 3: 19/09 (−$ 410.000) Rojo negativo -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#B91C1C] tabular-nums font-semibold mb-1"
+                  >−410k</span
+                >
+                <div class="h-[1px] w-full"></div>
+                <!-- Sobre el eje -->
+                <div
+                  class="w-full max-w-[24px] bg-[#B91C1C] rounded-b-[3px]"
+                  style="height: 28px"
+                ></div>
+                <div class="h-[6px] w-full"></div>
+                <span class="text-[11px] text-[#B91C1C] font-semibold mt-1"
+                  >19</span
+                >
+              </div>
+
+              <!-- Día 4: 20/09 (−$ 410.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#B91C1C] tabular-nums font-semibold mb-1"
+                  >−410k</span
+                >
+                <div class="h-[1px] w-full"></div>
+                <div
+                  class="w-full max-w-[24px] bg-[#B91C1C] rounded-b-[3px]"
+                  style="height: 28px"
+                ></div>
+                <div class="h-[6px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">20</span>
+              </div>
+
+              <!-- Día 5: 21/09 (−$ 410.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#B91C1C] tabular-nums font-semibold mb-1"
+                  >−410k</span
+                >
+                <div class="h-[1px] w-full"></div>
+                <div
+                  class="w-full max-w-[24px] bg-[#B91C1C] rounded-b-[3px]"
+                  style="height: 28px"
+                ></div>
+                <div class="h-[6px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">21</span>
+              </div>
+
+              <!-- Día 6: 22/09 ($ 190.000) Recupera cobranzas -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >190k</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 18px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">22</span>
+              </div>
+
+              <!-- Día 7: 23/09 ($ 380.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >380k</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 28px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">23</span>
+              </div>
+
+              <!-- Día 8: 24/09 ($ 490.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >490k</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 33px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">24</span>
+              </div>
+
+              <!-- Día 9: 25/09 ($ 750.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >750k</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 44px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">25</span>
+              </div>
+
+              <!-- Día 10: 26/09 ($ 920.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >920k</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 52px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">26</span>
+              </div>
+
+              <!-- Día 11: 27/09 ($ 920.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >920k</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 52px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">27</span>
+              </div>
+
+              <!-- Día 12: 28/09 ($ 920.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >920k</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 52px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">28</span>
+              </div>
+
+              <!-- Día 13: 29/09 ($ 1.150.000) -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >1.15M</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 62px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">29</span>
+              </div>
+
+              <!-- Día 14: 30/09 ($ 890.000) Cierre mes -->
+              <div class="flex flex-col items-center h-full justify-end group">
+                <span
+                  class="text-[10px] text-[#17212B] tabular-nums font-medium mb-1"
+                  >890k</span
+                >
+                <div
+                  class="w-full max-w-[24px] bg-[#1E4FA8] rounded-t-[3px]"
+                  style="height: 48px"
+                ></div>
+                <div class="h-[34px] w-full"></div>
+                <span class="text-[11px] text-[#5B6B7B] mt-1">30</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

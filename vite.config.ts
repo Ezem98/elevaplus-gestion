@@ -1,8 +1,8 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { VitePWA } from "vite-plugin-pwa";
+import react from "@vitejs/plugin-react";
 import path from "node:path";
+import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   plugins: [
@@ -14,6 +14,9 @@ export default defineConfig({
       filename: "sw.ts",
       registerType: "autoUpdate",
       includeAssets: ["icono.svg", "icono-192.png"],
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
       manifest: {
         name: "ELEVAPLUS Gestión",
         short_name: "ELEVAPLUS",
@@ -24,7 +27,12 @@ export default defineConfig({
         display: "standalone",
         start_url: "/",
         icons: [
-          { src: "/icono.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
+          {
+            src: "/icono.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any maskable",
+          },
           { src: "/icono-192.png", sizes: "192x192", type: "image/png" },
         ],
       },
