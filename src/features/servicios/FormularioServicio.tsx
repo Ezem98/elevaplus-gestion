@@ -1,12 +1,24 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { Aviso } from "@/components/ui/Aviso";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
+import { Boton } from "@/components/ui/Boton";
+import {
+  AreaTexto,
+  Campo,
+  Entrada,
+  Etiqueta,
+  Selector,
+} from "@/components/ui/Campo";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
+import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { supabase } from "@/lib/supabase";
 import type {
-  TipoServicio,
-  Vehiculo,
   Maquina,
+  Tercerizado,
+  TipoServicio,
   UnidadAlquiler,
+  Vehiculo,
 } from "@/lib/tipos";
 import {
   ETIQUETA_TIPO,
@@ -14,13 +26,8 @@ import {
   ETIQUETA_UNIDAD_ALQUILER,
   formatearUnidadPlural,
 } from "@/lib/tipos";
-import { Tarjeta } from "@/components/ui/Tarjeta";
-import { Campo, Entrada, AreaTexto, Selector, Etiqueta } from "@/components/ui/Campo";
-import { EntradaMonto } from "@/components/ui/EntradaMonto";
-import { Boton } from "@/components/ui/Boton";
-import { BarraAcciones } from "@/components/ui/BarraAcciones";
-import { Aviso } from "@/components/ui/Aviso";
-import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 interface ClienteOpcion {
   id: string;
@@ -44,7 +51,7 @@ const UNIDADES: { valor: UnidadAlquiler; etiqueta: string }[] = [
   { valor: "mes", etiqueta: ETIQUETA_UNIDAD_ALQUILER.mes },
 ];
 
-import { calcularDiasAlquiler, calcularCantidadAlquiler } from "@/lib/alquiler";
+import { calcularCantidadAlquiler, calcularDiasAlquiler } from "@/lib/alquiler";
 
 export function FormularioServicio() {
   const navigate = useNavigate();
@@ -56,6 +63,10 @@ export function FormularioServicio() {
   const [clientes, setClientes] = useState<ClienteOpcion[]>([]);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
+  const [tercerizados, setTercerizados] = useState<Tercerizado[]>([]);
+  const [tercerizadoId, setTercerizadoId] = useState("");
+  const [terceroNombre, setTerceroNombre] = useState("");
+  const [costoTercero, setCostoTercero] = useState<number | null>(null);
 
   // 1. Tipo
   const [tipo, setTipo] = useState<TipoServicio>("traslado");
@@ -100,7 +111,8 @@ export function FormularioServicio() {
   const [notas, setNotas] = useState("");
 
   // 5. Estado inicial
-  const [estadoInicial, setEstadoInicial] = useState<EstadoInicialOpcion>("aceptado");
+  const [estadoInicial, setEstadoInicial] =
+    useState<EstadoInicialOpcion>("aceptado");
 
   // Estados de interfaz
   const [guardando, setGuardando] = useState(false);
@@ -139,6 +151,15 @@ export function FormularioServicio() {
       .then(({ data }) => {
         setMaquinas((data as Maquina[]) ?? []);
       });
+
+    supabase
+      .from("tercerizados")
+      .select("*")
+      .eq("activo", true)
+      .order("nombre")
+      .then(({ data }) => {
+        setTercerizados((data as Tercerizado[]) ?? []);
+      });
   }, [clienteParam]);
 
   // Cálculo automático de cantidad para Alquiler por período
@@ -156,7 +177,7 @@ export function FormularioServicio() {
     nuevaDesde: string,
     nuevaHasta: string,
     nuevaUnidad: UnidadAlquiler,
-    nuevoPrecio: number | null
+    nuevoPrecio: number | null,
   ) => {
     if (montoEditadoManualmente) return;
     const dias = calcularDiasAlquiler(nuevaDesde, nuevaHasta);
@@ -173,7 +194,9 @@ export function FormularioServicio() {
 
     // Validaciones
     if (!clienteSinDefinir && !clienteId) {
-      setErrorValidacion("Seleccioná un cliente o marcá que es un cliente sin definir.");
+      setErrorValidacion(
+        "Seleccioná un cliente o marcá que es un cliente sin definir.",
+      );
       return;
     }
 
@@ -204,7 +227,9 @@ export function FormularioServicio() {
         return;
       }
       if (fechaHasta < fechaDesde) {
-        setErrorValidacion("La fecha de fin no puede ser anterior a la de inicio.");
+        setErrorValidacion(
+          "La fecha de fin no puede ser anterior a la de inicio.",
+        );
         return;
       }
       if (!precioUnidad || precioUnidad <= 0) {
@@ -224,16 +249,29 @@ export function FormularioServicio() {
       // 1. Armar payload de servicios (campos de otros tipos van en null)
       const payloadServicio: Record<string, any> = {
         tipo,
-        cliente_id: clienteSinDefinir ? null : (clienteId || null),
+        cliente_id: clienteSinDefinir ? null : clienteId || null,
         creado_por: session?.user?.id ?? null,
         monto: monto ?? 0,
         aplica_iva: aplicaIva,
         fecha_programada: fechaProgramada || null,
-        hora_programada: horaProgramada ? (horaProgramada.length === 5 ? `${horaProgramada}:00` : horaProgramada) : null,
+        hora_programada: horaProgramada
+          ? horaProgramada.length === 5
+            ? `${horaProgramada}:00`
+            : horaProgramada
+          : null,
         remito: remito.trim() || null,
         orden_compra: ordenCompra.trim() || null,
         descripcion: descripcion.trim() || null,
         notas: notas.trim() || null,
+        tercerizado: Boolean(tercerizadoId),
+        tercerizado_id:
+          tercerizadoId && tercerizadoId !== "otro" ? tercerizadoId : null,
+        tercero_nombre:
+          tercerizadoId === "otro"
+            ? terceroNombre.trim() || null
+            : (tercerizados.find((t) => t.id === tercerizadoId)?.nombre ??
+              (terceroNombre.trim() || null)),
+        costo_tercero: costoTercero,
       };
 
       if (tipo === "traslado") {
@@ -247,7 +285,8 @@ export function FormularioServicio() {
       } else if (tipo === "alquiler_hora") {
         payloadServicio.origen = null;
         payloadServicio.destino = null;
-        payloadServicio.carga = horasEstimadas !== "" ? `${horasEstimadas} h` : null;
+        payloadServicio.carga =
+          horasEstimadas !== "" ? `${horasEstimadas} h` : null;
         payloadServicio.km = null;
         payloadServicio.ida_y_vuelta = false;
         payloadServicio.vehiculo_id = vehiculoId || null;
@@ -280,11 +319,12 @@ export function FormularioServicio() {
       }
 
       // Insertar servicio sin estado (queda en consulta)
-      const { data: servicioInsertado, error: errorInsertServicio } = await supabase
-        .from("servicios")
-        .insert(payloadServicio)
-        .select("id")
-        .single();
+      const { data: servicioInsertado, error: errorInsertServicio } =
+        await supabase
+          .from("servicios")
+          .insert(payloadServicio)
+          .select("id")
+          .single();
 
       if (errorInsertServicio || !servicioInsertado?.id) {
         setErrorGuardar("No se pudo guardar el servicio. Probá de nuevo.");
@@ -296,16 +336,18 @@ export function FormularioServicio() {
 
       // Si es alquiler por período, insertar en la tabla alquileres
       if (tipo === "alquiler_periodo") {
-        const { error: errorAlquiler } = await supabase.from("alquileres").insert({
-          servicio_id: nuevoId,
-          fecha_desde: fechaDesde,
-          fecha_hasta: fechaHasta,
-          unidad,
-          cantidad: cantidadCalculada || 1,
-          precio_unidad: precioUnidad ?? 0,
-          renovacion_automatica: renovacionAutomatica,
-          alertar_dias_antes: Number(alertarDiasAntes) || 5,
-        });
+        const { error: errorAlquiler } = await supabase
+          .from("alquileres")
+          .insert({
+            servicio_id: nuevoId,
+            fecha_desde: fechaDesde,
+            fecha_hasta: fechaHasta,
+            unidad,
+            cantidad: cantidadCalculada || 1,
+            precio_unidad: precioUnidad ?? 0,
+            renovacion_automatica: renovacionAutomatica,
+            alertar_dias_antes: Number(alertarDiasAntes) || 5,
+          });
 
         if (errorAlquiler) {
           setErrorGuardar("No se pudo guardar el servicio. Probá de nuevo.");
@@ -408,9 +450,13 @@ export function FormularioServicio() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Etiqueta htmlFor="cliente">
-                Cliente {!clienteSinDefinir && <span className="text-peligro">*</span>}
+                Cliente{" "}
+                {!clienteSinDefinir && <span className="text-peligro">*</span>}
               </Etiqueta>
-              <Link to="/clientes/nuevo" className="text-sm font-medium text-marca hover:underline">
+              <Link
+                to="/clientes/nuevo"
+                className="text-sm font-medium text-marca hover:underline"
+              >
                 Crear cliente
               </Link>
             </div>
@@ -419,7 +465,9 @@ export function FormularioServicio() {
               value={clienteId}
               onChange={(e) => setClienteId(e.target.value)}
               disabled={clienteSinDefinir}
-              className={clienteSinDefinir ? "opacity-50 cursor-not-allowed" : ""}
+              className={
+                clienteSinDefinir ? "opacity-50 cursor-not-allowed" : ""
+              }
             >
               <option value="">Seleccionar cliente...</option>
               {clientes.map((c) => (
@@ -445,7 +493,9 @@ export function FormularioServicio() {
           {/* 3. Campos según tipo */}
           {tipo === "traslado" && (
             <div className="space-y-4 rounded-lg border border-borde bg-fondo/50 p-4">
-              <h3 className="text-sm font-semibold text-tinta">Detalles del traslado</h3>
+              <h3 className="text-sm font-semibold text-tinta">
+                Detalles del traslado
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Campo etiqueta="Origen" id="origen">
                   <Entrada
@@ -495,7 +545,9 @@ export function FormularioServicio() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <fieldset>
-                  <legend className="mb-1.5 block text-sm font-medium text-tinta-suave">Recorrido</legend>
+                  <legend className="mb-1.5 block text-sm font-medium text-tinta-suave">
+                    Recorrido
+                  </legend>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -544,7 +596,9 @@ export function FormularioServicio() {
 
           {tipo === "alquiler_hora" && (
             <div className="space-y-4 rounded-lg border border-borde bg-fondo/50 p-4">
-              <h3 className="text-sm font-semibold text-tinta">Detalles del alquiler por hora</h3>
+              <h3 className="text-sm font-semibold text-tinta">
+                Detalles del alquiler por hora
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Campo etiqueta="Máquina *" id="maquina">
                   <Selector
@@ -581,7 +635,10 @@ export function FormularioServicio() {
                 </Campo>
               </div>
 
-              <Campo etiqueta="Vehículo (para el traslado de la máquina)" id="vehiculo_traslado">
+              <Campo
+                etiqueta="Vehículo (para el traslado de la máquina)"
+                id="vehiculo_traslado"
+              >
                 <Selector
                   id="vehiculo_traslado"
                   value={vehiculoId}
@@ -600,7 +657,9 @@ export function FormularioServicio() {
 
           {tipo === "alquiler_periodo" && (
             <div className="space-y-4 rounded-lg border border-borde bg-fondo/50 p-4">
-              <h3 className="text-sm font-semibold text-tinta">Detalles del alquiler por período</h3>
+              <h3 className="text-sm font-semibold text-tinta">
+                Detalles del alquiler por período
+              </h3>
               <Campo etiqueta="Máquina *" id="maquina_periodo">
                 <Selector
                   id="maquina_periodo"
@@ -647,7 +706,9 @@ export function FormularioServicio() {
               </div>
 
               <fieldset>
-                <legend className="mb-1.5 block text-sm font-medium text-tinta-suave">Unidad</legend>
+                <legend className="mb-1.5 block text-sm font-medium text-tinta-suave">
+                  Unidad
+                </legend>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {UNIDADES.map((u) => {
                     const activa = unidad === u.valor;
@@ -657,7 +718,12 @@ export function FormularioServicio() {
                         type="button"
                         onClick={() => {
                           setUnidad(u.valor);
-                          recalcularMonto(fechaDesde, fechaHasta, u.valor, precioUnidad);
+                          recalcularMonto(
+                            fechaDesde,
+                            fechaHasta,
+                            u.valor,
+                            precioUnidad,
+                          );
                         }}
                         aria-pressed={activa}
                         className={`h-10 rounded-md border text-sm font-medium transition-colors ${
@@ -678,7 +744,8 @@ export function FormularioServicio() {
                   <div className="flex h-10 w-full items-center rounded-md border border-borde bg-superficie px-3 text-sm font-medium text-tinta">
                     {cantidadCalculada > 0 ? (
                       <span>
-                        {cantidadCalculada} {formatearUnidadPlural(unidad, cantidadCalculada)}
+                        {cantidadCalculada}{" "}
+                        {formatearUnidadPlural(unidad, cantidadCalculada)}
                         {unidad !== "dia" && diasTotales > 0 && (
                           <span className="text-xs text-tinta-suave font-normal ml-2">
                             ({diasTotales} {diasTotales === 1 ? "día" : "días"})
@@ -686,7 +753,9 @@ export function FormularioServicio() {
                         )}
                       </span>
                     ) : (
-                      <span className="text-tinta-tenue">Completá las fechas</span>
+                      <span className="text-tinta-tenue">
+                        Completá las fechas
+                      </span>
                     )}
                   </div>
                 </Campo>
@@ -731,7 +800,9 @@ export function FormularioServicio() {
 
           {tipo === "mantenimiento" && (
             <div className="space-y-4 rounded-lg border border-borde bg-fondo/50 p-4">
-              <h3 className="text-sm font-semibold text-tinta">Detalles del mantenimiento</h3>
+              <h3 className="text-sm font-semibold text-tinta">
+                Detalles del mantenimiento
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Campo etiqueta="Máquina del cliente *" id="maquina_cliente">
                   <Entrada
@@ -742,7 +813,10 @@ export function FormularioServicio() {
                   />
                 </Campo>
 
-                <Campo etiqueta="Vehículo (opcional)" id="vehiculo_mantenimiento">
+                <Campo
+                  etiqueta="Vehículo (opcional)"
+                  id="vehiculo_mantenimiento"
+                >
                   <Selector
                     id="vehiculo_mantenimiento"
                     value={vehiculoId}
@@ -822,7 +896,11 @@ export function FormularioServicio() {
                 <p className="mt-1 text-xs text-tinta-suave">
                   Para calcular el precio con la fórmula, usá el{" "}
                   <Link
-                    to={clienteId ? `/cotizador?cliente=${clienteId}` : "/cotizador"}
+                    to={
+                      clienteId
+                        ? `/cotizador?cliente=${clienteId}`
+                        : "/cotizador"
+                    }
                     className="text-marca underline hover:text-marca-oscuro"
                   >
                     Cotizador
@@ -842,6 +920,64 @@ export function FormularioServicio() {
                 />
                 Aplica IVA
               </label>
+            </div>
+
+            {/* Tercerización */}
+            <div className="p-4 rounded-md border border-borde bg-fondo space-y-3">
+              <h4 className="text-sm font-semibold text-tinta">
+                Tercerización
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Campo etiqueta="Tercerizado" id="tercerizado_id">
+                  <Selector
+                    id="tercerizado_id"
+                    value={tercerizadoId}
+                    onChange={(e) => {
+                      setTercerizadoId(e.target.value);
+                      if (!e.target.value) {
+                        setCostoTercero(null);
+                        setTerceroNombre("");
+                      }
+                    }}
+                  >
+                    <option value="">No (flota propia)</option>
+                    {tercerizados.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nombre} {t.tipo ? `(${t.tipo})` : ""}
+                      </option>
+                    ))}
+                    <option value="otro">Otro transportista / grúa...</option>
+                  </Selector>
+                </Campo>
+
+                {tercerizadoId !== "" && (
+                  <div>
+                    <Etiqueta htmlFor="costo_tercero">
+                      Costo del tercero
+                    </Etiqueta>
+                    <EntradaMonto
+                      id="costo_tercero"
+                      valor={costoTercero}
+                      onChange={setCostoTercero}
+                      placeholder="Monto acordado con el tercero"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {tercerizadoId === "otro" && (
+                <Campo
+                  etiqueta="Nombre del transportista / grúa"
+                  id="tercero_nombre"
+                >
+                  <Entrada
+                    id="tercero_nombre"
+                    placeholder="Ej: Auxilios San Cayetano"
+                    value={terceroNombre}
+                    onChange={(e) => setTerceroNombre(e.target.value)}
+                  />
+                </Campo>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -890,7 +1026,9 @@ export function FormularioServicio() {
                     : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
                 }`}
               >
-                <div className={`text-sm font-semibold ${estadoInicial === "presupuesto" ? "text-marca" : "text-tinta"}`}>
+                <div
+                  className={`text-sm font-semibold ${estadoInicial === "presupuesto" ? "text-marca" : "text-tinta"}`}
+                >
                   Presupuesto
                 </div>
                 <div className="text-xs text-tinta-suave mt-0.5">
@@ -908,7 +1046,9 @@ export function FormularioServicio() {
                     : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
                 }`}
               >
-                <div className={`text-sm font-semibold ${estadoInicial === "aceptado" ? "text-marca" : "text-tinta"}`}>
+                <div
+                  className={`text-sm font-semibold ${estadoInicial === "aceptado" ? "text-marca" : "text-tinta"}`}
+                >
                   Aceptado
                 </div>
                 <div className="text-xs text-tinta-suave mt-0.5">
@@ -926,7 +1066,9 @@ export function FormularioServicio() {
                     : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
                 }`}
               >
-                <div className={`text-sm font-semibold ${estadoInicial === "programado" ? "text-marca" : "text-tinta"}`}>
+                <div
+                  className={`text-sm font-semibold ${estadoInicial === "programado" ? "text-marca" : "text-tinta"}`}
+                >
                   Programado
                 </div>
                 <div className="text-xs text-tinta-suave mt-0.5">
@@ -938,16 +1080,10 @@ export function FormularioServicio() {
 
           {/* Errores */}
           {errorValidacion && (
-            <Aviso variante="peligro">
-              {errorValidacion}
-            </Aviso>
+            <Aviso variante="peligro">{errorValidacion}</Aviso>
           )}
 
-          {errorGuardar && (
-            <Aviso variante="peligro">
-              {errorGuardar}
-            </Aviso>
-          )}
+          {errorGuardar && <Aviso variante="peligro">{errorGuardar}</Aviso>}
 
           {/* 6. Acciones */}
           <BarraAcciones>
@@ -959,10 +1095,7 @@ export function FormularioServicio() {
             >
               Cancelar
             </Boton>
-            <Boton
-              type="submit"
-              disabled={guardando}
-            >
+            <Boton type="submit" disabled={guardando}>
               {guardando ? "Guardando..." : "Guardar servicio"}
             </Boton>
           </BarraAcciones>

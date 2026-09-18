@@ -3,13 +3,30 @@
 
 export type Rol = "admin" | "oficina" | "chofer";
 
-export type TipoServicio = "traslado" | "alquiler_hora" | "alquiler_periodo" | "mantenimiento" | "otro";
+export type TipoServicio =
+  | "traslado"
+  | "alquiler_hora"
+  | "alquiler_periodo"
+  | "mantenimiento"
+  | "otro";
 
 export type EstadoServicio =
-  | "consulta" | "presupuestado" | "aceptado" | "programado"
-  | "en_curso" | "terminado" | "cobrado" | "facturado" | "cancelado";
+  | "consulta"
+  | "presupuestado"
+  | "aceptado"
+  | "programado"
+  | "en_curso"
+  | "terminado"
+  | "cobrado"
+  | "facturado"
+  | "cancelado";
 
-export type MedioPago = "efectivo" | "transferencia" | "cheque" | "echeq" | "otro";
+export type MedioPago =
+  | "efectivo"
+  | "transferencia"
+  | "cheque"
+  | "echeq"
+  | "otro";
 
 export interface Perfil {
   id: string;
@@ -20,10 +37,27 @@ export interface Perfil {
 }
 
 export type TipoCliente = "empresa" | "particular" | "municipio";
-export type CondicionIva = "responsable_inscripto" | "monotributo" | "exento" | "consumidor_final";
-export type CondicionPago = "contado" | "transferencia_diferida" | "cuenta_corriente";
-export type ModoFacturacion = "por_servicio" | "diaria" | "quincenal" | "mensual" | "manual";
-export type EstadoEmision = "manual" | "borrador" | "emitiendo" | "emitida" | "error";
+export type CondicionIva =
+  | "responsable_inscripto"
+  | "monotributo"
+  | "exento"
+  | "consumidor_final";
+export type CondicionPago =
+  | "contado"
+  | "transferencia_diferida"
+  | "cuenta_corriente";
+export type ModoFacturacion =
+  | "por_servicio"
+  | "diaria"
+  | "quincenal"
+  | "mensual"
+  | "manual";
+export type EstadoEmision =
+  | "manual"
+  | "borrador"
+  | "emitiendo"
+  | "emitida"
+  | "error";
 export type AmbienteArca = "homologacion" | "produccion";
 
 export interface Cliente {
@@ -59,11 +93,113 @@ export interface Vehiculo {
   id: string;
   nombre: string;
   tipo: "camion" | "camioneta" | "trailer";
+  patente?: string | null;
+  marca?: string | null;
+  modelo?: string | null;
+  anio?: number | null;
+  km_actual?: number | null;
+  vtv_vence?: string | null;
+  seguro_vence?: string | null;
+  seguro_compania?: string | null;
+  notas_flota?: string | null;
   coef_precio: number;
   coef_carga_menor_50: number;
   coef_carga_mayor_50: number;
+  consumo_l_100km?: number | null;
   estado: "disponible" | "en_servicio" | "taller" | "baja";
   activo: boolean;
+  notas?: string | null;
+}
+
+export interface Tercerizado {
+  id: string;
+  nombre: string;
+  telefono: string | null;
+  cuit: string | null;
+  tipo: string | null;
+  notas: string | null;
+  activo: boolean;
+}
+
+export type TipoEventoFlota =
+  | "taller"
+  | "service"
+  | "reparacion"
+  | "vtv"
+  | "seguro"
+  | "patente"
+  | "neumaticos"
+  | "otro";
+
+export const ETIQUETA_EVENTO_FLOTA: Record<TipoEventoFlota, string> = {
+  taller: "Taller",
+  service: "Service",
+  reparacion: "Reparación",
+  vtv: "VTV",
+  seguro: "Seguro",
+  patente: "Patente",
+  neumaticos: "Neumáticos",
+  otro: "Otro",
+};
+
+export interface EventoFlota {
+  id: string;
+  vehiculo_id: string | null;
+  maquina_id: string | null;
+  fecha: string;
+  fecha_fin: string | null;
+  tipo: TipoEventoFlota;
+  descripcion: string | null;
+  km: number | null;
+  horas: number | null;
+  costo: number | null;
+  movimiento_id: string | null;
+  proximo_vencimiento: string | null;
+  proveedor: string | null;
+  creado_por: string | null;
+  created_at: string;
+  vehiculos?: { nombre: string; patente?: string | null } | null;
+  maquinas?: {
+    codigo_interno: string | null;
+    marca?: string | null;
+    modelo?: string | null;
+  } | null;
+}
+
+export type TipoNovedad =
+  | "ausente"
+  | "medico"
+  | "vacaciones"
+  | "franco"
+  | "feriado"
+  | "adelanto"
+  | "licencia"
+  | "otro";
+
+export const ETIQUETA_TIPO_NOVEDAD: Record<TipoNovedad, string> = {
+  ausente: "Ausente",
+  medico: "Médico",
+  vacaciones: "Vacaciones",
+  franco: "Franco",
+  feriado: "Feriado",
+  adelanto: "Adelanto",
+  licencia: "Licencia",
+  otro: "Otro",
+};
+
+export interface NovedadEmpleado {
+  id: string;
+  empleado_id: string | null;
+  empleado_nombre: string | null;
+  fecha: string;
+  fecha_hasta: string | null;
+  tipo: TipoNovedad;
+  monto: number | null;
+  movimiento_id: string | null;
+  notas: string | null;
+  creado_por: string | null;
+  created_at: string;
+  perfiles?: { nombre: string; rol?: Rol } | null;
 }
 
 export interface ParametrosCotizador {
@@ -75,7 +211,13 @@ export interface ParametrosCotizador {
   precio_gasoil: number | null;
 }
 
-export type TipoMaquina = "autoelevador" | "plataforma" | "zorra" | "apilador" | "escalera" | "otro";
+export type TipoMaquina =
+  | "autoelevador"
+  | "plataforma"
+  | "zorra"
+  | "apilador"
+  | "escalera"
+  | "otro";
 export type EstadoMaquina = "disponible" | "alquilada" | "taller" | "baja";
 
 export interface Maquina {
@@ -85,6 +227,12 @@ export interface Maquina {
   marca: string | null;
   modelo: string | null;
   capacidad: string | null;
+  anio?: number | null;
+  horas_actual?: number | null;
+  numero_serie?: string | null;
+  combustible?: string | null;
+  ultimo_service?: string | null;
+  proximo_service?: string | null;
   estado: EstadoMaquina;
   activo: boolean;
   notas: string | null;
@@ -117,6 +265,10 @@ export interface Servicio {
   no_facturable: boolean;
   notas: string | null;
   no_planificado: boolean;
+  tercerizado?: boolean;
+  tercerizado_id?: string | null;
+  tercero_nombre?: string | null;
+  costo_tercero?: number | null;
   presupuesto_validez_dias?: number | null;
   presupuesto_condiciones?: string | null;
   presupuesto_pdf_path?: string | null;
@@ -133,7 +285,14 @@ export interface Servicio {
   } | null;
   vehiculos?: { nombre: string } | null;
   maquinas?: { codigo_interno: string | null; tipo: TipoMaquina } | null;
-  facturas?: { id?: string; tipo: TipoFactura; punto_venta: number; numero: number; fecha?: string } | null;
+  tercerizados?: Tercerizado | null;
+  facturas?: {
+    id?: string;
+    tipo: TipoFactura;
+    punto_venta: number;
+    numero: number;
+    fecha?: string;
+  } | null;
   alquileres?: Alquiler | null;
 }
 
@@ -165,7 +324,6 @@ export interface Empresa {
   updated_at?: string;
 }
 
-
 export interface ServicioEvento {
   id: number;
   servicio_id: string;
@@ -184,7 +342,12 @@ export interface ServicioChofer {
 
 export type EstadoCobro = "pendiente" | "acreditado" | "rechazado";
 export type TipoCheque = "recibido" | "emitido";
-export type EstadoCheque = "en_cartera" | "depositado" | "acreditado" | "rechazado" | "endosado";
+export type EstadoCheque =
+  | "en_cartera"
+  | "depositado"
+  | "acreditado"
+  | "rechazado"
+  | "endosado";
 
 export interface Cuenta {
   id: string;
@@ -409,7 +572,10 @@ export const ETIQUETA_UNIDAD_ALQUILER_PLURAL: Record<UnidadAlquiler, string> = {
   mes: "meses",
 };
 
-export function formatearUnidadPlural(unidad: UnidadAlquiler, cantidad: number): string {
+export function formatearUnidadPlural(
+  unidad: UnidadAlquiler,
+  cantidad: number,
+): string {
   if (cantidad === 1) {
     return ETIQUETA_UNIDAD_ALQUILER[unidad].toLowerCase();
   }
@@ -445,8 +611,16 @@ export interface Factura {
   created_at?: string;
   factura_asociada_id: string | null;
   anulada: boolean;
-  clientes?: { nombre: string; cuit?: string | null; condicion_iva?: CondicionIva | null } | null;
-  factura_asociada?: { tipo: TipoFactura; punto_venta: number; numero: number } | null;
+  clientes?: {
+    nombre: string;
+    cuit?: string | null;
+    condicion_iva?: CondicionIva | null;
+  } | null;
+  factura_asociada?: {
+    tipo: TipoFactura;
+    punto_venta: number;
+    numero: number;
+  } | null;
 }
 
 export interface DescartadoLote {
@@ -484,7 +658,6 @@ export interface ArcaLog {
   duracion_ms: number;
   created_at: string;
 }
-
 
 export const ETIQUETA_TIPO_FACTURA: Record<TipoFactura, string> = {
   A: "Factura A",

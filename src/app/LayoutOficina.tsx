@@ -1,10 +1,29 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Truck, Calculator, Users, Wallet, Landmark, Receipt, Settings, LogOut, Plus, Menu } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { MenuAcciones, type AccionMenu } from "@/components/ui/MenuAcciones";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useRealtime } from "@/hooks/use-realtime";
-import { MenuAcciones, type AccionMenu } from "@/components/ui/MenuAcciones";
+import { supabase } from "@/lib/supabase";
+import {
+  Calculator,
+  Forklift,
+  Landmark,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Plus,
+  Receipt,
+  Settings,
+  Truck,
+  Users,
+  Wallet,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import type { Rol } from "@/lib/tipos";
 
@@ -22,6 +41,7 @@ const enlacesSidebar = [
   { a: "/cobros", texto: "Cobros", Icono: Wallet },
   { a: "/caja", texto: "Caja", Icono: Landmark },
   { a: "/facturacion", texto: "Facturación", Icono: Receipt },
+  { a: "/flota", texto: "Flota", Icono: Forklift },
 ];
 
 const enlacesMovil = [
@@ -33,16 +53,21 @@ const enlacesMovil = [
 
 export function LayoutOficina() {
   const { perfil, salir } = useAuth();
-  const primerNombre = perfil?.nombre ? perfil.nombre.trim().split(/\s+/)[0] : "";
+  const primerNombre = perfil?.nombre
+    ? perfil.nombre.trim().split(/\s+/)[0]
+    : "";
 
   const location = useLocation();
   const navigate = useNavigate();
   const rutasConFab = ["/", "/servicios", "/clientes"];
   const mostrarFab = rutasConFab.includes(location.pathname);
-  const destinoFab = location.pathname === "/clientes" ? "/clientes/nuevo" : "/servicios/nuevo";
-  const etiquetaFab = location.pathname === "/clientes" ? "Nuevo cliente" : "Nuevo servicio";
+  const destinoFab =
+    location.pathname === "/clientes" ? "/clientes/nuevo" : "/servicios/nuevo";
+  const etiquetaFab =
+    location.pathname === "/clientes" ? "Nuevo cliente" : "Nuevo servicio";
 
   const accionesMas: AccionMenu[] = [
+    { texto: "Flota", onClick: () => navigate("/flota") },
     { texto: "Cobros", onClick: () => navigate("/cobros") },
     { texto: "Facturación", onClick: () => navigate("/facturacion") },
     { texto: "Cotizador", onClick: () => navigate("/cotizador") },
@@ -52,28 +77,37 @@ export function LayoutOficina() {
     { texto: "Mi cuenta", onClick: () => navigate("/mi-cuenta") },
   ];
 
-  const esRutaMas = ["/cobros", "/facturacion", "/cotizador", "/configuracion", "/mi-cuenta"].some(
-    (r) => location.pathname.startsWith(r)
-  );
+  const esRutaMas = [
+    "/flota",
+    "/cobros",
+    "/facturacion",
+    "/cotizador",
+    "/configuracion",
+    "/mi-cuenta",
+  ].some((r) => location.pathname.startsWith(r));
 
   const [hayPendientesServicios, setHayPendientesServicios] = useState(false);
 
   const consultarPendientes = useCallback(async () => {
-    const [{ count: cTerminados }, { count: cSinFacturar }] = await Promise.all([
-      supabase
-        .from("servicios")
-        .select("id", { count: "exact", head: true })
-        .eq("estado", "terminado")
-        .limit(1),
-      supabase
-        .from("servicios")
-        .select("id", { count: "exact", head: true })
-        .eq("estado", "cobrado")
-        .is("factura_id", null)
-        .eq("no_facturable", false)
-        .limit(1),
-    ]);
-    setHayPendientesServicios((cTerminados ?? 0) > 0 || (cSinFacturar ?? 0) > 0);
+    const [{ count: cTerminados }, { count: cSinFacturar }] = await Promise.all(
+      [
+        supabase
+          .from("servicios")
+          .select("id", { count: "exact", head: true })
+          .eq("estado", "terminado")
+          .limit(1),
+        supabase
+          .from("servicios")
+          .select("id", { count: "exact", head: true })
+          .eq("estado", "cobrado")
+          .is("factura_id", null)
+          .eq("no_facturable", false)
+          .limit(1),
+      ],
+    );
+    setHayPendientesServicios(
+      (cTerminados ?? 0) > 0 || (cSinFacturar ?? 0) > 0,
+    );
   }, []);
 
   useEffect(() => {
@@ -97,7 +131,9 @@ export function LayoutOficina() {
               end={a === "/"}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                  isActive ? "bg-marca-suave text-marca" : "text-tinta-suave hover:bg-fondo hover:text-tinta"
+                  isActive
+                    ? "bg-marca-suave text-marca"
+                    : "text-tinta-suave hover:bg-fondo hover:text-tinta"
                 }`
               }
             >
@@ -116,7 +152,9 @@ export function LayoutOficina() {
               to="/configuracion"
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
-                  isActive ? "bg-marca-suave text-marca" : "text-tinta-suave hover:bg-fondo hover:text-tinta"
+                  isActive
+                    ? "bg-marca-suave text-marca"
+                    : "text-tinta-suave hover:bg-fondo hover:text-tinta"
                 }`
               }
             >
@@ -127,14 +165,24 @@ export function LayoutOficina() {
         </nav>
         <div className="flex items-center justify-between gap-3 text-sm md:mt-auto md:border-t md:border-borde md:px-2 md:pt-4">
           {primerNombre && (
-            <Link to="/mi-cuenta" className="text-sm font-semibold text-tinta hover:text-marca md:hidden">
+            <Link
+              to="/mi-cuenta"
+              className="text-sm font-semibold text-tinta hover:text-marca md:hidden"
+            >
               Hola, {primerNombre}
             </Link>
           )}
-          <Link to="/mi-cuenta" className="hidden min-w-0 flex-col md:flex hover:opacity-80 transition-opacity">
-            <span className="truncate font-medium text-tinta">{perfil?.nombre}</span>
+          <Link
+            to="/mi-cuenta"
+            className="hidden min-w-0 flex-col md:flex hover:opacity-80 transition-opacity"
+          >
+            <span className="truncate font-medium text-tinta">
+              {perfil?.nombre}
+            </span>
             {perfil?.rol && (
-              <span className="truncate text-xs text-tinta-suave">{etiquetasRol[perfil.rol]}</span>
+              <span className="truncate text-xs text-tinta-suave">
+                {etiquetasRol[perfil.rol]}
+              </span>
             )}
           </Link>
           <button

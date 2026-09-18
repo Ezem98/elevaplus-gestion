@@ -1,24 +1,51 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { supabase } from "@/lib/supabase";
-import type { CondicionIva, Empresa, ParametrosCotizador, Servicio, AmbienteArca } from "@/lib/tipos";
-import { ETIQUETA_CONDICION_IVA } from "@/lib/tipos";
+import { Aviso } from "@/components/ui/Aviso";
+import { BarraAcciones } from "@/components/ui/BarraAcciones";
+import { Boton } from "@/components/ui/Boton";
+import {
+  AreaTexto,
+  Campo,
+  Entrada,
+  Etiqueta,
+  Selector,
+} from "@/components/ui/Campo";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
+import { EntradaMonto } from "@/components/ui/EntradaMonto";
+import { Tarjeta } from "@/components/ui/Tarjeta";
 import { formatearFecha, formatearPesos } from "@/lib/formato";
 import { armarCondiciones } from "@/lib/presupuesto";
-import { Tarjeta } from "@/components/ui/Tarjeta";
-import { Boton } from "@/components/ui/Boton";
-import { BarraAcciones } from "@/components/ui/BarraAcciones";
-import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
-import { AreaTexto, Campo, Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
-import { EntradaMonto } from "@/components/ui/EntradaMonto";
-import { Aviso } from "@/components/ui/Aviso";
+import { supabase } from "@/lib/supabase";
+import type {
+  AmbienteArca,
+  CondicionIva,
+  Empresa,
+  ParametrosCotizador,
+  Servicio,
+} from "@/lib/tipos";
+import { ETIQUETA_CONDICION_IVA } from "@/lib/tipos";
+import { useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
+import { SeccionEmpleados } from "./SeccionEmpleados";
 
 export function PaginaConfiguracion() {
-  const [tabConfig, setTabConfig] = useState<"empresa" | "facturacion_arca" | "presupuestos" | "cotizador">("empresa");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [tabConfig, setTabConfig] = useState<
+    "empresa" | "facturacion_arca" | "presupuestos" | "cotizador" | "empleados"
+  >(
+    tabParam === "empleados" ||
+      tabParam === "facturacion_arca" ||
+      tabParam === "presupuestos" ||
+      tabParam === "cotizador"
+      ? tabParam
+      : "empresa",
+  );
 
   // --- Estado Empresa ---
   const [razonSocial, setRazonSocial] = useState("");
   const [cuit, setCuit] = useState("");
-  const [condicionIva, setCondicionIva] = useState<CondicionIva>("responsable_inscripto");
+  const [condicionIva, setCondicionIva] = useState<CondicionIva>(
+    "responsable_inscripto",
+  );
   const [domicilio, setDomicilio] = useState("");
   const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
@@ -29,10 +56,15 @@ export function PaginaConfiguracion() {
   const [errorEmpresa, setErrorEmpresa] = useState<string | null>(null);
 
   // --- Estado Facturación Electrónica ARCA ---
-  const [arcaAmbiente, setArcaAmbiente] = useState<AmbienteArca>("homologacion");
+  const [arcaAmbiente, setArcaAmbiente] =
+    useState<AmbienteArca>("homologacion");
   const [puntoVentaWs, setPuntoVentaWs] = useState<number | string>(3);
-  const [topeDiarioFacturas, setTopeDiarioFacturas] = useState<number | string>(20);
-  const [topeDiarioMonto, setTopeDiarioMonto] = useState<number | null>(20000000);
+  const [topeDiarioFacturas, setTopeDiarioFacturas] = useState<number | string>(
+    20,
+  );
+  const [topeDiarioMonto, setTopeDiarioMonto] = useState<number | null>(
+    20000000,
+  );
   const [cbu, setCbu] = useState("");
   const [aliasCbu, setAliasCbu] = useState("");
   const [banco, setBanco] = useState("");
@@ -45,12 +77,18 @@ export function PaginaConfiguracion() {
 
   // --- Estado Presupuestos ---
   const [validezDias, setValidezDias] = useState<number | string>(15);
-  const [precioEsperaCamion, setPrecioEsperaCamion] = useState<number | null>(null);
-  const [precioEsperaAutoelevador, setPrecioEsperaAutoelevador] = useState<number | null>(null);
+  const [precioEsperaCamion, setPrecioEsperaCamion] = useState<number | null>(
+    null,
+  );
+  const [precioEsperaAutoelevador, setPrecioEsperaAutoelevador] = useState<
+    number | null
+  >(null);
   const [textoEsperaAutoelevador, setTextoEsperaAutoelevador] = useState("");
   const [condicionesExtra, setCondicionesExtra] = useState("");
   const [guardandoPresupuesto, setGuardandoPresupuesto] = useState(false);
-  const [mensajePresupuesto, setMensajePresupuesto] = useState<string | null>(null);
+  const [mensajePresupuesto, setMensajePresupuesto] = useState<string | null>(
+    null,
+  );
   const [errorPresupuesto, setErrorPresupuesto] = useState<string | null>(null);
 
   // --- Estado Cotizador ---
@@ -66,9 +104,13 @@ export function PaginaConfiguracion() {
   const [nuevoPrecioKm, setNuevoPrecioKm] = useState<number | null>(null);
   const [nuevoMontoMinimo, setNuevoMontoMinimo] = useState<number | null>(null);
   const [nuevoKmMinimo, setNuevoKmMinimo] = useState<number | string>("");
-  const [nuevoPrecioGasoil, setNuevoPrecioGasoil] = useState<number | null>(null);
+  const [nuevoPrecioGasoil, setNuevoPrecioGasoil] = useState<number | null>(
+    null,
+  );
   const [guardandoParametros, setGuardandoParametros] = useState(false);
-  const [mensajeParametros, setMensajeParametros] = useState<string | null>(null);
+  const [mensajeParametros, setMensajeParametros] = useState<string | null>(
+    null,
+  );
   const [errorParametros, setErrorParametros] = useState<string | null>(null);
 
   const cargarEmpresa = async () => {
@@ -102,11 +144,12 @@ export function PaginaConfiguracion() {
       setCbu(emp.cbu || "");
       setAliasCbu(emp.alias_cbu || "");
       setBanco(emp.banco || "");
-      setEmailFacturacion(emp.email_facturacion || "facturacion@eleva-plus.com.ar");
+      setEmailFacturacion(
+        emp.email_facturacion || "facturacion@eleva-plus.com.ar",
+      );
       setTextoPieFactura(emp.texto_pie_factura || "");
     }
   };
-
 
   const cargarParametros = async () => {
     setCargandoParametros(true);
@@ -178,7 +221,10 @@ export function PaginaConfiguracion() {
       .update({
         arca_ambiente: arcaAmbiente,
         punto_venta_ws: Math.max(1, Math.floor(Number(puntoVentaWs) || 3)),
-        tope_diario_facturas: Math.max(1, Math.floor(Number(topeDiarioFacturas) || 20)),
+        tope_diario_facturas: Math.max(
+          1,
+          Math.floor(Number(topeDiarioFacturas) || 20),
+        ),
         tope_diario_monto: topeDiarioMonto || 20000000,
         cbu: cbu.trim() || null,
         alias_cbu: aliasCbu.trim() || null,
@@ -211,7 +257,10 @@ export function PaginaConfiguracion() {
     const { error } = await supabase
       .from("empresa")
       .update({
-        presupuesto_validez_dias: Math.max(1, Math.floor(Number(validezDias) || 15)),
+        presupuesto_validez_dias: Math.max(
+          1,
+          Math.floor(Number(validezDias) || 15),
+        ),
         precio_hora_espera_camion: precioEsperaCamion,
         precio_hora_espera_autoelevador: precioEsperaAutoelevador,
         presupuesto_espera_autoelevador: textoEsperaAutoelevador.trim(),
@@ -238,15 +287,13 @@ export function PaginaConfiguracion() {
     setGuardandoParametros(true);
     setErrorParametros(null);
 
-    const { error } = await supabase
-      .from("parametros_cotizador")
-      .insert({
-        vigente_desde: nuevoVigenteDesde,
-        precio_km: nuevoPrecioKm ?? 0,
-        monto_minimo: nuevoMontoMinimo ?? 0,
-        km_minimo: Number(nuevoKmMinimo) || 1,
-        precio_gasoil: nuevoPrecioGasoil,
-      });
+    const { error } = await supabase.from("parametros_cotizador").insert({
+      vigente_desde: nuevoVigenteDesde,
+      precio_km: nuevoPrecioKm ?? 0,
+      monto_minimo: nuevoMontoMinimo ?? 0,
+      km_minimo: Number(nuevoKmMinimo) || 1,
+      precio_gasoil: nuevoPrecioGasoil,
+    });
 
     setGuardandoParametros(false);
 
@@ -303,14 +350,17 @@ export function PaginaConfiguracion() {
         subtitulo="Datos de la empresa, términos de presupuestos y parámetros del cotizador"
       />
 
-      {/* Selector de pestañas en celular para separar los 3 formularios */}
-      <div className="flex border-b border-borde md:hidden">
+      {/* Selector de pestañas */}
+      <div className="flex border-b border-borde overflow-x-auto gap-2 -mb-2">
         <button
           type="button"
-          onClick={() => setTabConfig("empresa")}
-          className={`flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
+          onClick={() => {
+            setTabConfig("empresa");
+            setSearchParams({ tab: "empresa" });
+          }}
+          className={`px-3 py-2.5 text-center text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
             tabConfig === "empresa"
-              ? "border-marca text-marca"
+              ? "border-marca text-marca font-semibold"
               : "border-transparent text-tinta-suave hover:text-tinta"
           }`}
         >
@@ -318,10 +368,13 @@ export function PaginaConfiguracion() {
         </button>
         <button
           type="button"
-          onClick={() => setTabConfig("facturacion_arca")}
-          className={`flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
+          onClick={() => {
+            setTabConfig("facturacion_arca");
+            setSearchParams({ tab: "facturacion_arca" });
+          }}
+          className={`px-3 py-2.5 text-center text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
             tabConfig === "facturacion_arca"
-              ? "border-marca text-marca"
+              ? "border-marca text-marca font-semibold"
               : "border-transparent text-tinta-suave hover:text-tinta"
           }`}
         >
@@ -329,36 +382,64 @@ export function PaginaConfiguracion() {
         </button>
         <button
           type="button"
-          onClick={() => setTabConfig("presupuestos")}
-          className={`flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
+          onClick={() => {
+            setTabConfig("presupuestos");
+            setSearchParams({ tab: "presupuestos" });
+          }}
+          className={`px-3 py-2.5 text-center text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
             tabConfig === "presupuestos"
-              ? "border-marca text-marca"
+              ? "border-marca text-marca font-semibold"
               : "border-transparent text-tinta-suave hover:text-tinta"
           }`}
         >
           Presupuestos
         </button>
-
         <button
           type="button"
-          onClick={() => setTabConfig("cotizador")}
-          className={`flex-1 py-2.5 text-center text-sm font-medium border-b-2 transition-colors ${
+          onClick={() => {
+            setTabConfig("cotizador");
+            setSearchParams({ tab: "cotizador" });
+          }}
+          className={`px-3 py-2.5 text-center text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
             tabConfig === "cotizador"
-              ? "border-marca text-marca"
+              ? "border-marca text-marca font-semibold"
               : "border-transparent text-tinta-suave hover:text-tinta"
           }`}
         >
           Cotizador
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setTabConfig("empleados");
+            setSearchParams({ tab: "empleados" });
+          }}
+          className={`px-3 py-2.5 text-center text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+            tabConfig === "empleados"
+              ? "border-marca text-marca font-semibold"
+              : "border-transparent text-tinta-suave hover:text-tinta"
+          }`}
+        >
+          Empleados
+        </button>
       </div>
 
       {/* 1. Tarjeta Empresa */}
-      <Tarjeta className={`p-6 ${tabConfig === "empresa" ? "block" : "hidden md:block"}`}>
+      <Tarjeta
+        className={`p-6 ${tabConfig === "empresa" ? "block" : "hidden"}`}
+      >
         <h2 className="text-lg font-semibold text-tinta mb-4">Empresa</h2>
 
-        {errorEmpresa && <Aviso variante="peligro" className="mb-4">{errorEmpresa}</Aviso>}
+        {errorEmpresa && (
+          <Aviso variante="peligro" className="mb-4">
+            {errorEmpresa}
+          </Aviso>
+        )}
 
-        <form onSubmit={handleGuardarEmpresa} className="space-y-4 pb-[72px] md:pb-0">
+        <form
+          onSubmit={handleGuardarEmpresa}
+          className="space-y-4 pb-[72px] md:pb-0"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Campo etiqueta="Razón social" id="emp-razon-social">
               <Entrada
@@ -383,12 +464,20 @@ export function PaginaConfiguracion() {
               <Selector
                 id="emp-condicion-iva"
                 value={condicionIva}
-                onChange={(e) => setCondicionIva(e.target.value as CondicionIva)}
+                onChange={(e) =>
+                  setCondicionIva(e.target.value as CondicionIva)
+                }
               >
-                <option value="responsable_inscripto">{ETIQUETA_CONDICION_IVA.responsable_inscripto}</option>
-                <option value="monotributo">{ETIQUETA_CONDICION_IVA.monotributo}</option>
+                <option value="responsable_inscripto">
+                  {ETIQUETA_CONDICION_IVA.responsable_inscripto}
+                </option>
+                <option value="monotributo">
+                  {ETIQUETA_CONDICION_IVA.monotributo}
+                </option>
                 <option value="exento">{ETIQUETA_CONDICION_IVA.exento}</option>
-                <option value="consumidor_final">{ETIQUETA_CONDICION_IVA.consumidor_final}</option>
+                <option value="consumidor_final">
+                  {ETIQUETA_CONDICION_IVA.consumidor_final}
+                </option>
               </Selector>
             </Campo>
 
@@ -452,12 +541,17 @@ export function PaginaConfiguracion() {
       </Tarjeta>
 
       {/* 2. Tarjeta Facturación Electrónica ARCA */}
-      <Tarjeta className={`p-6 ${tabConfig === "facturacion_arca" ? "block" : "hidden md:block"}`}>
+      <Tarjeta
+        className={`p-6 ${tabConfig === "facturacion_arca" ? "block" : "hidden"}`}
+      >
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-tinta">Facturación electrónica (ARCA)</h2>
+            <h2 className="text-lg font-semibold text-tinta">
+              Facturación electrónica (ARCA)
+            </h2>
             <p className="text-xs text-tinta-suave mt-0.5">
-              Configuración de Web Service (WSFEv1), ambiente, topes diarios y datos de pago
+              Configuración de Web Service (WSFEv1), ambiente, topes diarios y
+              datos de pago
             </p>
           </div>
           {arcaAmbiente === "homologacion" ? (
@@ -471,9 +565,16 @@ export function PaginaConfiguracion() {
           )}
         </div>
 
-        {errorArca && <Aviso variante="peligro" className="mb-4">{errorArca}</Aviso>}
+        {errorArca && (
+          <Aviso variante="peligro" className="mb-4">
+            {errorArca}
+          </Aviso>
+        )}
 
-        <form onSubmit={handleGuardarArca} className="space-y-4 pb-[72px] md:pb-0">
+        <form
+          onSubmit={handleGuardarArca}
+          className="space-y-4 pb-[72px] md:pb-0"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Campo
               etiqueta="Ambiente ARCA"
@@ -539,7 +640,6 @@ export function PaginaConfiguracion() {
                 onChange={(val) => setTopeDiarioMonto(val)}
                 placeholder="20.000.000"
               />
-
             </Campo>
           </div>
 
@@ -620,13 +720,21 @@ export function PaginaConfiguracion() {
       </Tarjeta>
 
       {/* 3. Tarjeta Presupuestos */}
-      <Tarjeta className={`p-6 ${tabConfig === "presupuestos" ? "block" : "hidden md:block"}`}>
-
+      <Tarjeta
+        className={`p-6 ${tabConfig === "presupuestos" ? "block" : "hidden"}`}
+      >
         <h2 className="text-lg font-semibold text-tinta mb-4">Presupuestos</h2>
 
-        {errorPresupuesto && <Aviso variante="peligro" className="mb-4">{errorPresupuesto}</Aviso>}
+        {errorPresupuesto && (
+          <Aviso variante="peligro" className="mb-4">
+            {errorPresupuesto}
+          </Aviso>
+        )}
 
-        <form onSubmit={handleGuardarPresupuesto} className="space-y-4 pb-[72px] md:pb-0">
+        <form
+          onSubmit={handleGuardarPresupuesto}
+          className="space-y-4 pb-[72px] md:pb-0"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Campo etiqueta="Validez por defecto (días)" id="pres-validez">
               <Entrada
@@ -640,7 +748,9 @@ export function PaginaConfiguracion() {
             </Campo>
 
             <div>
-              <Etiqueta htmlFor="pres-espera-camion">Precio hora de espera del camión</Etiqueta>
+              <Etiqueta htmlFor="pres-espera-camion">
+                Precio hora de espera del camión
+              </Etiqueta>
               <EntradaMonto
                 id="pres-espera-camion"
                 placeholder="Opcional"
@@ -653,7 +763,9 @@ export function PaginaConfiguracion() {
             </div>
 
             <div>
-              <Etiqueta htmlFor="pres-espera-autoelevador">Precio hora de espera del autoelevador</Etiqueta>
+              <Etiqueta htmlFor="pres-espera-autoelevador">
+                Precio hora de espera del autoelevador
+              </Etiqueta>
               <EntradaMonto
                 id="pres-espera-autoelevador"
                 placeholder="Opcional"
@@ -665,7 +777,10 @@ export function PaginaConfiguracion() {
               </p>
             </div>
 
-            <Campo etiqueta="Texto de espera del autoelevador" id="pres-texto-autoelevador">
+            <Campo
+              etiqueta="Texto de espera del autoelevador"
+              id="pres-texto-autoelevador"
+            >
               <Entrada
                 id="pres-texto-autoelevador"
                 value={textoEsperaAutoelevador}
@@ -675,7 +790,9 @@ export function PaginaConfiguracion() {
           </div>
 
           <div>
-            <Etiqueta htmlFor="pres-condiciones-extra">Condiciones adicionales por defecto</Etiqueta>
+            <Etiqueta htmlFor="pres-condiciones-extra">
+              Condiciones adicionales por defecto
+            </Etiqueta>
             <AreaTexto
               id="pres-condiciones-extra"
               rows={3}
@@ -724,11 +841,17 @@ export function PaginaConfiguracion() {
         </div>
       </Tarjeta>
 
-      {/* 3. Tarjeta Cotizador */}
-      <Tarjeta className={`p-6 ${tabConfig === "cotizador" ? "block" : "hidden md:block"}`}>
+      {/* 4. Tarjeta Cotizador */}
+      <Tarjeta
+        className={`p-6 ${tabConfig === "cotizador" ? "block" : "hidden"}`}
+      >
         <h2 className="text-lg font-semibold text-tinta mb-4">Cotizador</h2>
 
-        {errorParametros && <Aviso variante="peligro" className="mb-4">{errorParametros}</Aviso>}
+        {errorParametros && (
+          <Aviso variante="peligro" className="mb-4">
+            {errorParametros}
+          </Aviso>
+        )}
 
         {/* Tabla de parámetros */}
         <div className="overflow-x-auto rounded-md border border-borde">
@@ -742,35 +865,36 @@ export function PaginaConfiguracion() {
                 <th className="px-4 py-2.5 font-medium">Gasoil</th>
               </tr>
             </thead>
-            <tbody>
-              {parametros.map((p, idx) => (
-                <tr
-                  key={p.id}
-                  className={`border-b border-borde/50 ${
-                    idx === 0
-                      ? "bg-marca-suave font-medium text-marca"
-                      : "hover:bg-fondo"
-                  }`}
-                >
-                  <td className="px-4 py-2.5">
+            <tbody className="divide-y divide-borde">
+              {parametros.map((p) => (
+                <tr key={p.id}>
+                  <td className="px-4 py-2.5 font-medium text-tinta">
                     {formatearFecha(p.vigente_desde)}
-                    {idx === 0 && (
-                      <span className="ml-2 rounded bg-marca/10 px-1.5 py-0.5 text-xs font-semibold text-marca">
-                        Vigente
-                      </span>
-                    )}
                   </td>
-                  <td className="px-4 py-2.5">{formatearPesos(p.precio_km)}</td>
-                  <td className="px-4 py-2.5">{formatearPesos(p.monto_minimo)}</td>
-                  <td className="px-4 py-2.5">{p.km_minimo} km</td>
-                  <td className="px-4 py-2.5">
-                    {p.precio_gasoil != null ? formatearPesos(p.precio_gasoil) : "—"}
+                  <td className="px-4 py-2.5 text-tinta">
+                    {p.precio_km != null ? formatearPesos(p.precio_km) : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-tinta">
+                    {p.monto_minimo != null
+                      ? formatearPesos(p.monto_minimo)
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-tinta-suave">
+                    {p.km_minimo} km
+                  </td>
+                  <td className="px-4 py-2.5 text-tinta-suave">
+                    {p.precio_gasoil != null
+                      ? formatearPesos(p.precio_gasoil)
+                      : "—"}
                   </td>
                 </tr>
               ))}
               {parametros.length === 0 && !cargandoParametros && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-tinta-suave">
+                  <td
+                    colSpan={5}
+                    className="px-4 py-6 text-center text-tinta-suave"
+                  >
                     No hay parámetros registrados.
                   </td>
                 </tr>
@@ -781,9 +905,14 @@ export function PaginaConfiguracion() {
 
         {/* Formulario inline Nuevos parámetros */}
         <div className="mt-6 border-t border-borde pt-5">
-          <h3 className="text-sm font-semibold text-tinta mb-3">Nuevos parámetros</h3>
+          <h3 className="text-sm font-semibold text-tinta mb-3">
+            Nuevos parámetros
+          </h3>
 
-          <form onSubmit={handleGuardarParametros} className="space-y-4 pb-[72px] md:pb-0">
+          <form
+            onSubmit={handleGuardarParametros}
+            className="space-y-4 pb-[72px] md:pb-0"
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
               <div>
                 <Etiqueta htmlFor="param-vigente">Vigente desde</Etiqueta>
@@ -857,6 +986,11 @@ export function PaginaConfiguracion() {
         </div>
       </Tarjeta>
 
+      {/* 5. Tarjeta Empleados */}
+      <div className={tabConfig === "empleados" ? "block" : "hidden"}>
+        <SeccionEmpleados />
+      </div>
+
       {/* Modal de confirmación para ambiente de Producción */}
       {modalConfirmarProd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -865,11 +999,14 @@ export function PaginaConfiguracion() {
               Confirmar pase a PRODUCCIÓN
             </h3>
             <p className="text-sm text-tinta leading-relaxed">
-              Estás a punto de activar el ambiente de <strong>PRODUCCIÓN</strong> de ARCA.
-              A partir de este momento, todos los comprobantes emitidos tendrán <strong>validez legal y fiscal real</strong>.
+              Estás a punto de activar el ambiente de{" "}
+              <strong>PRODUCCIÓN</strong> de ARCA. A partir de este momento,
+              todos los comprobantes emitidos tendrán{" "}
+              <strong>validez legal y fiscal real</strong>.
             </p>
             <p className="text-xs text-tinta-suave">
-              Asegurate de contar con el certificado digital de producción y el punto de venta Web Service habilitado en la web de ARCA.
+              Asegurate de contar con el certificado digital de producción y el
+              punto de venta Web Service habilitado en la web de ARCA.
             </p>
             <div className="flex justify-end gap-3 pt-2">
               <Boton
@@ -896,4 +1033,3 @@ export function PaginaConfiguracion() {
     </div>
   );
 }
-

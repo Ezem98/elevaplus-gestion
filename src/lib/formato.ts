@@ -12,10 +12,24 @@ export function formatearPesos(valor: number | null | undefined): string {
 export function formatearFecha(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
-  return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return d.toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
-export function formatearFechaHoraCorta(iso: string | null | undefined): string {
+export function formatearFechaCorta(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dia}/${mes}`;
+}
+
+export function formatearFechaHoraCorta(
+  iso: string | null | undefined,
+): string {
   if (!iso) return "—";
   const d = new Date(iso);
   const dia = String(d.getDate()).padStart(2, "0");
@@ -28,7 +42,7 @@ export function formatearFechaHoraCorta(iso: string | null | undefined): string 
 export function formatearNumeroFactura(
   tipo: string | null | undefined,
   puntoVenta: number | null | undefined,
-  numero: number | string | null | undefined
+  numero: number | string | null | undefined,
 ): string {
   const pv = String(puntoVenta ?? 0).padStart(4, "0");
   const num = String(numero ?? 0).padStart(8, "0");
@@ -69,8 +83,18 @@ export function formatearMes(periodo: string | null | undefined): string {
   if (partes.length < 2) return periodo;
   const [año, mes] = partes;
   const meses = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
   const idx = parseInt(mes, 10) - 1;
   return `${meses[idx] ?? mes} ${año}`;
@@ -91,17 +115,18 @@ export function parsearMonto(texto: string | null | undefined): number | null {
   const tieneComa = partes.length > 1;
   const parteDecimal = tieneComa ? partes.slice(1).join("").slice(0, 2) : "";
 
-  const normalizado = parteDecimal.length > 0
-    ? `${parteEntera}.${parteDecimal}`
-    : parteEntera;
+  const normalizado =
+    parteDecimal.length > 0 ? `${parteEntera}.${parteDecimal}` : parteEntera;
 
   const num = parseFloat(normalizado);
   return isNaN(num) ? null : num;
 }
 
-export function formatearMontoEntrada(numero: number | null | undefined): string {
+export function formatearMontoEntrada(
+  numero: number | null | undefined,
+): string {
   if (numero == null || isNaN(numero)) return "";
-  
+
   const partes = numero.toString().split(".");
   const enteroStr = partes[0];
   const decimalStr = partes[1] ? partes[1].slice(0, 2) : "";

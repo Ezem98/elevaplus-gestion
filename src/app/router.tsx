@@ -1,23 +1,24 @@
-import { createBrowserRouter } from "react-router-dom";
-import { RutaProtegida } from "@/features/auth/RutaProtegida";
-import { PaginaIngresar } from "@/features/auth/PaginaIngresar";
-import { LayoutOficina } from "./LayoutOficina";
-import { LayoutChofer } from "./LayoutChofer";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { PaginaHoy } from "@/features/dashboard/PaginaHoy";
-import { PaginaServicios } from "@/features/servicios/PaginaServicios";
-import { FormularioServicio } from "@/features/servicios/FormularioServicio";
-import { PaginaServicio } from "@/features/servicios/PaginaServicio";
-import { PaginaCotizador } from "@/features/cotizador/PaginaCotizador";
-import { PaginaClientes } from "@/features/clientes/PaginaClientes";
+import { PaginaIngresar } from "@/features/auth/PaginaIngresar";
+import { PaginaMiCuenta } from "@/features/auth/PaginaMiCuenta";
+import { RutaProtegida } from "@/features/auth/RutaProtegida";
+import { PaginaCaja } from "@/features/caja/PaginaCaja";
+import { PaginaChoferHoy } from "@/features/chofer/PaginaChoferHoy";
 import { FormularioCliente } from "@/features/clientes/FormularioCliente";
 import { PaginaCliente } from "@/features/clientes/PaginaCliente";
+import { PaginaClientes } from "@/features/clientes/PaginaClientes";
 import { PaginaCobros } from "@/features/cobros/PaginaCobros";
-import { PaginaCaja } from "@/features/caja/PaginaCaja";
-import { PaginaFacturacion } from "@/features/facturacion/PaginaFacturacion";
 import { PaginaConfiguracion } from "@/features/configuracion/PaginaConfiguracion";
-import { PaginaChoferHoy } from "@/features/chofer/PaginaChoferHoy";
-import { PaginaMiCuenta } from "@/features/auth/PaginaMiCuenta";
+import { PaginaCotizador } from "@/features/cotizador/PaginaCotizador";
+import { PaginaHoy } from "@/features/dashboard/PaginaHoy";
+import { PaginaFacturacion } from "@/features/facturacion/PaginaFacturacion";
+import { PaginaFlota } from "@/features/flota/PaginaFlota";
+import { FormularioServicio } from "@/features/servicios/FormularioServicio";
+import { PaginaServicio } from "@/features/servicios/PaginaServicio";
+import { PaginaServicios } from "@/features/servicios/PaginaServicios";
+import { createBrowserRouter } from "react-router-dom";
+import { LayoutChofer } from "./LayoutChofer";
+import { LayoutOficina } from "./LayoutOficina";
 
 function LayoutSegunRol() {
   const { perfil } = useAuth();
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
           { path: "/cobros", element: <PaginaCobros /> },
           { path: "/caja", element: <PaginaCaja /> },
           { path: "/facturacion", element: <PaginaFacturacion /> },
+          { path: "/flota", element: <PaginaFlota /> },
           {
             element: <RutaProtegida roles={["admin"]} />,
             children: [
