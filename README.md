@@ -80,6 +80,24 @@ npm run test:integracion
 npm run test:e2e
 ```
 
+#### Correr un archivo de pgTAP individual
+
+Para ejecutar únicamente un archivo específico de pgTAP en lugar de toda la suite:
+
+```bash
+npx supabase test db supabase/tests/01-cobros.sql
+```
+
+Archivos disponibles en `supabase/tests/`:
+
+- `supabase/tests/00-setup.sql` (helpers de autenticación `como_admin()`, `como_oficina()`, etc.)
+- `supabase/tests/01-cobros.sql` (cobros, aplicaciones y recálculo de estados)
+- `supabase/tests/02-cheques.sql` (ciclo de cheques recibidos y propios, saldos y excepciones)
+- `supabase/tests/03-estados.sql` (matriz de transiciones por rol, triggers de máquinas y auditoría)
+- `supabase/tests/04-saldos.sql` (saldos de cuentas, movimientos, IVA mensual y cuenta corriente)
+- `supabase/tests/05-agenda-proyeccion.sql` (vista unificada de agenda con 8 ramas y `proyeccion_caja`)
+- `supabase/tests/06-facturacion.sql` (unicidad, notas de crédito y crédito fiscal en `iva_mensual`)
+
 ### 3. ¿Qué hacer si `supabase start` falla por Docker?
 
 1. **Verificar que Docker Desktop esté en ejecución**:
