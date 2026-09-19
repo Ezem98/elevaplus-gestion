@@ -4,6 +4,7 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { supabase } from "@/lib/supabase";
 import {
   Calculator,
+  CalendarDays,
   Forklift,
   Landmark,
   LayoutDashboard,
@@ -40,6 +41,7 @@ const enlacesSidebar = [
   { a: "/clientes", texto: "Clientes", Icono: Users },
   { a: "/cobros", texto: "Cobros", Icono: Wallet },
   { a: "/caja", texto: "Caja", Icono: Landmark },
+  { a: "/agenda", texto: "Agenda", Icono: CalendarDays },
   { a: "/facturacion", texto: "Facturación", Icono: Receipt },
   { a: "/flota", texto: "Flota", Icono: Forklift },
 ];
@@ -47,7 +49,7 @@ const enlacesSidebar = [
 const enlacesMovil = [
   { a: "/", texto: "Hoy", Icono: LayoutDashboard },
   { a: "/servicios", texto: "Servicios", Icono: Truck },
-  { a: "/clientes", texto: "Clientes", Icono: Users },
+  { a: "/agenda", texto: "Agenda", Icono: CalendarDays },
   { a: "/caja", texto: "Caja", Icono: Landmark },
 ];
 
@@ -67,6 +69,7 @@ export function LayoutOficina() {
     location.pathname === "/clientes" ? "Nuevo cliente" : "Nuevo servicio";
 
   const accionesMas: AccionMenu[] = [
+    { texto: "Clientes", onClick: () => navigate("/clientes") },
     { texto: "Flota", onClick: () => navigate("/flota") },
     { texto: "Cobros", onClick: () => navigate("/cobros") },
     { texto: "Facturación", onClick: () => navigate("/facturacion") },
@@ -78,6 +81,7 @@ export function LayoutOficina() {
   ];
 
   const esRutaMas = [
+    "/clientes",
     "/flota",
     "/cobros",
     "/facturacion",

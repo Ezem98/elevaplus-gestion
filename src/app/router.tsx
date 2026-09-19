@@ -1,3 +1,4 @@
+import { PaginaAgenda } from "@/features/agenda/PaginaAgenda";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { PaginaIngresar } from "@/features/auth/PaginaIngresar";
 import { PaginaMiCuenta } from "@/features/auth/PaginaMiCuenta";
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
           { path: "/clientes/:id/editar", element: <FormularioCliente /> },
           { path: "/cobros", element: <PaginaCobros /> },
           { path: "/caja", element: <PaginaCaja /> },
+          { path: "/agenda", element: <PaginaAgenda /> },
           { path: "/facturacion", element: <PaginaFacturacion /> },
           { path: "/flota", element: <PaginaFlota /> },
           {

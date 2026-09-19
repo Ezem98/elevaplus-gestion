@@ -5,9 +5,9 @@ import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useRealtime } from "@/hooks/use-realtime";
 import { formatearFechaCorta, formatearPesos } from "@/lib/formato";
 import { supabase } from "@/lib/supabase";
-import type { Servicio } from "@/lib/tipos";
+import type { ItemAgenda, Servicio } from "@/lib/tipos";
 import { ETIQUETA_TIPO } from "@/lib/tipos";
-import { ChevronRight, UserX, Wrench } from "lucide-react";
+import { CalendarDays, ChevronRight, UserX, Wrench } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -62,6 +62,8 @@ export function PaginaHoy() {
   const [descartadosLote, setDescartadosLote] = useState<number>(0);
   const [novedadesHoy, setNovedadesHoy] = useState<NovedadHoy[]>([]);
   const [maquinasTaller, setMaquinasTaller] = useState<MaquinaTaller[]>([]);
+  const [venceHoy, setVenceHoy] = useState<ItemAgenda[]>([]);
+  const [atrasadosAgenda, setAtrasadosAgenda] = useState<ItemAgenda[]>([]);
 
   const cargar = useCallback(async () => {
     const fecha = new Date().toISOString().slice(0, 10);
@@ -73,6 +75,8 @@ export function PaginaHoy() {
       resUltimoLote,
       resNovedades,
       resMaquinas,
+      resVenceHoy,
+      resAtrasados,
     ] = await Promise.all([
       supabase
         .from("servicios")
@@ -111,6 +115,17 @@ export function PaginaHoy() {
         .select("id, codigo_interno, marca, modelo, tipo")
         .eq("estado", "taller")
         .order("codigo_interno"),
+      supabase
+        .from("agenda")
+        .select("*")
+        .eq("fecha", fecha)
+        .order("sentido", { ascending: true }),
+      supabase
+        .from("agenda")
+        .select("clave, fecha, titulo, monto, sentido")
+        .lt("fecha", fecha)
+        .neq("sentido", "info")
+        .order("fecha", { ascending: false }),
     ]);
 
     if (resHoy.data) setHoy(resHoy.data as unknown as Servicio[]);
@@ -160,6 +175,14 @@ export function PaginaHoy() {
     if (resMaquinas.data) {
       setMaquinasTaller(resMaquinas.data as MaquinaTaller[]);
     }
+
+    if (resVenceHoy.data) {
+      setVenceHoy(resVenceHoy.data as ItemAgenda[]);
+    }
+
+    if (resAtrasados.data) {
+      setAtrasadosAgenda(resAtrasados.data as ItemAgenda[]);
+    }
   }, []);
 
   useEffect(() => {
@@ -175,6 +198,8 @@ export function PaginaHoy() {
       "lotes_emision",
       "novedades_empleado",
       "maquinas",
+      "vencimientos",
+      "vencimiento_instancias",
     ],
     cargar,
   );
@@ -250,6 +275,24 @@ export function PaginaHoy() {
         </Aviso>
       )}
 
+      {atrasadosAgenda.length > 0 && (
+        <Aviso variante="alerta">
+          <span>
+            {atrasadosAgenda.length}{" "}
+            {atrasadosAgenda.length === 1
+              ? "vencimiento atrasado"
+              : "vencimientos atrasados"}
+            {" · "}
+            <Link
+              to="/agenda"
+              className="underline font-semibold hover:opacity-80"
+            >
+              Ver en Agenda
+            </Link>
+          </span>
+        </Aviso>
+      )}
+
       {sinCerrar.length > 0 && (
         <section>
           <Aviso className="mb-3">
@@ -287,6 +330,71 @@ export function PaginaHoy() {
           <ListaServicios servicios={hoy} />
         )}
       </section>
+
+      {/* Sección Vence hoy con compromisos de la agenda */}
+      {venceHoy.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-marca" />
+              <h2 className="text-lg font-semibold text-tinta">Vence hoy</h2>
+              <span className="text-lg font-semibold text-tinta-suave">
+                ({venceHoy.length})
+              </span>
+            </div>
+            <Link
+              to="/agenda"
+              className="text-xs font-semibold text-marca hover:underline"
+            >
+              Ver agenda completa →
+            </Link>
+          </div>
+
+          <Tarjeta className="divide-y divide-borde">
+            {venceHoy.slice(0, 5).map((it) => (
+              <Link
+                key={it.clave}
+                to={it.url || "/agenda"}
+                className="flex items-center justify-between p-3.5 hover:bg-fondo transition-colors"
+              >
+                <div className="min-w-0 flex-1 pr-3">
+                  <p className="text-[14px] font-semibold text-tinta truncate">
+                    {it.titulo}
+                  </p>
+                  {it.detalle && (
+                    <p className="text-[12px] text-tinta-suave truncate">
+                      {it.detalle}
+                    </p>
+                  )}
+                </div>
+                <div className="shrink-0 text-right">
+                  {it.sentido === "info" || it.monto == null ? (
+                    <span className="inline-block text-[11px] font-medium px-2 py-0.5 rounded-full bg-marca-suave text-marca">
+                      Informativo
+                    </span>
+                  ) : it.sentido === "ingreso" ? (
+                    <span className="text-[13px] font-semibold text-ok tabular-nums">
+                      +{formatearPesos(it.monto)}
+                    </span>
+                  ) : (
+                    <span className="text-[13px] font-medium text-tinta tabular-nums">
+                      {formatearPesos(it.monto)}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </Tarjeta>
+          {venceHoy.length > 5 && (
+            <p className="mt-2 text-center text-xs text-tinta-suave">
+              +{venceHoy.length - 5} compromisos más.{" "}
+              <Link to="/agenda" className="text-marca underline">
+                Ver todos en la agenda
+              </Link>
+            </p>
+          )}
+        </section>
+      )}
 
       {/* Avisos neutros de flota y personal debajo de Servicios */}
       {(novedadesHoy.length > 0 || maquinasTaller.length > 0) && (
