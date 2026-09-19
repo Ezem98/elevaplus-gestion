@@ -1,32 +1,53 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/features/auth/AuthProvider";
-import type {
-  TipoMovimiento,
-  AmbitoMovimiento,
-  EstadoMovimiento,
-  MedioPago,
-  TipoComprobanteCompra,
-  Cuenta,
-  CategoriaMovimiento,
-  MovimientoCaja,
-} from "@/lib/tipos";
-import { Tarjeta } from "@/components/ui/Tarjeta";
-import { Boton } from "@/components/ui/Boton";
+import { Aviso } from "@/components/ui/Aviso";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
+import { Boton } from "@/components/ui/Boton";
 import { Campo, Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
-import { Aviso } from "@/components/ui/Aviso";
+import { Tarjeta } from "@/components/ui/Tarjeta";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { cambiarEstadoCheque } from "@/lib/cheques";
+import { formatearPesos } from "@/lib/formato";
+import { supabase } from "@/lib/supabase";
+import type {
+  AmbitoMovimiento,
+  CategoriaMovimiento,
+  Cheque,
+  Cuenta,
+  EstadoMovimiento,
+  MedioPago,
+  MovimientoCaja,
+  TipoComprobanteCompra,
+  TipoMovimiento,
+} from "@/lib/tipos";
+import { useEffect, useState } from "react";
 
 interface PropsFormularioMovimiento {
   tipoInicial: TipoMovimiento;
   ambitoInicial?: AmbitoMovimiento | null;
+  categoriaInicialId?: string | null;
+  proveedorInicial?: string | null;
+  montoInicial?: number | null;
+  cuentaInicialId?: string | null;
+  medioInicial?: MedioPago | null;
+  descripcionInicial?: string | null;
   movimientoAEditar?: MovimientoCaja | null;
+  chequeTerceroInicial?: Cheque | null;
+  endosadoAInicial?: string;
+  onGuardadoConId?: (movimientoId: string) => void;
   onGuardado: () => void;
   onCancelar: () => void;
 }
 
-const MEDIOS: { id: MedioPago; label: string }[] = [
+const MEDIOS_EGRESO: { id: MedioPago; label: string }[] = [
+  { id: "efectivo", label: "Efectivo" },
+  { id: "transferencia", label: "Transferencia" },
+  { id: "debito_automatico", label: "Débito automático" },
+  { id: "cheque_terceros", label: "Cheque de terceros" },
+  { id: "cheque_propio", label: "Cheque propio" },
+  { id: "otro", label: "Otro" },
+];
+
+const MEDIOS_INGRESO: { id: MedioPago; label: string }[] = [
   { id: "efectivo", label: "Efectivo" },
   { id: "transferencia", label: "Transferencia" },
   { id: "cheque", label: "Cheque" },
@@ -68,10 +89,32 @@ function Opcion({
   );
 }
 
+function formatearEtiquetaChequeTercero(ch: Cheque): string {
+  const clienteEmisor = ch.clientes?.nombre || ch.emisor || "Sin emisor";
+  const bancoNum = [ch.banco, ch.numero ? `#${ch.numero}` : ""]
+    .filter(Boolean)
+    .join(" ");
+  const montoStr = formatearPesos(ch.monto);
+  const [, m, d] = (ch.fecha_pago || "").split("-");
+  const venceStr = d && m ? `vence ${d}/${m}` : "";
+  return [clienteEmisor, bancoNum, montoStr, venceStr]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export function FormularioMovimiento({
   tipoInicial,
   ambitoInicial,
+  categoriaInicialId,
+  proveedorInicial,
+  montoInicial,
+  cuentaInicialId,
+  medioInicial,
+  descripcionInicial,
   movimientoAEditar,
+  chequeTerceroInicial,
+  endosadoAInicial,
+  onGuardadoConId,
   onGuardado,
   onCancelar,
 }: PropsFormularioMovimiento) {
@@ -82,72 +125,97 @@ export function FormularioMovimiento({
   const esEdicion = !!movimientoAEditar;
 
   const [ambito, setAmbito] = useState<AmbitoMovimiento | null>(
-    movimientoAEditar?.ambito ?? (tipo === "transferencia" ? null : ambitoInicial ?? null)
+    movimientoAEditar?.ambito ??
+      (tipo === "transferencia" ? null : (ambitoInicial ?? null)),
   );
   const [errorAmbito, setErrorAmbito] = useState<string | null>(null);
   const [fecha, setFecha] = useState(movimientoAEditar?.fecha ?? fechaHoy);
   const [categoriaId, setCategoriaId] = useState<string>(
-    movimientoAEditar?.categoria_id ?? ""
+    movimientoAEditar?.categoria_id ?? categoriaInicialId ?? "",
   );
   const [proveedor, setProveedor] = useState(
-    movimientoAEditar?.proveedor ?? ""
+    movimientoAEditar?.proveedor ?? endosadoAInicial ?? proveedorInicial ?? "",
   );
   const [descripcion, setDescripcion] = useState(
-    movimientoAEditar?.descripcion ?? ""
+    movimientoAEditar?.descripcion ?? descripcionInicial ?? "",
   );
   const [monto, setMonto] = useState<number | null>(
-    movimientoAEditar?.monto ?? null
+    movimientoAEditar?.monto ??
+      (chequeTerceroInicial
+        ? chequeTerceroInicial.monto
+        : (montoInicial ?? null)),
   );
   const [medio, setMedio] = useState<MedioPago>(
-    movimientoAEditar?.medio ?? (tipo === "transferencia" ? "transferencia" : "efectivo")
+    movimientoAEditar?.medio ??
+      (chequeTerceroInicial
+        ? "cheque_terceros"
+        : (medioInicial ??
+          (tipo === "transferencia" ? "transferencia" : "efectivo"))),
   );
   const [cuentaId, setCuentaId] = useState<string>(
-    movimientoAEditar?.cuenta_id ?? ""
+    movimientoAEditar?.cuenta_id ?? cuentaInicialId ?? "",
   );
   const [cuentaDestinoId, setCuentaDestinoId] = useState<string>(
-    movimientoAEditar?.cuenta_destino_id ?? ""
+    movimientoAEditar?.cuenta_destino_id ?? "",
   );
   const [estado, setEstado] = useState<EstadoMovimiento>(
-    movimientoAEditar?.estado ?? "pagado"
+    movimientoAEditar?.estado ?? (chequeTerceroInicial ? "pagado" : "pagado"),
   );
   const [fechaAcreditacion, setFechaAcreditacion] = useState(
-    movimientoAEditar?.fecha_acreditacion ?? ""
+    movimientoAEditar?.fecha_acreditacion ?? "",
   );
+
+  // Cheques de terceros (endoso)
+  const [chequesEnCartera, setChequesEnCartera] = useState<Cheque[]>([]);
+  const [chequeTerceroId, setChequeTerceroId] = useState<string>(
+    chequeTerceroInicial?.id ?? "",
+  );
+  const [endosadoA, setEndosadoA] = useState<string>(
+    endosadoAInicial ?? movimientoAEditar?.proveedor ?? "",
+  );
+
+  // Cheque propio (emisión)
+  const [numeroChequePropio, setNumeroChequePropio] = useState<string>("");
+  const [fechaPagoChequePropio, setFechaPagoChequePropio] =
+    useState<string>(fechaHoy);
+  const [esEcheqPropio, setEsEcheqPropio] = useState<boolean>(false);
 
   // Comprobante
   const [tieneFactura, setTieneFactura] = useState(
-    movimientoAEditar?.tiene_comprobante ?? false
+    movimientoAEditar?.tiene_comprobante ?? false,
   );
   const [comprobanteTipo, setComprobanteTipo] = useState<TipoComprobanteCompra>(
-    movimientoAEditar?.comprobante_tipo ?? "A"
+    movimientoAEditar?.comprobante_tipo ?? "A",
   );
   const [puntoVenta, setPuntoVenta] = useState<string>(
     movimientoAEditar?.comprobante_punto_venta != null
       ? String(movimientoAEditar.comprobante_punto_venta)
-      : ""
+      : "",
   );
   const [numeroComprobante, setNumeroComprobante] = useState<string>(
     movimientoAEditar?.comprobante_numero != null
       ? String(movimientoAEditar.comprobante_numero)
-      : ""
+      : "",
   );
   const [cuitProveedor, setCuitProveedor] = useState(
-    movimientoAEditar?.proveedor_cuit ?? ""
+    movimientoAEditar?.proveedor_cuit ?? "",
   );
   const [neto, setNeto] = useState<number | null>(
-    movimientoAEditar?.neto ?? null
+    movimientoAEditar?.neto ?? null,
   );
-  const [iva, setIva] = useState<number | null>(
-    movimientoAEditar?.iva ?? null
+  const [iva, setIva] = useState<number | null>(movimientoAEditar?.iva ?? null);
+  const [archivoComprobante, setArchivoComprobante] = useState<File | null>(
+    null,
   );
-  const [archivoComprobante, setArchivoComprobante] = useState<File | null>(null);
   const [comprobantePath] = useState<string | null>(
-    movimientoAEditar?.comprobante_path ?? null
+    movimientoAEditar?.comprobante_path ?? null,
   );
 
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [categorias, setCategorias] = useState<CategoriaMovimiento[]>([]);
-  const [proveedoresSugeridos, setProveedoresSugeridos] = useState<string[]>([]);
+  const [proveedoresSugeridos, setProveedoresSugeridos] = useState<string[]>(
+    [],
+  );
 
   const [guardando, setGuardando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
@@ -199,6 +267,44 @@ export function FormularioMovimiento({
       });
   }, [ambito, tipo, movimientoAEditar]);
 
+  // Cargar cheques en cartera para endoso (solo egresos)
+  useEffect(() => {
+    if (tipo !== "egreso") return;
+    supabase
+      .from("cheques")
+      .select("*, clientes(nombre)")
+      .eq("tipo", "recibido")
+      .eq("estado", "en_cartera")
+      .order("fecha_pago", { ascending: true })
+      .then(({ data }) => {
+        if (data) {
+          let lista = data as Cheque[];
+          if (
+            chequeTerceroInicial &&
+            !lista.some((c) => c.id === chequeTerceroInicial.id)
+          ) {
+            lista = [chequeTerceroInicial, ...lista];
+          }
+          setChequesEnCartera(lista);
+          if (chequeTerceroInicial) {
+            setChequeTerceroId(chequeTerceroInicial.id);
+            setMonto(chequeTerceroInicial.monto);
+          }
+        }
+      });
+  }, [tipo, chequeTerceroInicial]);
+
+  const handleSeleccionarChequeTercero = (id: string) => {
+    setChequeTerceroId(id);
+    const ch = chequesEnCartera.find((c) => c.id === id);
+    if (ch) {
+      setMonto(ch.monto);
+      if (!endosadoA && proveedor) {
+        setEndosadoA(proveedor);
+      }
+    }
+  };
+
   // Cargar proveedores ya usados para datalist
   useEffect(() => {
     supabase
@@ -211,8 +317,8 @@ export function FormularioMovimiento({
             new Set(
               data
                 .map((d) => d.proveedor?.trim())
-                .filter((p): p is string => Boolean(p))
-            )
+                .filter((p): p is string => Boolean(p)),
+            ),
           ).sort();
           setProveedoresSugeridos(unicos);
         }
@@ -238,14 +344,13 @@ export function FormularioMovimiento({
   // Recálculo cuando cambia el Neto
   const handleNetoChange = (nuevoNeto: number | null) => {
     setNeto(nuevoNeto);
-    if (nuevoNeto == null || nuevoNeto <= 0) return;
-
-    if (comprobanteTipo === "A") {
+    if (nuevoNeto != null && nuevoNeto > 0 && comprobanteTipo === "A") {
       const ivaSugerido = +(nuevoNeto * 0.21).toFixed(2);
       setIva(ivaSugerido);
       setMonto(+(nuevoNeto + ivaSugerido).toFixed(2));
     } else {
       setMonto(nuevoNeto);
+      setIva(null);
     }
   };
 
@@ -285,18 +390,39 @@ export function FormularioMovimiento({
       return;
     }
 
-    if (!monto || monto <= 0) {
-      setErrorValidacion("El monto debe ser mayor a 0.");
-      return;
-    }
-
-    if (tipo === "transferencia") {
+    if (medio === "cheque_terceros") {
+      if (!chequeTerceroId) {
+        setErrorValidacion(
+          "Debés seleccionar un cheque de terceros en cartera.",
+        );
+        return;
+      }
+      if (!endosadoA.trim()) {
+        setErrorValidacion("Debés indicar a quién se endosa el cheque.");
+        return;
+      }
+    } else if (medio === "cheque_propio") {
+      if (!cuentaId) {
+        setErrorValidacion(
+          "Debés seleccionar la cuenta bancaria del cheque propio.",
+        );
+        return;
+      }
+      if (!fechaPagoChequePropio) {
+        setErrorValidacion("Debés indicar la fecha de pago del cheque propio.");
+        return;
+      }
+    } else if (tipo === "transferencia") {
       if (!cuentaId || !cuentaDestinoId) {
-        setErrorValidacion("Debés seleccionar la cuenta origen y la cuenta destino.");
+        setErrorValidacion(
+          "Debés seleccionar la cuenta origen y la cuenta destino.",
+        );
         return;
       }
       if (cuentaId === cuentaDestinoId) {
-        setErrorValidacion("La cuenta origen y la cuenta destino no pueden ser la misma.");
+        setErrorValidacion(
+          "La cuenta origen y la cuenta destino no pueden ser la misma.",
+        );
         return;
       }
     } else {
@@ -304,6 +430,11 @@ export function FormularioMovimiento({
         setErrorValidacion("Debés seleccionar una cuenta.");
         return;
       }
+    }
+
+    if (!monto || monto <= 0) {
+      setErrorValidacion("El monto debe ser mayor a 0.");
+      return;
     }
 
     setGuardando(true);
@@ -332,38 +463,52 @@ export function FormularioMovimiento({
         fecha,
         tipo,
         ambito: tipo === "transferencia" ? null : ambito,
-        categoria_id: tipo === "transferencia" ? null : (categoriaId || null),
-        proveedor: tipo === "transferencia" ? null : (proveedor.trim() || null),
+        categoria_id: tipo === "transferencia" ? null : categoriaId || null,
+        proveedor: tipo === "transferencia" ? null : proveedor.trim() || null,
         descripcion: descripcion.trim() || null,
         medio: tipo === "transferencia" ? "transferencia" : medio,
         cuenta_id: cuentaId,
         cuenta_destino_id: tipo === "transferencia" ? cuentaDestinoId : null,
         monto: monto,
         estado,
-        fecha_acreditacion: estado === "pendiente" ? (fechaAcreditacion || null) : null,
-        tiene_comprobante: tipo === "egreso" && ambito === "empresa" && tieneFactura,
+        fecha_acreditacion:
+          estado === "pendiente" ? fechaAcreditacion || null : null,
+        tiene_comprobante:
+          tipo === "egreso" && ambito === "empresa" && tieneFactura,
         comprobante_tipo:
           tipo === "egreso" && ambito === "empresa" && tieneFactura
             ? comprobanteTipo
             : null,
         comprobante_punto_venta:
-          tipo === "egreso" && ambito === "empresa" && tieneFactura && puntoVenta
+          tipo === "egreso" &&
+          ambito === "empresa" &&
+          tieneFactura &&
+          puntoVenta
             ? Number(puntoVenta)
             : null,
         comprobante_numero:
-          tipo === "egreso" && ambito === "empresa" && tieneFactura && numeroComprobante
+          tipo === "egreso" &&
+          ambito === "empresa" &&
+          tieneFactura &&
+          numeroComprobante
             ? Number(numeroComprobante)
             : null,
         proveedor_cuit:
           tipo === "egreso" && ambito === "empresa" && tieneFactura
-            ? (cuitProveedor.trim() || null)
+            ? cuitProveedor.trim() || null
             : null,
         neto:
-          tipo === "egreso" && ambito === "empresa" && tieneFactura && neto != null
+          tipo === "egreso" &&
+          ambito === "empresa" &&
+          tieneFactura &&
+          neto != null
             ? neto
             : null,
         iva:
-          tipo === "egreso" && ambito === "empresa" && tieneFactura && iva != null
+          tipo === "egreso" &&
+          ambito === "empresa" &&
+          tieneFactura &&
+          iva != null
             ? iva
             : null,
         comprobante_path:
@@ -378,6 +523,73 @@ export function FormularioMovimiento({
           .update(datos)
           .eq("id", idRegistro);
         if (error) throw error;
+      } else if (medio === "cheque_terceros") {
+        const datosMov = {
+          ...datos,
+          cuenta_id: null,
+          estado: "pagado" as EstadoMovimiento,
+          fecha_acreditacion: null,
+          cheque_id: chequeTerceroId,
+          proveedor: proveedor.trim() || endosadoA.trim() || null,
+        };
+        const { error: movError } = await supabase
+          .from("movimientos_caja")
+          .insert({
+            id: idRegistro,
+            ...datosMov,
+            registrado_por: session?.user?.id ?? null,
+          });
+        if (movError) throw movError;
+
+        await cambiarEstadoCheque({
+          chequeId: chequeTerceroId,
+          nuevoEstado: "endosado",
+          fecha,
+          endosadoA: endosadoA.trim(),
+          movimientoId: idRegistro,
+          nota: `Endosado para pago a ${endosadoA.trim()}`,
+        });
+      } else if (medio === "cheque_propio") {
+        const chId = crypto.randomUUID();
+        const datosMov = {
+          ...datos,
+          cuenta_id: cuentaId,
+          estado: "pendiente" as EstadoMovimiento,
+          fecha_acreditacion: fechaPagoChequePropio,
+          cheque_id: null,
+        };
+        // 1. Insert movimiento
+        const { error: movError } = await supabase
+          .from("movimientos_caja")
+          .insert({
+            id: idRegistro,
+            ...datosMov,
+            registrado_por: session?.user?.id ?? null,
+          });
+        if (movError) throw movError;
+
+        // 2. Insert cheque emitido vinculado al movimiento
+        const { error: chError } = await supabase.from("cheques").insert({
+          id: chId,
+          tipo: "emitido",
+          estado: "emitido",
+          cuenta_id: cuentaId,
+          pagado_a: proveedor.trim() || null,
+          monto: monto,
+          fecha_emision: fecha,
+          fecha_pago: fechaPagoChequePropio,
+          numero: numeroChequePropio.trim() || null,
+          es_echeq: esEcheqPropio,
+          movimiento_id: idRegistro,
+        });
+        if (chError) throw chError;
+
+        // 3. Vincular cheque_id al movimiento
+        const { error: updateMovError } = await supabase
+          .from("movimientos_caja")
+          .update({ cheque_id: chId })
+          .eq("id", idRegistro);
+        if (updateMovError) throw updateMovError;
       } else {
         const { error } = await supabase.from("movimientos_caja").insert({
           id: idRegistro,
@@ -387,9 +599,14 @@ export function FormularioMovimiento({
         if (error) throw error;
       }
 
+      if (onGuardadoConId) {
+        onGuardadoConId(idRegistro);
+      }
       onGuardado();
     } catch (err: any) {
-      setErrorValidacion(err.message || "Ocurrió un error al guardar el movimiento.");
+      setErrorValidacion(
+        err.message || "Ocurrió un error al guardar el movimiento.",
+      );
       setGuardando(false);
     }
   };
@@ -398,13 +615,13 @@ export function FormularioMovimiento({
     ? tipo === "egreso"
       ? "Editar gasto"
       : tipo === "ingreso"
-      ? "Editar ingreso"
-      : "Editar transferencia"
+        ? "Editar ingreso"
+        : "Editar transferencia"
     : tipo === "egreso"
-    ? "Nuevo gasto"
-    : tipo === "ingreso"
-    ? "Nuevo ingreso"
-    : "Transferencia";
+      ? "Nuevo gasto"
+      : tipo === "ingreso"
+        ? "Nuevo ingreso"
+        : "Transferencia";
 
   return (
     <Tarjeta className="p-5 space-y-4">
@@ -493,7 +710,11 @@ export function FormularioMovimiento({
               <Entrada
                 id="proveedor_movimiento"
                 list="proveedores-sugeridos"
-                placeholder={tipo === "egreso" ? "Ej. YPF, Edesur..." : "Ej. Particular, Venta..."}
+                placeholder={
+                  tipo === "egreso"
+                    ? "Ej. YPF, Edesur..."
+                    : "Ej. Particular, Venta..."
+                }
                 value={proveedor}
                 onChange={(e) => setProveedor(e.target.value)}
               />
@@ -532,30 +753,122 @@ export function FormularioMovimiento({
             <EntradaMonto
               id="monto_movimiento"
               required
+              disabled={medio === "cheque_terceros"}
               valor={monto}
               onChange={handleMontoChange}
             />
+            {medio === "cheque_terceros" && (
+              <span className="text-[11px] text-tinta-suave block mt-1">
+                El monto queda fijado al valor del cheque endosado.
+              </span>
+            )}
           </Campo>
 
           {tipo !== "transferencia" ? (
             <div>
               <Etiqueta>Medio</Etiqueta>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                {MEDIOS.map((m) => (
-                  <Opcion
-                    key={m.id}
-                    activa={medio === m.id}
-                    onClick={() => setMedio(m.id)}
-                  >
-                    {m.label}
-                  </Opcion>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                {(tipo === "egreso" ? MEDIOS_EGRESO : MEDIOS_INGRESO).map(
+                  (m) => (
+                    <Opcion
+                      key={m.id}
+                      activa={medio === m.id}
+                      onClick={() => {
+                        setMedio(m.id);
+                        if (m.id === "cheque_terceros") {
+                          setEstado("pagado");
+                        } else if (m.id === "cheque_propio") {
+                          setEstado("pendiente");
+                        }
+                      }}
+                    >
+                      {m.label}
+                    </Opcion>
+                  ),
+                )}
               </div>
             </div>
           ) : (
             <div />
           )}
         </div>
+
+        {/* Campos adicionales para Cheque de terceros */}
+        {tipo === "egreso" && medio === "cheque_terceros" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 bg-fondo rounded-lg border border-borde">
+            <Campo etiqueta="Cheque en cartera" id="cheque_tercero_sel">
+              {chequesEnCartera.length === 0 ? (
+                <p className="text-xs text-peligro mt-1">
+                  No hay cheques en cartera disponibles para endosar.
+                </p>
+              ) : (
+                <Selector
+                  id="cheque_tercero_sel"
+                  value={chequeTerceroId}
+                  onChange={(e) =>
+                    handleSeleccionarChequeTercero(e.target.value)
+                  }
+                  required
+                >
+                  <option value="" disabled>
+                    Seleccionar cheque a endosar...
+                  </option>
+                  {chequesEnCartera.map((ch) => (
+                    <option key={ch.id} value={ch.id}>
+                      {formatearEtiquetaChequeTercero(ch)}
+                    </option>
+                  ))}
+                </Selector>
+              )}
+            </Campo>
+
+            <Campo etiqueta="Endosado a" id="endosado_a_input">
+              <Entrada
+                id="endosado_a_input"
+                placeholder="Persona o empresa beneficiaria"
+                value={endosadoA}
+                onChange={(e) => setEndosadoA(e.target.value)}
+                required
+              />
+            </Campo>
+          </div>
+        )}
+
+        {/* Campos adicionales para Cheque propio */}
+        {tipo === "egreso" && medio === "cheque_propio" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 bg-fondo rounded-lg border border-borde">
+            <Campo etiqueta="Número de cheque" id="num_cheque_propio">
+              <Entrada
+                id="num_cheque_propio"
+                placeholder="Ej: 00045231"
+                value={numeroChequePropio}
+                onChange={(e) => setNumeroChequePropio(e.target.value)}
+              />
+            </Campo>
+
+            <Campo etiqueta="Fecha de pago" id="fecha_pago_cheque_propio">
+              <Entrada
+                id="fecha_pago_cheque_propio"
+                type="date"
+                required
+                value={fechaPagoChequePropio}
+                onChange={(e) => setFechaPagoChequePropio(e.target.value)}
+              />
+            </Campo>
+
+            <div className="sm:col-span-2 flex items-center pt-1">
+              <label className="flex items-center gap-2 text-sm font-medium text-tinta cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={esEcheqPropio}
+                  onChange={(e) => setEsEcheqPropio(e.target.checked)}
+                  className="size-4 rounded border-borde text-marca focus:ring-marca"
+                />
+                Es E-cheq
+              </label>
+            </div>
+          </div>
+        )}
 
         {/* Cuenta(s) */}
         {tipo === "transferencia" ? (
@@ -596,8 +909,20 @@ export function FormularioMovimiento({
               </Selector>
             </Campo>
           </div>
+        ) : medio === "cheque_terceros" ? (
+          <div className="text-xs text-tinta-suave italic">
+            El cheque de terceros no afecta ninguna cuenta bancaria; el valor se
+            transfiere por endoso.
+          </div>
         ) : (
-          <Campo etiqueta="Cuenta" id="cuenta_movimiento">
+          <Campo
+            etiqueta={
+              medio === "cheque_propio"
+                ? "Cuenta bancaria (chequera)"
+                : "Cuenta"
+            }
+            id="cuenta_movimiento"
+          >
             <Selector
               id="cuenta_movimiento"
               value={cuentaId}
@@ -617,36 +942,49 @@ export function FormularioMovimiento({
         )}
 
         {/* Estado y Fecha de acreditación */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <Etiqueta>Estado</Etiqueta>
-            <div className="grid grid-cols-2 gap-2 max-w-xs">
-              <Opcion
-                activa={estado === "pagado"}
-                onClick={() => setEstado("pagado")}
-              >
-                Pagado
-              </Opcion>
-              <Opcion
-                activa={estado === "pendiente"}
-                onClick={() => setEstado("pendiente")}
-              >
-                Pendiente
-              </Opcion>
+        {medio === "cheque_terceros" ? (
+          <p className="text-xs text-tinta-suave">
+            El egreso queda registrado como{" "}
+            <strong className="text-tinta">pagado</strong> con el cheque
+            endosado.
+          </p>
+        ) : medio === "cheque_propio" ? (
+          <p className="text-xs text-tinta-suave">
+            El egreso queda <strong className="text-tinta">pendiente</strong>{" "}
+            hasta la fecha de pago, cuando se debitará de la cuenta.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Etiqueta>Estado</Etiqueta>
+              <div className="grid grid-cols-2 gap-2 max-w-xs">
+                <Opcion
+                  activa={estado === "pagado"}
+                  onClick={() => setEstado("pagado")}
+                >
+                  Pagado
+                </Opcion>
+                <Opcion
+                  activa={estado === "pendiente"}
+                  onClick={() => setEstado("pendiente")}
+                >
+                  Pendiente
+                </Opcion>
+              </div>
             </div>
-          </div>
 
-          {estado === "pendiente" && (
-            <Campo etiqueta="Fecha de acreditación" id="fecha_acred_mov">
-              <Entrada
-                id="fecha_acred_mov"
-                type="date"
-                value={fechaAcreditacion}
-                onChange={(e) => setFechaAcreditacion(e.target.value)}
-              />
-            </Campo>
-          )}
-        </div>
+            {estado === "pendiente" && (
+              <Campo etiqueta="Fecha de acreditación" id="fecha_acred_mov">
+                <Entrada
+                  id="fecha_acred_mov"
+                  type="date"
+                  value={fechaAcreditacion}
+                  onChange={(e) => setFechaAcreditacion(e.target.value)}
+                />
+              </Campo>
+            )}
+          </div>
+        )}
 
         {/* Checkbox "Tiene factura" (solo egresos de empresa) */}
         {tipo === "egreso" && ambito === "empresa" && (
@@ -670,7 +1008,7 @@ export function FormularioMovimiento({
                       value={comprobanteTipo}
                       onChange={(e) =>
                         handleTipoComprobanteChange(
-                          e.target.value as TipoComprobanteCompra
+                          e.target.value as TipoComprobanteCompra,
                         )
                       }
                     >
@@ -735,7 +1073,9 @@ export function FormularioMovimiento({
 
                 {/* Adjuntar foto de comprobante */}
                 <div>
-                  <Etiqueta htmlFor="comp_archivo">Foto del comprobante</Etiqueta>
+                  <Etiqueta htmlFor="comp_archivo">
+                    Foto del comprobante
+                  </Etiqueta>
                   <input
                     id="comp_archivo"
                     type="file"
@@ -749,7 +1089,8 @@ export function FormularioMovimiento({
                   />
                   {comprobantePath && !archivoComprobante && (
                     <p className="mt-1 text-xs text-ok">
-                      Ya tiene comprobante adjunto: {comprobantePath.split("/").pop()}
+                      Ya tiene comprobante adjunto:{" "}
+                      {comprobantePath.split("/").pop()}
                     </p>
                   )}
                 </div>
@@ -758,9 +1099,7 @@ export function FormularioMovimiento({
           </div>
         )}
 
-        {errorValidacion && (
-          <Aviso variante="peligro">{errorValidacion}</Aviso>
-        )}
+        {errorValidacion && <Aviso variante="peligro">{errorValidacion}</Aviso>}
 
         <BarraAcciones>
           <Boton

@@ -26,6 +26,9 @@ export type MedioPago =
   | "transferencia"
   | "cheque"
   | "echeq"
+  | "cheque_terceros"
+  | "cheque_propio"
+  | "debito_automatico"
   | "otro";
 
 export interface Perfil {
@@ -347,7 +350,11 @@ export type EstadoCheque =
   | "depositado"
   | "acreditado"
   | "rechazado"
-  | "endosado";
+  | "endosado"
+  | "emitido"
+  | "debitado"
+  | "anulado"
+  | "descontado";
 
 export interface Cuenta {
   id: string;
@@ -396,9 +403,11 @@ export interface MovimientoCaja {
   notas: string | null;
   registrado_por: string | null;
   created_at: string;
+  cheque_id?: string | null;
   categorias_movimiento?: { nombre: string } | null;
   cuentas?: { nombre: string } | null;
   cuenta_destino?: { nombre: string } | null;
+  cheques?: Cheque | null;
 }
 
 export interface SaldoCuenta {
@@ -448,7 +457,32 @@ export interface Cheque {
   cliente_id: string | null;
   notas: string | null;
   created_at: string;
+  cuenta_id?: string | null;
+  fecha_deposito?: string | null;
+  fecha_acreditacion?: string | null;
+  fecha_rechazo?: string | null;
+  motivo_rechazo?: string | null;
+  endosado_a?: string | null;
+  endosado_movimiento_id?: string | null;
+  descontado_neto?: number | null;
+  descontado_en?: string | null;
+  pagado_a?: string | null;
+  movimiento_id?: string | null;
+  imagen_path?: string | null;
+  updated_at?: string;
   clientes?: { nombre: string } | null;
+  cuentas?: { id: string; nombre: string } | null;
+}
+
+export interface ChequeEvento {
+  id: number;
+  cheque_id: string;
+  estado_anterior: EstadoCheque | null;
+  estado_nuevo: EstadoCheque;
+  usuario_id: string | null;
+  nota: string | null;
+  created_at: string;
+  perfiles?: { nombre: string } | null;
 }
 
 export interface CobroAplicacion {
@@ -527,6 +561,9 @@ export const ETIQUETA_MEDIO_PAGO: Record<MedioPago, string> = {
   transferencia: "Transferencia",
   cheque: "Cheque",
   echeq: "E-cheq",
+  cheque_terceros: "Cheque de terceros",
+  cheque_propio: "Cheque propio",
+  debito_automatico: "Débito automático",
   otro: "Otro",
 };
 
@@ -542,6 +579,10 @@ export const ETIQUETA_ESTADO_CHEQUE: Record<EstadoCheque, string> = {
   acreditado: "Acreditado",
   rechazado: "Rechazado",
   endosado: "Endosado",
+  emitido: "Emitido",
+  debitado: "Debitado",
+  anulado: "Anulado",
+  descontado: "Descontado",
 };
 
 export type UnidadAlquiler = "dia" | "semana" | "quincena" | "mes";
@@ -667,4 +708,83 @@ export const ETIQUETA_TIPO_FACTURA: Record<TipoFactura, string> = {
   NC_B: "Nota de crédito B",
   ND_A: "Nota de débito A",
   ND_B: "Nota de débito B",
+};
+
+export type FrecuenciaVencimiento =
+  | "unica"
+  | "semanal"
+  | "quincenal"
+  | "mensual"
+  | "bimestral"
+  | "anual";
+
+export type EstadoInstancia = "pendiente" | "pagado" | "omitido";
+
+export interface Vencimiento {
+  id: string;
+  titulo: string;
+  ambito: AmbitoMovimiento;
+  categoria_id: string | null;
+  proveedor: string | null;
+  monto_estimado: number | null;
+  cuenta_sugerida_id: string | null;
+  medio_sugerido: MedioPago | null;
+  frecuencia: FrecuenciaVencimiento;
+  dia_del_mes: number | null;
+  dia_semana: number | null;
+  fecha_inicio: string;
+  fecha_fin: string | null;
+  cuotas_total: number | null;
+  cuotas_pagadas: number;
+  recordar_dias_antes: number;
+  activo: boolean;
+  notas: string | null;
+  created_at: string;
+  categorias_movimiento?: { nombre: string } | null;
+  cuentas?: { id: string; nombre: string } | null;
+}
+
+export interface VencimientoInstancia {
+  id: string;
+  vencimiento_id: string;
+  fecha: string;
+  numero_cuota: number | null;
+  monto_estimado: number | null;
+  estado: EstadoInstancia;
+  movimiento_id: string | null;
+  pagado_at: string | null;
+  gcal_event_id: string | null;
+  nota?: string | null;
+  vencimientos?: Vencimiento | null;
+}
+
+export interface ItemAgenda {
+  clave: string;
+  fecha: string;
+  sentido: "ingreso" | "egreso" | "info";
+  titulo: string;
+  detalle: string | null;
+  monto: number | null;
+  cuenta_id: string | null;
+  estado: string;
+  ambito: string;
+  url: string;
+}
+
+export const ETIQUETA_FRECUENCIA_VENCIMIENTO: Record<
+  FrecuenciaVencimiento,
+  string
+> = {
+  unica: "Única vez",
+  semanal: "Semanal",
+  quincenal: "Quincenal",
+  mensual: "Mensual",
+  bimestral: "Bimestral",
+  anual: "Anual",
+};
+
+export const ETIQUETA_ESTADO_INSTANCIA: Record<EstadoInstancia, string> = {
+  pendiente: "Pendiente",
+  pagado: "Pagado",
+  omitido: "Omitido",
 };
