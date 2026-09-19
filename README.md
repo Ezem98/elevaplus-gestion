@@ -31,19 +31,82 @@ npm run dev
 
 ## Scripts
 
-| Comando | Qué hace |
-|---|---|
-| `npm run dev` | Servidor de desarrollo |
-| `npm run build` | Build de producción en `dist/` (incluye service worker PWA) |
-| `npm run test` | Tests (vitest) — la fórmula del cotizador |
-| `npm run preview` | Sirve `dist/` para probar el build |
+| Comando                    | Qué hace                                                          |
+| -------------------------- | ----------------------------------------------------------------- |
+| `npm run dev`              | Servidor de desarrollo                                            |
+| `npm run build`            | Build de producción en `dist/` (incluye service worker PWA)       |
+| `npm test`                 | Verificación BOM + copias + tests unitarios                       |
+| `npm run test:unit`        | Tests unitarios de funciones puras (vitest en `src/`)             |
+| `npm run test:db`          | Tests de base de datos con pgTAP (`supabase test db`)             |
+| `npm run test:integracion` | Tests de integración con cliente autenticado por rol              |
+| `npm run test:e2e`         | Smoke tests end-to-end con Playwright                             |
+| `npm run db:local`         | Inicia Supabase local, reinicia migraciones y aplica seed de test |
+| `npm run preview`          | Sirve `dist/` para probar el build                                |
+
+## Tests
+
+El proyecto utiliza un entorno local efímero de Supabase para ejecutar pruebas de base de datos, integración y E2E sin tocar producción ni staging.
+
+### 1. Levantar la base de datos local y cargar datos de prueba
+
+Asegurate de tener Docker Desktop abierto y ejecutá:
+
+```bash
+npm run db:local
+```
+
+Este comando:
+
+1. Inicia el stack de Supabase local (`supabase start`) en el puerto 54321 (API/PostgREST) y 54322 (PostgreSQL).
+2. Aplica todas las migraciones desde cero (`supabase db reset`).
+3. Ejecuta `supabase/seed-test.sql` con usuarios fijos (`admin@test.local`, `oficina@test.local`, `chofer1@test.local`, `chofer2@test.local`), clientes, flota y categorías.
+
+### 2. Ejecutar las suites de tests
+
+```bash
+# Calidad estática y tests unitarios
+npm test
+
+# Solo unitarios
+npm run test:unit
+
+# Tests de base de datos (pgTAP dentro de PostgreSQL)
+npm run test:db
+
+# Tests de integración (vitest contra Supabase local)
+npm run test:integracion
+
+# Tests E2E (Playwright)
+npm run test:e2e
+```
+
+### 3. ¿Qué hacer si `supabase start` falla por Docker?
+
+1. **Verificar que Docker Desktop esté en ejecución**:
+   - Abrí **Docker Desktop** desde el menú inicio o ejecutá `docker info` en la terminal.
+   - Si muestra el error `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`, el servicio de Docker Desktop todavía está iniciando o detenido.
+2. **Esperar a que el motor termine de iniciar**:
+   - Aguardá unos segundos hasta que el ícono de la ballena de Docker Desktop en la barra de tareas quede quieto (verde).
+3. **Reiniciar Docker Desktop si queda trabado**:
+   - Hacé clic derecho en el ícono de Docker Desktop y seleccioná **Restart Docker**.
+   - En PowerShell podés reiniciar el proceso con:
+     ```powershell
+     Stop-Process -Name "Docker Desktop" -Force
+     Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+     ```
+4. **Reintentar el comando**:
+   ```bash
+   npx supabase start
+   ```
 
 ## Deploy (Railway)
 
 El proyecto cuenta con dos servicios en Railway:
 
 ### 1. App Web (`elevaplus-gestion`)
+
 Sitio estático (SPA React + PWA):
+
 - Repo: `Ezem98/elevaplus-gestion` (rama `main`)
 - Build command: `npm run build`
 - Start command: `npx serve -s dist -l $PORT` (o servir `dist/` con cualquier estático)
@@ -55,7 +118,9 @@ Sitio estático (SPA React + PWA):
 - Dominio: `https://gestion.eleva-plus.com.ar`
 
 ### 2. Worker de Procesamiento (`elevaplus-worker`)
+
 Servicio Node.js para tareas en segundo plano (lote nocturno ARCA, generación de PDFs, envío de correos, recordatorios y sincronización con Google Calendar):
+
 - Repo: `Ezem98/elevaplus-gestion` (rama `main`)
 - Root Directory: `worker/`
 - Build command: `npm run build` (o automático vía `Dockerfile` / `package.json`)
@@ -84,9 +149,11 @@ Servicio Node.js para tareas en segundo plano (lote nocturno ARCA, generación d
 Para habilitar las notificaciones push en segundo plano cuando choferes inician o terminan servicios, o cargan servicios no planificados:
 
 1. **Generar claves VAPID y configurar secrets**:
+
    ```bash
    npx web-push generate-vapid-keys
    ```
+
    - Clave pública: agregar a `.env.local` y a las variables de entorno en Railway como `VITE_VAPID_PUBLIC_KEY`.
    - Ambas claves, asunto y secret del webhook a los secrets de Supabase:
      ```bash
@@ -94,6 +161,7 @@ Para habilitar las notificaciones push en segundo plano cuando choferes inician 
      ```
 
 2. **Desplegar la Edge Function**:
+
    ```bash
    npx supabase functions deploy enviar-push --no-verify-jwt
    ```
@@ -102,7 +170,6 @@ Para habilitar las notificaciones push en segundo plano cuando choferes inician 
    En Supabase Dashboard → **Database** → **Webhooks** → crear dos webhooks de tipo **Supabase Edge Function** apuntando a `enviar-push`:
    - **Webhook 1**: Tabla `servicio_eventos`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
    - **Webhook 2**: Tabla `servicios`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
-
 
 ## Ingreso con huella / Passkeys (Supabase Auth)
 

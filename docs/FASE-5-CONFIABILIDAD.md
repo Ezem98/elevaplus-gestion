@@ -9,11 +9,12 @@
 
 El sistema tiene 77 tests y todos son de funciones puras (cotizador, formato, fechas, facturación). La lógica que maneja **plata, estados y permisos** vive en Postgres y no tiene ninguno. Dos bugs reales lo demostraron:
 
-| Bug                                                                                           | Lo detectó               | Debería haberlo detectado           |
-| --------------------------------------------------------------------------------------------- | ------------------------ | ----------------------------------- |
-| `p_nuevo_estado` en vez de `p_nuevo` en la RPC de cheques — rompía **todas** las transiciones | Revisión manual del diff | Test de integración con supabase-js |
-| BOM UTF-8 en migraciones — la integración de Supabase falló en producción                     | El deploy fallido        | `supabase db reset` en CI           |
-| Policy `facturas_leer` duplicada                                                              | El deploy fallido        | `supabase db reset` en CI           |
+| Bug                                                                                               | Lo detectó                               | Debería haberlo detectado           |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------------------------- |
+| `p_nuevo_estado` en vez de `p_nuevo` en la RPC de cheques — rompía **todas** las transiciones     | Revisión manual del diff                 | Test de integración con supabase-js |
+| BOM UTF-8 en migraciones — la integración de Supabase falló en producción                         | El deploy fallido                        | `supabase db reset` en CI           |
+| Policy `facturas_leer` duplicada                                                                  | El deploy fallido                        | `supabase db reset` en CI           |
+| Vista agenda con tipos heterogéneos en el UNION — las migraciones 14 y 15 no aplicaban desde cero | Lo detectó `supabase db reset` en Fase 5 | `supabase db reset` en CI           |
 
 Y hay una lista de verificaciones manuales que se repite en cada fase (cheque rechazado, endoso, cobro parcial, chofer que no ve precios). Eso es exactamente lo que automatiza esta fase.
 
