@@ -6,8 +6,8 @@ export interface ParametrosEnvioMailResend {
   asunto: string;
   texto: string;
   html: string;
-  nombreAdjunto: string;
-  contenidoAdjunto: Buffer;
+  nombreAdjunto?: string;
+  contenidoAdjunto?: Buffer;
   replyTo?: string;
 }
 
@@ -26,7 +26,7 @@ export interface ResultadoEnvioMail {
 export function filtrarDestinatarioPorListaBlanca(
   emailDestino: string,
   ambiente: string = config.NODE_ENV,
-  listaBlancaRaw: string = config.MAIL_LISTA_BLANCA
+  listaBlancaRaw: string = config.MAIL_LISTA_BLANCA,
 ): { permitido: boolean; emailFinal?: string; motivo?: string } {
   if (ambiente === "production") {
     return { permitido: true, emailFinal: emailDestino };
@@ -60,14 +60,24 @@ export function filtrarDestinatarioPorListaBlanca(
  * Envía un correo electrónico con Resend adjuntando el archivo PDF.
  */
 export async function enviarMailConResend(
-  params: ParametrosEnvioMailResend
+  params: ParametrosEnvioMailResend,
 ): Promise<ResultadoEnvioMail> {
-  const { para, asunto, texto, html, nombreAdjunto, contenidoAdjunto, replyTo } = params;
+  const {
+    para,
+    asunto,
+    texto,
+    html,
+    nombreAdjunto,
+    contenidoAdjunto,
+    replyTo,
+  } = params;
 
   // 1. Validar lista blanca según ambiente
   const chequeoLista = filtrarDestinatarioPorListaBlanca(para);
   if (!chequeoLista.permitido) {
-    console.warn(`[MAIL] Envío bloqueado por política de lista blanca: ${chequeoLista.motivo}`);
+    console.warn(
+      `[MAIL] Envío bloqueado por política de lista blanca: ${chequeoLista.motivo}`,
+    );
     return {
       exito: false,
       destinatario: para,
@@ -79,8 +89,9 @@ export async function enviarMailConResend(
 
   // 2. Si no hay RESEND_API_KEY configurada (modo desarrollo/mock)
   if (!config.RESEND_API_KEY || config.RESEND_API_KEY === "dummy_resend_key") {
+    const txtAdj = nombreAdjunto ? ` | Adjunto: ${nombreAdjunto}` : "";
     console.log(
-      `[MAIL-MOCK] Simulación de envío: De: ${config.RESEND_REMITENTE} -> Para: ${emailDestino} | Asunto: "${asunto}" | Adjunto: ${nombreAdjunto} (${contenidoAdjunto.length} bytes)`
+      `[MAIL-MOCK] Simulación de envío: De: ${config.RESEND_REMITENTE} -> Para: ${emailDestino} | Asunto: "${asunto}"${txtAdj}`,
     );
     return {
       exito: true,
@@ -92,6 +103,16 @@ export async function enviarMailConResend(
   // 3. Enviar con Resend SDK
   try {
     const resend = new Resend(config.RESEND_API_KEY);
+    const attachments =
+      nombreAdjunto && contenidoAdjunto
+        ? [
+            {
+              filename: nombreAdjunto,
+              content: contenidoAdjunto,
+            },
+          ]
+        : undefined;
+
     const { data, error } = await resend.emails.send({
       from: config.RESEND_REMITENTE,
       to: [emailDestino],
@@ -99,12 +120,7 @@ export async function enviarMailConResend(
       subject: asunto,
       text: texto,
       html,
-      attachments: [
-        {
-          filename: nombreAdjunto,
-          content: contenidoAdjunto,
-        },
-      ],
+      attachments,
     });
 
     if (error) {
@@ -116,7 +132,9 @@ export async function enviarMailConResend(
       };
     }
 
-    console.log(`[MAIL] Correo enviado exitosamente vía Resend. ID: ${data?.id}`);
+    console.log(
+      `[MAIL] Correo enviado exitosamente vía Resend. ID: ${data?.id}`,
+    );
     return {
       exito: true,
       id: data?.id,

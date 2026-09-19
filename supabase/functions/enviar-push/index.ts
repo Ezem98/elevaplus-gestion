@@ -17,10 +17,12 @@ Deno.serve(async (req: Request) => {
   const apiKeyHeader = req.headers.get("apikey");
 
   if (webhookSecret || serviceRoleKey) {
-    const esWebhookValido = webhookSecret && authHeader === `Bearer ${webhookSecret}`;
+    const esWebhookValido =
+      webhookSecret && authHeader === `Bearer ${webhookSecret}`;
     const esServiceRoleValido =
       serviceRoleKey &&
-      (authHeader === `Bearer ${serviceRoleKey}` || apiKeyHeader === serviceRoleKey);
+      (authHeader === `Bearer ${serviceRoleKey}` ||
+        apiKeyHeader === serviceRoleKey);
 
     if (!esWebhookValido && !esServiceRoleValido) {
       return new Response(JSON.stringify({ error: "No autorizado" }), {
@@ -40,20 +42,32 @@ Deno.serve(async (req: Request) => {
     let usuarioExcluido: string | null = null;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = serviceRoleKey || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseServiceKey =
+      serviceRoleKey || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Faltan variables SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
+      console.error(
+        "Faltan variables SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY",
+      );
       return new Response(
-        JSON.stringify({ ok: false, error: "Variables de entorno de Supabase faltantes" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          ok: false,
+          error: "Variables de entorno de Supabase faltantes",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Caso directo (llamado explícito desde worker o backend)
-    if (payload.direct || (payload.titulo && payload.cuerpo)) {
+    if (payload.tipo === "directo") {
+      titulo = payload.titulo;
+      cuerpo = payload.cuerpo;
+      url = payload.url || "/";
+      tag = payload.tag || "general";
+      usuarioExcluido = payload.usuarioExcluido || null;
+    } else if (payload.direct || (payload.titulo && payload.cuerpo)) {
       titulo = payload.titulo;
       cuerpo = payload.cuerpo;
       url = payload.url || "/facturacion";
@@ -65,113 +79,148 @@ Deno.serve(async (req: Request) => {
       // Solo se procesan eventos tipo INSERT
       if (type !== "INSERT" || !record) {
         return new Response(
-          JSON.stringify({ ok: true, ignorado: true, motivo: "No es un evento INSERT" }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          JSON.stringify({
+            ok: true,
+            ignorado: true,
+            motivo: "No es un evento INSERT",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
-    // Caso 1: INSERT en servicio_eventos con estado_nuevo in ('terminado', 'en_curso')
-    if (table === "servicio_eventos") {
-      if (record.estado_nuevo !== "terminado" && record.estado_nuevo !== "en_curso") {
+      // Caso 1: INSERT en servicio_eventos con estado_nuevo in ('terminado', 'en_curso')
+      if (table === "servicio_eventos") {
+        if (
+          record.estado_nuevo !== "terminado" &&
+          record.estado_nuevo !== "en_curso"
+        ) {
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              ignorado: true,
+              motivo: "Estado no procesable",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
+        usuarioExcluido = record.usuario_id || null;
+
+        const [{ data: servicio }, { data: usuarioPerfil }] = await Promise.all(
+          [
+            supabaseAdmin
+              .from("servicios")
+              .select(
+                "id, numero, tipo, origen, destino, cliente:clientes(nombre)",
+              )
+              .eq("id", record.servicio_id)
+              .maybeSingle(),
+            record.usuario_id
+              ? supabaseAdmin
+                  .from("perfiles")
+                  .select("nombre")
+                  .eq("id", record.usuario_id)
+                  .maybeSingle()
+              : Promise.resolve({ data: null }),
+          ],
+        );
+
+        const nombreUsuario = usuarioPerfil?.nombre || "Un chofer";
+        const numServ = servicio?.numero != null ? `#${servicio.numero}` : "";
+        const clienteNombre = (servicio?.cliente as any)?.nombre || "Cliente";
+
+        let detalleTrayecto = "";
+        if (servicio?.origen && servicio?.destino) {
+          const prefijoTipo = servicio.tipo === "traslado" ? "Traslado " : "";
+          detalleTrayecto = `${prefijoTipo}${servicio.origen} → ${servicio.destino}`;
+        }
+
+        const accion =
+          record.estado_nuevo === "terminado" ? "terminó" : "inició";
+        titulo = `${nombreUsuario} ${accion} el servicio ${numServ}`.trim();
+        cuerpo = detalleTrayecto
+          ? `${clienteNombre} · ${detalleTrayecto}`
+          : clienteNombre;
+        url = `/servicios/${record.servicio_id}`;
+        tag = `servicio-${record.servicio_id}`;
+      }
+      // Caso 2: INSERT en servicios con no_planificado = true
+      else if (table === "servicios") {
+        if (!record.no_planificado) {
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              ignorado: true,
+              motivo: "No es servicio no planificado",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
+        usuarioExcluido = record.creado_por || null;
+
+        const [{ data: usuarioPerfil }, { data: cliente }] = await Promise.all([
+          record.creado_por
+            ? supabaseAdmin
+                .from("perfiles")
+                .select("nombre")
+                .eq("id", record.creado_por)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+          record.cliente_id
+            ? supabaseAdmin
+                .from("clientes")
+                .select("nombre")
+                .eq("id", record.cliente_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        ]);
+
+        const nombreChofer = usuarioPerfil?.nombre || "un chofer";
+        const clienteNombre = cliente?.nombre || "Cliente";
+
+        let detalleTrayecto = "";
+        if (record.origen && record.destino) {
+          const prefijoTipo = record.tipo === "traslado" ? "Traslado " : "";
+          detalleTrayecto = `${prefijoTipo}${record.origen} → ${record.destino}`;
+        }
+
+        titulo = `Servicio no planificado cargado por ${nombreChofer}`;
+        cuerpo = detalleTrayecto
+          ? `${clienteNombre} · ${detalleTrayecto}`
+          : clienteNombre;
+        url = `/servicios/${record.id}`;
+        tag = `servicio-${record.id}`;
+      } else {
         return new Response(
-          JSON.stringify({ ok: true, ignorado: true, motivo: "Estado no procesable" }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          JSON.stringify({
+            ok: true,
+            ignorado: true,
+            motivo: "Tabla no configurada para push",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
-
-      usuarioExcluido = record.usuario_id || null;
-
-      const [{ data: servicio }, { data: usuarioPerfil }] = await Promise.all([
-        supabaseAdmin
-          .from("servicios")
-          .select("id, numero, tipo, origen, destino, cliente:clientes(nombre)")
-          .eq("id", record.servicio_id)
-          .maybeSingle(),
-        record.usuario_id
-          ? supabaseAdmin
-              .from("perfiles")
-              .select("nombre")
-              .eq("id", record.usuario_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-      ]);
-
-      const nombreUsuario = usuarioPerfil?.nombre || "Un chofer";
-      const numServ = servicio?.numero != null ? `#${servicio.numero}` : "";
-      const clienteNombre = (servicio?.cliente as any)?.nombre || "Cliente";
-
-      let detalleTrayecto = "";
-      if (servicio?.origen && servicio?.destino) {
-        const prefijoTipo = servicio.tipo === "traslado" ? "Traslado " : "";
-        detalleTrayecto = `${prefijoTipo}${servicio.origen} → ${servicio.destino}`;
-      }
-
-      const accion = record.estado_nuevo === "terminado" ? "terminó" : "inició";
-      titulo = `${nombreUsuario} ${accion} el servicio ${numServ}`.trim();
-      cuerpo = detalleTrayecto ? `${clienteNombre} · ${detalleTrayecto}` : clienteNombre;
-      url = `/servicios/${record.servicio_id}`;
-      tag = `servicio-${record.servicio_id}`;
-    }
-    // Caso 2: INSERT en servicios con no_planificado = true
-    else if (table === "servicios") {
-      if (!record.no_planificado) {
-        return new Response(
-          JSON.stringify({ ok: true, ignorado: true, motivo: "No es servicio no planificado" }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
-
-      usuarioExcluido = record.creado_por || null;
-
-      const [{ data: usuarioPerfil }, { data: cliente }] = await Promise.all([
-        record.creado_por
-          ? supabaseAdmin
-              .from("perfiles")
-              .select("nombre")
-              .eq("id", record.creado_por)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-        record.cliente_id
-          ? supabaseAdmin
-              .from("clientes")
-              .select("nombre")
-              .eq("id", record.cliente_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-      ]);
-
-      const nombreChofer = usuarioPerfil?.nombre || "un chofer";
-      const clienteNombre = cliente?.nombre || "Cliente";
-
-      let detalleTrayecto = "";
-      if (record.origen && record.destino) {
-        const prefijoTipo = record.tipo === "traslado" ? "Traslado " : "";
-        detalleTrayecto = `${prefijoTipo}${record.origen} → ${record.destino}`;
-      }
-
-      titulo = `Servicio no planificado cargado por ${nombreChofer}`;
-      cuerpo = detalleTrayecto ? `${clienteNombre} · ${detalleTrayecto}` : clienteNombre;
-      url = `/servicios/${record.id}`;
-      tag = `servicio-${record.id}`;
-    } else {
-      return new Response(
-        JSON.stringify({ ok: true, ignorado: true, motivo: "Tabla no configurada para push" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
     }
 
-    // 2. Obtener usuarios destino con rol admin u oficina excluyendo al generador
+    // 2. Obtener usuarios destino según destinatarios (por defecto admin y oficina)
+    const rolesDestino =
+      payload.destinatarios === "oficina"
+        ? ["admin", "oficina"]
+        : payload.destinatarios
+          ? [payload.destinatarios]
+          : ["admin", "oficina"];
+
     const { data: perfilesDestino, error: errPerfiles } = await supabaseAdmin
       .from("perfiles")
       .select("id")
-      .in("rol", ["admin", "oficina"]);
+      .in("rol", rolesDestino);
 
     if (errPerfiles) {
       console.error("Error consultando perfiles:", errPerfiles);
       return new Response(
         JSON.stringify({ ok: false, error: "Error consultando destinatarios" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+        { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -181,8 +230,12 @@ Deno.serve(async (req: Request) => {
 
     if (idsDestino.length === 0) {
       return new Response(
-        JSON.stringify({ ok: true, enviados: 0, motivo: "Sin destinatarios autorizados" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          ok: true,
+          enviados: 0,
+          motivo: "Sin destinatarios autorizados",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -196,14 +249,18 @@ Deno.serve(async (req: Request) => {
       console.error("Error consultando push_suscripciones:", errSubs);
       return new Response(
         JSON.stringify({ ok: false, error: "Error consultando suscripciones" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+        { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
 
     if (!suscripciones || suscripciones.length === 0) {
       return new Response(
-        JSON.stringify({ ok: true, enviados: 0, motivo: "Sin suscripciones registradas" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          ok: true,
+          enviados: 0,
+          motivo: "Sin suscripciones registradas",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -216,8 +273,11 @@ Deno.serve(async (req: Request) => {
     if (!vapidPublicKey || !vapidPrivateKey) {
       console.error("Faltan claves VAPID_PUBLIC_KEY o VAPID_PRIVATE_KEY");
       return new Response(
-        JSON.stringify({ ok: false, error: "Claves VAPID no configuradas en el servidor" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          ok: false,
+          error: "Claves VAPID no configuradas en el servidor",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -262,7 +322,10 @@ Deno.serve(async (req: Request) => {
             .eq("id", sub.id);
           eliminados++;
         } else {
-          console.error(`Error enviando notificación a suscripción ${sub.id}:`, err);
+          console.error(
+            `Error enviando notificación a suscripción ${sub.id}:`,
+            err,
+          );
         }
       }
     }
@@ -274,13 +337,16 @@ Deno.serve(async (req: Request) => {
         eliminados,
         total: suscripciones.length,
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      { status: 200, headers: { "Content-Type": "application/json" } },
     );
   } catch (error: any) {
     console.error("Error inesperado en webhook enviar-push:", error);
     return new Response(
-      JSON.stringify({ ok: false, error: error?.message || "Error interno no controlado" }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({
+        ok: false,
+        error: error?.message || "Error interno no controlado",
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
     );
   }
 });

@@ -1,13 +1,15 @@
 import { Router } from "express";
+import { generarInstancias } from "../agenda/instancias";
+import { recordatoriosHoy, recordatoriosManana } from "../agenda/recordatorios";
+import { resumenSemanal } from "../agenda/resumenSemanal";
+import { consultarPadron } from "../arca/padron";
 import { config } from "../config";
-import { requerirAdminUOficina, requerirWorkerSecretOAdmin } from "./auth";
 import { emitirFactura } from "../emision/emitir";
 import { correrLote } from "../emision/lote";
 import { enviarFacturaEmail } from "../mail/enviar";
-import { consultarPadron } from "../arca/padron";
+import { requerirAdminUOficina, requerirWorkerSecretOAdmin } from "./auth";
 
 export const enrutador = Router();
-
 
 // Health check
 enrutador.get("/health", (_req, res) => {
@@ -29,7 +31,9 @@ enrutador.post("/emitir", requerirAdminUOficina, async (req, res) => {
   }
 
   if (!Array.isArray(servicio_ids) || servicio_ids.length === 0) {
-    res.status(400).json({ error: "Debe enviar una lista servicio_ids no vacía." });
+    res
+      .status(400)
+      .json({ error: "Debe enviar una lista servicio_ids no vacía." });
     return;
   }
 
@@ -71,43 +75,48 @@ enrutador.post("/lote", requerirWorkerSecretOAdmin, async (req, res) => {
     console.error("Error al ejecutar corrida de lote:", err);
     res.status(500).json({
       ok: false,
-      error: err?.message || "Ocurrió un error al ejecutar el lote de facturación.",
+      error:
+        err?.message || "Ocurrió un error al ejecutar el lote de facturación.",
     });
   }
 });
 
 // Reenvío de factura por correo electrónico
-enrutador.post("/reenviar-mail", requerirWorkerSecretOAdmin, async (req, res) => {
-  const { factura_id } = req.body;
+enrutador.post(
+  "/reenviar-mail",
+  requerirWorkerSecretOAdmin,
+  async (req, res) => {
+    const { factura_id } = req.body;
 
-  if (!factura_id || typeof factura_id !== "string") {
-    res.status(400).json({ error: "Falta el campo factura_id." });
-    return;
-  }
-
-  try {
-    const resultado = await enviarFacturaEmail(factura_id);
-    if (!resultado.exito) {
-      res.status(400).json({
-        ok: false,
-        motivo: resultado.motivo,
-        error: `No se pudo enviar el correo: ${resultado.motivo || "desconocido"}`,
-      });
+    if (!factura_id || typeof factura_id !== "string") {
+      res.status(400).json({ error: "Falta el campo factura_id." });
       return;
     }
 
-    res.status(200).json({
-      ok: true,
-      destinatario: resultado.destinatario,
-    });
-  } catch (err: any) {
-    console.error("Error al reenviar factura por correo:", err);
-    res.status(500).json({
-      ok: false,
-      error: err?.message || "Ocurrió un error al reenviar la factura.",
-    });
-  }
-});
+    try {
+      const resultado = await enviarFacturaEmail(factura_id);
+      if (!resultado.exito) {
+        res.status(400).json({
+          ok: false,
+          motivo: resultado.motivo,
+          error: `No se pudo enviar el correo: ${resultado.motivo || "desconocido"}`,
+        });
+        return;
+      }
+
+      res.status(200).json({
+        ok: true,
+        destinatario: resultado.destinatario,
+      });
+    } catch (err: any) {
+      console.error("Error al reenviar factura por correo:", err);
+      res.status(500).json({
+        ok: false,
+        error: err?.message || "Ocurrió un error al reenviar la factura.",
+      });
+    }
+  },
+);
 
 // Consulta de constancia de inscripción en padrón de ARCA
 enrutador.get("/padron/:cuit", requerirAdminUOficina, async (req, res) => {
@@ -117,7 +126,6 @@ enrutador.get("/padron/:cuit", requerirAdminUOficina, async (req, res) => {
     res.status(400).json({ error: "Falta el parámetro CUIT." });
     return;
   }
-
 
   try {
     const datos = await consultarPadron(cuit);
@@ -142,5 +150,50 @@ enrutador.get("/padron/:cuit", requerirAdminUOficina, async (req, res) => {
   }
 });
 
+// Disparo manual de tareas del worker (instancias, recordatorios, resumen semanal)
+enrutador.post(
+  "/tareas/:nombre",
+  requerirWorkerSecretOAdmin,
+  async (req, res) => {
+    const nombreParam = req.params.nombre;
+    const nombre = Array.isArray(nombreParam) ? nombreParam[0] : nombreParam;
+    const forzar = req.query.forzar === "1" || req.query.forzar === "true";
 
+    try {
+      let resultado: any;
+      switch (nombre) {
+        case "instancias":
+          resultado = await generarInstancias({ forzar });
+          break;
+        case "recordatorios-hoy":
+          resultado = await recordatoriosHoy({ forzar });
+          break;
+        case "recordatorios-manana":
+          resultado = await recordatoriosManana({ forzar });
+          break;
+        case "resumen-semanal":
+          resultado = await resumenSemanal({ forzar });
+          break;
+        default:
+          res.status(400).json({
+            ok: false,
+            error: `Tarea desconocida: '${nombre}'. Tareas válidas: instancias, recordatorios-hoy, recordatorios-manana, resumen-semanal.`,
+          });
+          return;
+      }
 
+      res.status(200).json({
+        ok: true,
+        tarea: nombre,
+        forzar,
+        ...resultado,
+      });
+    } catch (err: any) {
+      console.error(`[TAREAS] Error al ejecutar tarea '${nombre}':`, err);
+      res.status(500).json({
+        ok: false,
+        error: err?.message || `Error al ejecutar la tarea '${nombre}'.`,
+      });
+    }
+  },
+);

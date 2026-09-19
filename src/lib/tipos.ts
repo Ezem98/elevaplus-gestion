@@ -710,13 +710,8 @@ export const ETIQUETA_TIPO_FACTURA: Record<TipoFactura, string> = {
   ND_B: "Nota de débito B",
 };
 
-export type FrecuenciaVencimiento =
-  | "unica"
-  | "semanal"
-  | "quincenal"
-  | "mensual"
-  | "bimestral"
-  | "anual";
+import type { FrecuenciaVencimiento } from "./vencimientos";
+export type { FrecuenciaVencimiento };
 
 export type EstadoInstancia = "pendiente" | "pagado" | "omitido";
 
