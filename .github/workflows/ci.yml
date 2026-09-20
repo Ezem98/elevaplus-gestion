@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main, fase5-confiabilidad]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verificar:
+    name: Verificación integral y tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js (v20) y cache de npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Cachear binarios de Playwright
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Configurar CLI de Supabase
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Instalar dependencias del frontend
+        run: npm ci
+
+      - name: Instalar dependencias del worker
+        run: npm ci --prefix worker
+
+      # Calidad estática
+      - name: Verificar codificación de archivos (UTF-8 sin BOM)
+        run: node scripts/verificar-bom.mjs
+
+      - name: Verificar sincronización de copias compartidas
+        run: node scripts/verificar-copias.mjs
+
+      - name: Análisis estático de código (linter oxlint)
+        run: npm run lint
+
+      - name: Compilar frontend (build de producción)
+        run: npm run build
+
+      - name: Compilar worker (tsc)
+        run: npm run build --prefix worker
+
+      # Base de datos desde cero
+      - name: Iniciar servicios locales de Supabase
+        run: supabase start
+
+      - name: Aplicar migraciones desde cero (supabase db reset)
+        run: supabase db reset
+
+      - name: Cargar datos iniciales de prueba (seed-test.sql)
+        run: node scripts/aplicar-seed-test.mjs
+
+      # Tests
+      - name: Ejecutar tests unitarios del frontend
+        run: npm run test:unit
+
+      - name: Ejecutar tests del worker
+        run: npm test --prefix worker
+
+      - name: Ejecutar tests de base de datos con pgTAP
+        run: supabase test db
+
+      - name: Ejecutar tests de integración (vitest + supabase-js)
+        run: npm run test:integracion
+
+      - name: Instalar navegador Chromium para Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Ejecutar tests E2E con Playwright
+        run: npm run test:e2e
+        env:
+          CI: "true"
+
+      # Artefactos en caso de fallo
+      - name: Recolectar logs de Supabase si hubo fallas
+        if: failure()
+        run: |
+          mkdir -p logs-supabase
+          docker ps -a > logs-supabase/docker-ps.txt 2>&1 || true
+          for container in $(docker ps -a --format '{{.Names}}' | grep supabase || true); do
+            echo "=== Logs de $container ===" > "logs-supabase/${container}.log"
+            docker logs "$container" >> "logs-supabase/${container}.log" 2>&1 || true
+          done
+        shell: bash
+
+      - name: Subir artefacto de logs de Supabase
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: supabase-logs
+          path: logs-supabase/
+          retention-days: 7
+
+      - name: Subir artefacto de reporte de Playwright
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

@@ -1,5 +1,8 @@
 # ELEVAPLUS Gestión
 
+[![CI](https://github.com/Ezem98/elevaplus-gestion/actions/workflows/ci.yml/badge.svg)](https://github.com/Ezem98/elevaplus-gestion/actions/workflows/ci.yml)
+[![Smoke Producción](https://github.com/Ezem98/elevaplus-gestion/actions/workflows/smoke-produccion.yml/badge.svg)](https://github.com/Ezem98/elevaplus-gestion/actions/workflows/smoke-produccion.yml)
+
 Sistema de gestión a medida para ELEVAPLUS: servicios, alquileres, cobranzas y flota.
 Diseño completo en [`docs/DISEÑO.md`](docs/DISEÑO.md).
 

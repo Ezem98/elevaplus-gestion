@@ -1,0 +1,57 @@
+name: Smoke Producción
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: Verificaciones de disponibilidad y estado
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 5
+
+    steps:
+      - name: 1. Verificar App de Gestión (HTTP 200 y título en HTML)
+        run: |
+          echo "Consultando https://gestion.eleva-plus.com.ar..."
+          RESPUESTA=$(curl -fsSL https://gestion.eleva-plus.com.ar)
+          echo "$RESPUESTA" | grep -q "ELEVAPLUS" || { echo "❌ No se encontró 'ELEVAPLUS' en el HTML"; exit 1; }
+          echo "✓ App de Gestión operativa (HTTP 200 + título presente)"
+
+      - name: 2. Verificar Landing Page institucional (HTTP 200)
+        run: |
+          echo "Consultando https://eleva-plus.com.ar..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://eleva-plus.com.ar)
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "❌ Landing page devolvió HTTP $HTTP_CODE (se esperaba 200)"
+            exit 1
+          fi
+          echo "✓ Landing page operativa (HTTP 200)"
+
+      - name: 3. Verificar salud del Worker en Railway (/health HTTP 200 y status ok)
+        run: |
+          echo "Consultando https://elevaplus-worker-production.up.railway.app/health..."
+          JSON=$(curl -fsSL https://elevaplus-worker-production.up.railway.app/health)
+          echo "$JSON" | grep -q '"status":"ok"' || { echo "❌ El worker no reportó estado ok: $JSON"; exit 1; }
+          echo "✓ Worker operativo ($JSON)"
+
+      - name: 4. Verificar API REST de Supabase en producción (HTTP 200)
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+        run: |
+          URL="${SUPABASE_URL:-https://arqcisnthwaliitljsel.supabase.co}"
+          KEY="${SUPABASE_KEY:-sb_publishable_sKs3XxCMnuyTnYY1sZZgVA_jFdb6Vgy}"
+          echo "Consultando API REST de Supabase en producción ($URL)..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" "$URL/rest/v1/clientes?select=id&limit=1")
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "❌ Supabase REST devolvió HTTP $HTTP_CODE (se esperaba 200)"
+            exit 1
+          fi
+          echo "✓ Supabase REST operativo (HTTP 200)"

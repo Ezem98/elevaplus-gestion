@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const carpetas = ["supabase/migrations", "supabase/tests", "worker", "tests", "src"];
+const carpetas = [".github", "supabase/migrations", "supabase/tests", "worker", "tests", "src"];
 const conBOM = [];
 
 function revisarRuta(ruta) {
