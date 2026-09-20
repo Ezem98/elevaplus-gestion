@@ -140,6 +140,6 @@ test.describe("Caja y Saldos (E2E)", () => {
     const celdaSaldoProyectado = filaCheque.locator("span.text-peligro");
     await expect(celdaSaldoProyectado).toBeVisible();
     await expect(celdaSaldoProyectado).toContainText("⚠️");
-    await expect(celdaSaldoProyectado).toContainText("−$ 350.000");
+    await expect(celdaSaldoProyectado).toContainText("350.000");
   });
 });

@@ -55,9 +55,9 @@ test.describe("Flujo Chofer (E2E)", () => {
     ).toBeVisible();
 
     // 3. Verificar que aparece la tarjeta del servicio con botón "Iniciar"
-    const tarjetaServicio = page
-      .locator("div", { hasText: `${PREFIJO}Traslado autoelevador asignado` })
-      .last();
+    const tarjetaServicio = page.locator(".bg-superficie", {
+      hasText: `${PREFIJO}Traslado autoelevador asignado`,
+    });
     await expect(tarjetaServicio).toBeVisible();
 
     const botonIniciar = tarjetaServicio.getByRole("button", {
@@ -114,6 +114,11 @@ test.describe("Flujo Chofer (E2E)", () => {
     await expect(opcionDespues).toBeVisible();
     await opcionDespues.click();
 
+    // Confirmar con el botón Listo para regresar a la vista principal
+    const botonListo = page.getByRole("button", { name: "Listo" });
+    await expect(botonListo).toBeVisible();
+    await botonListo.click();
+
     // Vuelve a la vista principal
     await expect(
       page.getByRole("button", { name: "Hoy", exact: true }),
@@ -154,6 +159,7 @@ test.describe("Flujo Chofer (E2E)", () => {
         estado: "terminado",
         descripcion: `${PREFIJO}Alquiler finalizado con precio oculto`,
         carga: `${PREFIJO}Alquiler finalizado con precio oculto`,
+        origen: `${PREFIJO}Origen Historial`,
         monto: 75000,
         fecha_programada: hoy,
       })
@@ -185,12 +191,11 @@ test.describe("Flujo Chofer (E2E)", () => {
     await expect(botonHistorial).toBeVisible();
     await botonHistorial.click();
 
-    await expect(
-      page.getByText(`${PREFIJO}Alquiler finalizado con precio oculto`),
-    ).toBeVisible();
+    await expect(page.getByText(`${PREFIJO}Origen Historial`)).toBeVisible();
 
-    // Verificación estricta de regla de negocio: no hay símbolo $ en el DOM de la vista Historial
+    // Verificación estricta de regla de negocio: no hay símbolo $ ni monto en el DOM de la vista Historial
     await expect(page.locator("body")).not.toContainText("$");
+    await expect(page.locator("body")).not.toContainText("75000");
 
     // 4. Pantalla 3: Pantalla "Trabajo no planificado"
     const botonHoy = page.getByRole("button", { name: "Hoy", exact: true });
@@ -204,7 +209,7 @@ test.describe("Flujo Chofer (E2E)", () => {
 
     // Verificar que se abrió la pantalla de alta no planificada
     await expect(
-      page.getByRole("heading", { name: "Trabajo no planificado" }),
+      page.getByRole("heading", { name: "Servicio no planificado" }),
     ).toBeVisible();
 
     // Verificación estricta de regla de negocio: no hay símbolo $ en el formulario de alta no planificada

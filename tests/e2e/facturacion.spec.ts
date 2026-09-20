@@ -122,13 +122,15 @@ test.describe("Facturación (E2E)", () => {
       .fill(`${PREFIJO}Factura emitida en test E2E`);
 
     const botonGuardar = page.getByRole("button", { name: "Guardar factura" });
-    await expect(botonGuardar).toBeEnabled();
     await botonGuardar.click();
 
+    // Esperar a que el formulario guarde y se desmonte
+    await expect(botonGuardar).not.toBeVisible();
+
     // 7. Verificar que el servicio desaparece de la lista de Pendientes
-    await expect(
-      page.getByText(`${PREFIJO}Traslado de autoelevador`),
-    ).not.toBeVisible();
+    await expect(page.locator("body")).not.toContainText(
+      `${PREFIJO}Traslado de autoelevador`,
+    );
 
     // 8. Verificar en base de datos que el servicio pasó a 'facturado' y tiene factura_id asociada
     const { data: servDb } = await admin
