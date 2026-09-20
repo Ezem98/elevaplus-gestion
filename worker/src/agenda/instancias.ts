@@ -3,6 +3,7 @@ import {
   generarFechas,
   type VencimientoParaGeneracion,
 } from "../lib/vencimientos";
+import { latir } from "../notificaciones/heartbeat";
 import { supabaseAdmin } from "../supabase";
 
 export interface ResultadoGeneracionInstancias {
@@ -57,6 +58,7 @@ export async function generarInstancias(
 
     if (!vencimientos || vencimientos.length === 0) {
       console.log("[INSTANCIAS] No hay vencimientos activos configurados.");
+      await latir("instancias");
       return {
         ok: true,
         vencimientosProcesados: 0,
@@ -111,6 +113,8 @@ export async function generarInstancias(
     console.log(
       `[INSTANCIAS] Generación finalizada: ${vencimientos.length} vencimientos procesados, ${totalInstancias} instancias programadas/verificadas.`,
     );
+
+    await latir("instancias");
 
     return {
       ok: true,

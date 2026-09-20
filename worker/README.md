@@ -17,6 +17,27 @@ Servicio en segundo plano para tareas asíncronas, emisión de comprobantes en A
 | `RESEND_API_KEY`            | API key de Resend para envío de correos                                  | `re_...`                                                              |
 | `RESEND_REMITENTE`          | Remitente por defecto                                                    | `ELEVAPLUS <facturacion@eleva-plus.com.ar>`                           |
 | `MAIL_LISTA_BLANCA`         | Lista de emails autorizados en desarrollo / staging (separados por coma) | `admin@empresa.com,test@test.com`                                     |
+| `HEARTBEAT_INSTANCIAS`      | URL de heartbeat para generación de instancias (+90 días)                | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
+| `HEARTBEAT_RECORDATORIOS`   | URL de heartbeat para recordatorios del día y alerta de fondos           | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
+| `HEARTBEAT_LOTE`            | URL de heartbeat para lote nocturno de facturación                       | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
+| `HEARTBEAT_SEMANAL`         | URL de heartbeat para resumen semanal por correo                         | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
+| `HEARTBEAT_CALENDARIO`      | URL de heartbeat para sincronización con Google Calendar (preparada)     | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
+
+## Monitoreo de Crons (Heartbeats en Better Stack)
+
+Cada tarea programada del worker invoca la función `latir()` al finalizar correctamente. Si Better Stack no recibe el pulso HTTP GET dentro del período y ventana de gracia especificados, reporta un incidente automáticamente.
+
+- **Resiliencia:** Si la variable no está definida, sale en silencio (el worker opera normalmente sin Better Stack).
+- **Aislamiento:** Las peticiones tienen un timeout estricto de 5 s y están envueltas en try/catch; un error o caída de Better Stack nunca interrumpe ni rompe la tarea del worker.
+- **Homologación:** En ambientes no productivos donde el lote nocturno no emite facturas reales, igualmente late para confirmar que la tarea corrió puntualmente.
+
+| Variable                  | Tarea del worker                   | Período sugerido | Gracia sugerida | Descripción                                          |
+| ------------------------- | ---------------------------------- | ---------------- | --------------- | ---------------------------------------------------- |
+| `HEARTBEAT_INSTANCIAS`    | `generarInstancias` (00:30 hs)     | 1 día            | 2 h             | Generación de instancias de vencimientos a 90 días   |
+| `HEARTBEAT_RECORDATORIOS` | `recordatoriosHoy` (08:00 hs)      | 1 día            | 2 h             | Recordatorios del día y alerta de fondos             |
+| `HEARTBEAT_LOTE`          | `correrLote` (21:30 hs)            | 1 día            | 3 h             | Lote de facturación electrónica nocturna ARCA        |
+| `HEARTBEAT_SEMANAL`       | `resumenSemanal` (lunes 07:00 hs)  | 7 días           | 6 h             | Resumen semanal enviado a `empresa.email`            |
+| `HEARTBEAT_CALENDARIO`    | `sincronizarCalendario` (01:00 hs) | 1 día            | 3 h             | Sincronización Google Calendar _(punto 6 de Agenda)_ |
 
 ## Tareas programadas (Crons)
 

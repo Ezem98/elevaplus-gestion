@@ -8,6 +8,7 @@ import {
   ItemAgendaSemanalMail,
   ProyeccionDiaMail,
 } from "../mail/plantillas";
+import { latir } from "../notificaciones/heartbeat";
 import { supabaseAdmin } from "../supabase";
 import { finalizarEjecucion, registrarEjecucion } from "./idempotencia";
 import { obtenerFechaHoyBA } from "./instancias";
@@ -67,6 +68,7 @@ export async function resumenSemanal(
   );
 
   if (!ejecutado) {
+    await latir("semanal");
     return { ok: true, omitido: true };
   }
 
@@ -98,6 +100,7 @@ export async function resumenSemanal(
         destinatario: emailDestino,
         motivo: chequeoLista.motivo,
       });
+      await latir("semanal");
       return {
         ok: true,
         omitidoPorListaBlanca: true,
@@ -248,6 +251,8 @@ export async function resumenSemanal(
     console.log(
       `[RESUMEN-SEMANAL] Enviado exitosamente a ${emailDestino} (Resend ID: ${envio.id})`,
     );
+
+    await latir("semanal");
 
     return {
       ok: true,

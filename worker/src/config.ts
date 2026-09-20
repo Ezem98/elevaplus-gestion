@@ -31,6 +31,11 @@ const esquemaConfig = z.object({
   MAIL_LISTA_BLANCA: z.string().optional().default(""),
   EDGE_PUSH_URL: z.string().optional().default(""),
   WEBHOOK_SECRET: z.string().optional().default(""),
+  HEARTBEAT_INSTANCIAS: z.string().optional(),
+  HEARTBEAT_RECORDATORIOS: z.string().optional(),
+  HEARTBEAT_LOTE: z.string().optional(),
+  HEARTBEAT_SEMANAL: z.string().optional(),
+  HEARTBEAT_CALENDARIO: z.string().optional(),
 });
 
 export const config = esquemaConfig.parse(process.env);

@@ -1,3 +1,4 @@
+import { latir } from "../notificaciones/heartbeat";
 import { enviarPushDirecto } from "../notificaciones/push";
 import { supabaseAdmin } from "../supabase";
 import { finalizarEjecucion, registrarEjecucion } from "./idempotencia";
@@ -98,6 +99,7 @@ export async function recordatoriosHoy(
     params.forzar,
   );
   if (!ejecutado) {
+    await latir("recordatorios");
     return {
       ok: true,
       omitido: true,
@@ -223,6 +225,8 @@ export async function recordatoriosHoy(
       notificacionEnviada,
       chequesAlertados,
     });
+
+    await latir("recordatorios");
 
     return {
       ok: true,
