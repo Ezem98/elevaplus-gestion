@@ -3,7 +3,9 @@ import { generarInstancias } from "../agenda/instancias";
 import { recordatoriosHoy } from "../agenda/recordatorios";
 import { resumenSemanal } from "../agenda/resumenSemanal";
 import { config } from "../config";
+import * as emitirModule from "../emision/emitir";
 import { correrLote } from "../emision/lote";
+import * as mailClienteModule from "../mail/cliente";
 import { supabaseAdmin } from "../supabase";
 import { latir, logger } from "./heartbeat";
 
@@ -102,7 +104,7 @@ describe("Worker - Heartbeats de Better Stack", () => {
 
   describe("Invocación de latir() desde las tareas", () => {
     describe("generarInstancias", () => {
-      it("llama a latir('instancias') en el camino feliz", async () => {
+      it("llama a latir('instancias') en el camino feliz cuando no hay vencimientos activos", async () => {
         (config as any).HEARTBEAT_INSTANCIAS =
           "https://betterstack.com/heartbeat/instancias";
 
@@ -118,6 +120,50 @@ describe("Worker - Heartbeats de Better Stack", () => {
         const res = await generarInstancias();
 
         expect(res.ok).toBe(true);
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/instancias",
+          expect.anything(),
+        );
+      });
+
+      it("llama a latir('instancias') en el camino feliz con vencimientos procesados", async () => {
+        (config as any).HEARTBEAT_INSTANCIAS =
+          "https://betterstack.com/heartbeat/instancias";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "vencimientos") {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: "v-1",
+                      frecuencia: "mensual",
+                      dia_del_mes: 10,
+                      monto_estimado: 5000,
+                      fecha_inicio: "2026-01-01",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "vencimiento_instancias") {
+            return {
+              upsert: vi.fn().mockResolvedValue({ error: null }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        const res = await generarInstancias();
+
+        expect(res.ok).toBe(true);
+        expect(res.vencimientosProcesados).toBe(1);
         expect(fetchMock).toHaveBeenCalledWith(
           "https://betterstack.com/heartbeat/instancias",
           expect.anything(),
@@ -204,6 +250,42 @@ describe("Worker - Heartbeats de Better Stack", () => {
         );
       });
 
+      it("llama a latir('recordatorios') cuando es omitido por idempotencia", async () => {
+        (config as any).HEARTBEAT_RECORDATORIOS =
+          "https://betterstack.com/heartbeat/recordatorios";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "ejecuciones_worker") {
+            return {
+              insert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: {
+                      code: "23505",
+                      message: "duplicate key value violates unique constraint",
+                    },
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        const res = await recordatoriosHoy({ forzar: false });
+
+        expect(res.ok).toBe(true);
+        expect(res.omitido).toBe(true);
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/recordatorios",
+          expect.anything(),
+        );
+      });
+
       it("NO llama a latir('recordatorios') en caso de error", async () => {
         (config as any).HEARTBEAT_RECORDATORIOS =
           "https://betterstack.com/heartbeat/recordatorios";
@@ -281,6 +363,307 @@ describe("Worker - Heartbeats de Better Stack", () => {
         );
       });
 
+      it("llama a latir('lote') cuando no hay facturas para emitir (aEmitir vacío)", async () => {
+        (config as any).HEARTBEAT_LOTE =
+          "https://betterstack.com/heartbeat/lote";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "empresa") {
+            return {
+              select: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { arca_ambiente: "produccion" },
+                    error: null,
+                  }),
+                  single: vi.fn().mockResolvedValue({
+                    data: {
+                      tope_diario_facturas: 20,
+                      tope_diario_monto: 20000000,
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "facturas") {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  lte: vi.fn().mockResolvedValue({ data: [], error: null }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "lotes_emision") {
+            return {
+              insert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: "lote-vacio-1" },
+                    error: null,
+                  }),
+                }),
+              }),
+              update: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            } as any;
+          }
+          if (tabla === "clientes") {
+            return {
+              select: vi.fn().mockResolvedValue({ data: [], error: null }),
+            } as any;
+          }
+          if (tabla === "servicios") {
+            return {
+              select: vi.fn().mockReturnValue({
+                in: vi.fn().mockReturnValue({
+                  is: vi.fn().mockReturnValue({
+                    or: vi.fn().mockResolvedValue({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        const res = await correrLote({ disparadoPor: "manual:admin" });
+
+        expect(res.error).toBeNull();
+        expect(res.loteId).toBe("lote-vacio-1");
+        expect(res.facturasEmitidas).toBe(0);
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/lote",
+          expect.anything(),
+        );
+      });
+
+      it("llama a latir('lote') cuando se superan los topes diarios (salida controlada)", async () => {
+        (config as any).HEARTBEAT_LOTE =
+          "https://betterstack.com/heartbeat/lote";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "empresa") {
+            return {
+              select: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { arca_ambiente: "produccion" },
+                    error: null,
+                  }),
+                  single: vi.fn().mockResolvedValue({
+                    data: { tope_diario_facturas: 0, tope_diario_monto: 0 },
+                    error: null,
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "facturas") {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  lte: vi.fn().mockResolvedValue({ data: [], error: null }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "lotes_emision") {
+            return {
+              insert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: "lote-topes-1" },
+                    error: null,
+                  }),
+                }),
+              }),
+              update: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            } as any;
+          }
+          if (tabla === "clientes") {
+            return {
+              select: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: "cli-1",
+                    nombre: "Cliente 1",
+                    cuit: "20111111112",
+                    condicion_iva: "responsable_inscripto",
+                    facturacion_modo: "por_servicio",
+                    facturacion_automatica: true,
+                  },
+                ],
+                error: null,
+              }),
+            } as any;
+          }
+          if (tabla === "servicios") {
+            return {
+              select: vi.fn().mockReturnValue({
+                in: vi.fn().mockReturnValue({
+                  is: vi.fn().mockReturnValue({
+                    or: vi.fn().mockResolvedValue({
+                      data: [
+                        {
+                          id: "srv-1",
+                          numero: 101,
+                          cliente_id: "cli-1",
+                          descripcion: "Servicio 1",
+                          monto: 10000,
+                          aplica_iva: true,
+                          fecha_fin: "2026-09-20",
+                          estado: "terminado",
+                        },
+                      ],
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        const res = await correrLote({ disparadoPor: "manual:admin" });
+
+        expect(res.error).toBe("tope_superado");
+        expect(res.loteId).toBe("lote-topes-1");
+        expect(res.facturasEmitidas).toBe(0);
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/lote",
+          expect.anything(),
+        );
+      });
+
+      it("llama a latir('lote') en el camino normal con facturas emitidas", async () => {
+        (config as any).HEARTBEAT_LOTE =
+          "https://betterstack.com/heartbeat/lote";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(emitirModule, "emitirFactura").mockResolvedValue({
+          tipo: "Factura A",
+          punto_venta: 1,
+          numero: 10,
+          cae: "12345678901234",
+          vencimiento_cae: "2026-09-30",
+          factura_id: "fact-1",
+        } as any);
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "empresa") {
+            return {
+              select: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { arca_ambiente: "produccion" },
+                    error: null,
+                  }),
+                  single: vi.fn().mockResolvedValue({
+                    data: {
+                      tope_diario_facturas: 50,
+                      tope_diario_monto: 50000000,
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "facturas") {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  lte: vi.fn().mockResolvedValue({ data: [], error: null }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "lotes_emision") {
+            return {
+              insert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: "lote-exito-1" },
+                    error: null,
+                  }),
+                }),
+              }),
+              update: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            } as any;
+          }
+          if (tabla === "clientes") {
+            return {
+              select: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: "cli-1",
+                    nombre: "Cliente 1",
+                    cuit: "20111111112",
+                    condicion_iva: "responsable_inscripto",
+                    facturacion_modo: "por_servicio",
+                    facturacion_automatica: true,
+                  },
+                ],
+                error: null,
+              }),
+            } as any;
+          }
+          if (tabla === "servicios") {
+            return {
+              select: vi.fn().mockReturnValue({
+                in: vi.fn().mockReturnValue({
+                  is: vi.fn().mockReturnValue({
+                    or: vi.fn().mockResolvedValue({
+                      data: [
+                        {
+                          id: "srv-1",
+                          numero: 101,
+                          cliente_id: "cli-1",
+                          descripcion: "Servicio 1",
+                          monto: 10000,
+                          aplica_iva: true,
+                          fecha_fin: "2026-09-20",
+                          estado: "terminado",
+                        },
+                      ],
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        const res = await correrLote({ disparadoPor: "manual:admin" });
+
+        expect(res.error).toBeNull();
+        expect(res.loteId).toBe("lote-exito-1");
+        expect(res.facturasEmitidas).toBe(1);
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/lote",
+          expect.anything(),
+        );
+      });
+
       it("NO llama a latir('lote') si falla la creación del lote en la base", async () => {
         (config as any).HEARTBEAT_LOTE =
           "https://betterstack.com/heartbeat/lote";
@@ -328,6 +711,87 @@ describe("Worker - Heartbeats de Better Stack", () => {
         await expect(
           correrLote({ disparadoPor: "manual:admin" }),
         ).rejects.toThrow();
+
+        expect(fetchMock).not.toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/lote",
+          expect.anything(),
+        );
+      });
+
+      it("NO llama a latir('lote') si ocurre un error crítico durante la consulta de servicios", async () => {
+        (config as any).HEARTBEAT_LOTE =
+          "https://betterstack.com/heartbeat/lote";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "empresa") {
+            return {
+              select: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { arca_ambiente: "produccion" },
+                    error: null,
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "facturas") {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  lte: vi.fn().mockResolvedValue({ data: [], error: null }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "lotes_emision") {
+            return {
+              insert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: "lote-crit-1" },
+                    error: null,
+                  }),
+                }),
+              }),
+              update: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            } as any;
+          }
+          if (tabla === "clientes") {
+            return {
+              select: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
+              }),
+            } as any;
+          }
+          if (tabla === "servicios") {
+            return {
+              select: vi.fn().mockReturnValue({
+                in: vi.fn().mockReturnValue({
+                  is: vi.fn().mockReturnValue({
+                    or: vi.fn().mockResolvedValue({
+                      data: null,
+                      error: {
+                        message: "Error al consultar servicios: timeout",
+                      },
+                    }),
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        await expect(
+          correrLote({ disparadoPor: "manual:admin" }),
+        ).rejects.toThrow("Error al consultar servicios: timeout");
 
         expect(fetchMock).not.toHaveBeenCalledWith(
           "https://betterstack.com/heartbeat/lote",
@@ -393,6 +857,133 @@ describe("Worker - Heartbeats de Better Stack", () => {
         );
       });
 
+      it("llama a latir('semanal') cuando es omitido por idempotencia", async () => {
+        (config as any).HEARTBEAT_SEMANAL =
+          "https://betterstack.com/heartbeat/semanal";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "ejecuciones_worker") {
+            return {
+              insert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: {
+                      code: "23505",
+                      message: "duplicate key value violates unique constraint",
+                    },
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        const res = await resumenSemanal({ forzar: false });
+
+        expect(res.ok).toBe(true);
+        expect(res.omitido).toBe(true);
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/semanal",
+          expect.anything(),
+        );
+      });
+
+      it("llama a latir('semanal') en el camino normal cuando el correo se envía con éxito", async () => {
+        (config as any).HEARTBEAT_SEMANAL =
+          "https://betterstack.com/heartbeat/semanal";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        config.MAIL_LISTA_BLANCA = "admin@empresa.com";
+
+        vi.spyOn(mailClienteModule, "enviarMailConResend").mockResolvedValue({
+          exito: true,
+          id: "resend-mock-123",
+        });
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "ejecuciones_worker") {
+            return {
+              upsert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi
+                    .fn()
+                    .mockResolvedValue({ data: { id: 1 }, error: null }),
+                }),
+              }),
+              update: vi.fn().mockReturnValue({
+                match: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            } as any;
+          }
+          if (tabla === "empresa") {
+            const mockData = {
+              data: {
+                email: "admin@empresa.com",
+                email_facturacion: null,
+              },
+              error: null,
+            };
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue(mockData),
+                  single: vi.fn().mockResolvedValue(mockData),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "agenda") {
+            return {
+              select: vi.fn().mockReturnValue({
+                gte: vi.fn().mockReturnValue({
+                  lte: vi.fn().mockReturnValue({
+                    order: vi.fn().mockResolvedValue({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "cheques") {
+            return {
+              select: vi.fn().mockReturnValue({
+                gte: vi.fn().mockReturnValue({
+                  lte: vi.fn().mockReturnValue({
+                    in: vi.fn().mockReturnValue({
+                      order: vi
+                        .fn()
+                        .mockResolvedValue({ data: [], error: null }),
+                    }),
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        vi.spyOn(supabaseAdmin, "rpc").mockResolvedValue({
+          data: [],
+          error: null,
+        } as any);
+
+        const res = await resumenSemanal({ forzar: true });
+
+        expect(res.ok).toBe(true);
+        expect(res.omitidoPorListaBlanca).toBeUndefined();
+        expect(res.destinatario).toBe("admin@empresa.com");
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/semanal",
+          expect.anything(),
+        );
+      });
+
       it("NO llama a latir('semanal') cuando la empresa no tiene email configurado", async () => {
         (config as any).HEARTBEAT_SEMANAL =
           "https://betterstack.com/heartbeat/semanal";
@@ -428,6 +1019,163 @@ describe("Worker - Heartbeats de Better Stack", () => {
             };
             return {
               select: vi.fn().mockReturnValue(mockChain),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        const res = await resumenSemanal({ forzar: true });
+
+        expect(res.ok).toBe(false);
+        expect(fetchMock).not.toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/semanal",
+          expect.anything(),
+        );
+      });
+
+      it("NO llama a latir('semanal') cuando falla el envío del mail vía Resend", async () => {
+        (config as any).HEARTBEAT_SEMANAL =
+          "https://betterstack.com/heartbeat/semanal";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        config.MAIL_LISTA_BLANCA = "admin@empresa.com";
+
+        vi.spyOn(mailClienteModule, "enviarMailConResend").mockResolvedValue({
+          exito: false,
+          motivo: "API key inválida",
+        });
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "ejecuciones_worker") {
+            return {
+              upsert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi
+                    .fn()
+                    .mockResolvedValue({ data: { id: 1 }, error: null }),
+                }),
+              }),
+              update: vi.fn().mockReturnValue({
+                match: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            } as any;
+          }
+          if (tabla === "empresa") {
+            const mockData = {
+              data: {
+                email: "admin@empresa.com",
+                email_facturacion: null,
+              },
+              error: null,
+            };
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue(mockData),
+                  single: vi.fn().mockResolvedValue(mockData),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "agenda") {
+            return {
+              select: vi.fn().mockReturnValue({
+                gte: vi.fn().mockReturnValue({
+                  lte: vi.fn().mockReturnValue({
+                    order: vi.fn().mockResolvedValue({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "cheques") {
+            return {
+              select: vi.fn().mockReturnValue({
+                gte: vi.fn().mockReturnValue({
+                  lte: vi.fn().mockReturnValue({
+                    in: vi.fn().mockReturnValue({
+                      order: vi
+                        .fn()
+                        .mockResolvedValue({ data: [], error: null }),
+                    }),
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        vi.spyOn(supabaseAdmin, "rpc").mockResolvedValue({
+          data: [],
+          error: null,
+        } as any);
+
+        const res = await resumenSemanal({ forzar: true });
+
+        expect(res.ok).toBe(false);
+        expect(res.error).toBe("API key inválida");
+        expect(fetchMock).not.toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/semanal",
+          expect.anything(),
+        );
+      });
+
+      it("NO llama a latir('semanal') cuando ocurre una excepción en la consulta de agenda", async () => {
+        (config as any).HEARTBEAT_SEMANAL =
+          "https://betterstack.com/heartbeat/semanal";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        config.MAIL_LISTA_BLANCA = "admin@empresa.com";
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "ejecuciones_worker") {
+            return {
+              upsert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi
+                    .fn()
+                    .mockResolvedValue({ data: { id: 1 }, error: null }),
+                }),
+              }),
+              update: vi.fn().mockReturnValue({
+                match: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            } as any;
+          }
+          if (tabla === "empresa") {
+            const mockData = {
+              data: {
+                email: "admin@empresa.com",
+                email_facturacion: null,
+              },
+              error: null,
+            };
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue(mockData),
+                  single: vi.fn().mockResolvedValue(mockData),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "agenda") {
+            return {
+              select: vi.fn().mockReturnValue({
+                gte: vi.fn().mockReturnValue({
+                  lte: vi.fn().mockReturnValue({
+                    order: vi.fn().mockResolvedValue({
+                      data: null,
+                      error: { message: "Error consultando agenda semanal" },
+                    }),
+                  }),
+                }),
+              }),
             } as any;
           }
           return {} as any;

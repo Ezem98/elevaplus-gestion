@@ -44,6 +44,7 @@ export async function generarInstancias(
     `[INSTANCIAS] Iniciando generación de instancias desde ${hoyStr} hasta ${hastaStr}...`,
   );
 
+  let exito = false;
   try {
     const { data: vencimientos, error: errVenc } = await supabaseAdmin
       .from("vencimientos")
@@ -58,7 +59,7 @@ export async function generarInstancias(
 
     if (!vencimientos || vencimientos.length === 0) {
       console.log("[INSTANCIAS] No hay vencimientos activos configurados.");
-      await latir("instancias");
+      exito = true;
       return {
         ok: true,
         vencimientosProcesados: 0,
@@ -114,8 +115,7 @@ export async function generarInstancias(
       `[INSTANCIAS] Generación finalizada: ${vencimientos.length} vencimientos procesados, ${totalInstancias} instancias programadas/verificadas.`,
     );
 
-    await latir("instancias");
-
+    exito = true;
     return {
       ok: true,
       vencimientosProcesados: vencimientos.length,
@@ -129,5 +129,9 @@ export async function generarInstancias(
       instanciasTotalesGeneradas: 0,
       error: err?.message || String(err),
     };
+  } finally {
+    if (exito) {
+      await latir("instancias");
+    }
   }
 }

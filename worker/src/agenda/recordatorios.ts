@@ -90,25 +90,26 @@ export async function recordatoriosHoy(
   chequesAlertados: number;
   error?: string;
 }> {
-  const hoyStr = obtenerFechaHoyBA();
-  const clave = `recordatorio-hoy:${hoyStr}`;
-
-  const { ejecutado } = await registrarEjecucion(
-    "recordatorio-hoy",
-    clave,
-    params.forzar,
-  );
-  if (!ejecutado) {
-    await latir("recordatorios");
-    return {
-      ok: true,
-      omitido: true,
-      notificacionEnviada: false,
-      chequesAlertados: 0,
-    };
-  }
-
+  let exito = false;
   try {
+    const hoyStr = obtenerFechaHoyBA();
+    const clave = `recordatorio-hoy:${hoyStr}`;
+
+    const { ejecutado } = await registrarEjecucion(
+      "recordatorio-hoy",
+      clave,
+      params.forzar,
+    );
+    if (!ejecutado) {
+      exito = true;
+      return {
+        ok: true,
+        omitido: true,
+        notificacionEnviada: false,
+        chequesAlertados: 0,
+      };
+    }
+
     // 1. Consultar ítems de agenda de hoy (excluyendo sentido 'info')
     const { data: itemsHoy, error: errAgenda } = await supabaseAdmin
       .from("agenda")
@@ -226,8 +227,7 @@ export async function recordatoriosHoy(
       chequesAlertados,
     });
 
-    await latir("recordatorios");
-
+    exito = true;
     return {
       ok: true,
       notificacionEnviada,
@@ -241,6 +241,10 @@ export async function recordatoriosHoy(
       chequesAlertados: 0,
       error: err?.message || String(err),
     };
+  } finally {
+    if (exito) {
+      await latir("recordatorios");
+    }
   }
 }
 

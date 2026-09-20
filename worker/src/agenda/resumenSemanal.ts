@@ -104,22 +104,23 @@ export async function resumenSemanal(
   alertaDescubierto?: boolean;
   error?: string;
 }> {
+  let exito = false;
   const hoyStr = obtenerFechaHoyBA();
   const { lunes, domingo } = obtenerSemanaLunesADomingo(hoyStr);
   const clave = `resumen-semanal:${lunes}`;
 
-  const { ejecutado } = await registrarEjecucion(
-    "resumen-semanal",
-    clave,
-    params.forzar,
-  );
-
-  if (!ejecutado) {
-    await latir("semanal");
-    return { ok: true, omitido: true };
-  }
-
   try {
+    const { ejecutado } = await registrarEjecucion(
+      "resumen-semanal",
+      clave,
+      params.forzar,
+    );
+
+    if (!ejecutado) {
+      exito = true;
+      return { ok: true, omitido: true };
+    }
+
     // 1. Obtener email de la empresa
     const { email: emailDestino, error: errorEmail } =
       await obtenerEmailDestinoEmpresa();
@@ -144,7 +145,7 @@ export async function resumenSemanal(
         destinatario: emailDestino,
         motivo: chequeoLista.motivo,
       });
-      await latir("semanal");
+      exito = true;
       return {
         ok: true,
         omitidoPorListaBlanca: true,
@@ -296,8 +297,7 @@ export async function resumenSemanal(
       `[RESUMEN-SEMANAL] Enviado exitosamente a ${emailDestino} (Resend ID: ${envio.id})`,
     );
 
-    await latir("semanal");
-
+    exito = true;
     return {
       ok: true,
       destinatario: emailDestino,
@@ -309,5 +309,9 @@ export async function resumenSemanal(
       error: err?.message || String(err),
     });
     return { ok: false, error: err?.message || String(err) };
+  } finally {
+    if (exito) {
+      await latir("semanal");
+    }
   }
 }
