@@ -1,8 +1,4 @@
-import { Document, Font, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import fontRegular from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff?url";
-import fontMedium from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff?url";
-import fontSemiBold from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff?url";
-import fontBold from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-700-normal.woff?url";
+import { formatearPesos } from "@/lib/formato";
 import {
   armarCondiciones,
   armarItems,
@@ -10,16 +6,46 @@ import {
   formatearFechaLarga,
   formatearNumeroPresupuesto,
 } from "@/lib/presupuesto";
-import { formatearPesos } from "@/lib/formato";
-import { ETIQUETA_CONDICION_IVA, type Empresa, type Servicio } from "@/lib/tipos";
+import {
+  ETIQUETA_CONDICION_IVA,
+  type Empresa,
+  type Servicio,
+} from "@/lib/tipos";
+import fontRegular from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff?url";
+import fontMedium from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff?url";
+import fontSemiBold from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff?url";
+import fontBold from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-700-normal.woff?url";
+import {
+  Document,
+  Font,
+  Image,
+  Page,
+  StyleSheet,
+  Text,
+  View,
+} from "@react-pdf/renderer";
+
+function resolverRutaEstatica(src: string): string {
+  if (
+    typeof window === "undefined" &&
+    typeof src === "string" &&
+    src.startsWith("/")
+  ) {
+    if (src.startsWith("/node_modules/")) {
+      return "." + src;
+    }
+    return "./public" + src;
+  }
+  return src;
+}
 
 Font.register({
   family: "IBM Plex Sans",
   fonts: [
-    { src: fontRegular, fontWeight: 400 },
-    { src: fontMedium, fontWeight: 500 },
-    { src: fontSemiBold, fontWeight: 600 },
-    { src: fontBold, fontWeight: 700 },
+    { src: resolverRutaEstatica(fontRegular), fontWeight: 400 },
+    { src: resolverRutaEstatica(fontMedium), fontWeight: 500 },
+    { src: resolverRutaEstatica(fontSemiBold), fontWeight: 600 },
+    { src: resolverRutaEstatica(fontBold), fontWeight: 700 },
   ],
 });
 
@@ -286,8 +312,16 @@ export function PresupuestoPDF({
   extra,
   fecha,
 }: PresupuestoPDFProps) {
-  const diasValidez = validezDias ?? servicio.presupuesto_validez_dias ?? empresa.presupuesto_validez_dias ?? 15;
-  const condicionesExtra = extra !== undefined ? extra : servicio.presupuesto_condiciones ?? empresa.presupuesto_condiciones_extra;
+  const diasValidez =
+    validezDias ??
+    servicio.presupuesto_validez_dias ??
+    empresa.presupuesto_validez_dias ??
+    15;
+  const condicionesExtra =
+    extra !== undefined
+      ? extra
+      : (servicio.presupuesto_condiciones ??
+        empresa.presupuesto_condiciones_extra);
 
   const condiciones = armarCondiciones({
     empresa,
@@ -299,16 +333,18 @@ export function PresupuestoPDF({
   const items = armarItems(servicio);
   const totales = calcularTotalesPresupuesto(servicio);
   const numeroTexto = formatearNumeroPresupuesto(servicio.numero);
-  const fechaTexto = formatearFechaLarga(fecha ?? servicio.presupuesto_generado_at ?? new Date());
+  const fechaTexto = formatearFechaLarga(
+    fecha ?? servicio.presupuesto_generado_at ?? new Date(),
+  );
 
   const logoUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/icono-192.png`
-      : "/icono-192.png";
+      : resolverRutaEstatica("/icono-192.png");
 
   const cliente = servicio.clientes;
   const clienteCondicion = cliente?.condicion_iva
-    ? ETIQUETA_CONDICION_IVA[cliente.condicion_iva] ?? cliente.condicion_iva
+    ? (ETIQUETA_CONDICION_IVA[cliente.condicion_iva] ?? cliente.condicion_iva)
     : null;
 
   const lineaCuitCondicionCliente = [
@@ -348,7 +384,9 @@ export function PresupuestoPDF({
         <View style={estilos.grillaInfo}>
           {/* Emisor */}
           <View style={estilos.columnaInfo}>
-            <Text style={estilos.emisorRazonSocial}>{empresa.razon_social}</Text>
+            <Text style={estilos.emisorRazonSocial}>
+              {empresa.razon_social}
+            </Text>
             <Text>
               CUIT {empresa.cuit} · {condicionIvaEmisor}
             </Text>
@@ -362,7 +400,9 @@ export function PresupuestoPDF({
             <Text style={estilos.clienteRazonSocial}>
               {cliente?.nombre || "Cliente"}
             </Text>
-            {lineaCuitCondicionCliente && <Text>{lineaCuitCondicionCliente}</Text>}
+            {lineaCuitCondicionCliente && (
+              <Text>{lineaCuitCondicionCliente}</Text>
+            )}
             {lineaDireccionCliente && <Text>{lineaDireccionCliente}</Text>}
           </View>
         </View>

@@ -47,7 +47,10 @@ insert into auth.users (
   raw_user_meta_data,
   created_at,
   updated_at,
-  confirmation_token
+  confirmation_token,
+  email_change,
+  email_change_token_new,
+  recovery_token
 ) values
   (
     '00000000-0000-0000-0000-000000000000',
@@ -61,6 +64,9 @@ insert into auth.users (
     '{"nombre":"Admin Test"}',
     now(),
     now(),
+    '',
+    '',
+    '',
     ''
   ),
   (
@@ -75,6 +81,9 @@ insert into auth.users (
     '{"nombre":"Oficina Test"}',
     now(),
     now(),
+    '',
+    '',
+    '',
     ''
   ),
   (
@@ -89,6 +98,9 @@ insert into auth.users (
     '{"nombre":"Chofer 1 Test"}',
     now(),
     now(),
+    '',
+    '',
+    '',
     ''
   ),
   (
@@ -103,6 +115,9 @@ insert into auth.users (
     '{"nombre":"Chofer 2 Test"}',
     now(),
     now(),
+    '',
+    '',
+    '',
     ''
   );
 

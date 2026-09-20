@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const carpetas = ["supabase/migrations", "supabase/tests", "worker"];
+const carpetas = ["supabase/migrations", "supabase/tests", "worker", "tests", "src"];
 const conBOM = [];
 
 function revisarRuta(ruta) {
@@ -37,5 +37,5 @@ if (conBOM.length > 0) {
   }
   process.exit(1);
 } else {
-  console.log("✓ Sin archivos con BOM en supabase/migrations, supabase/tests y worker.");
+  console.log("✓ Sin archivos con BOM en supabase/migrations, supabase/tests, worker, tests y src.");
 }

@@ -1,31 +1,51 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronDown, ChevronRight, Download } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { Aviso } from "@/components/ui/Aviso";
+import { Boton } from "@/components/ui/Boton";
+import { Entrada, Selector } from "@/components/ui/Campo";
+import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
+import { MenuAcciones } from "@/components/ui/MenuAcciones";
+import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useRealtime } from "@/hooks/use-realtime";
 import {
-  obtenerEstadoWorker,
+  armarCsvCompras,
+  armarCsvVentas,
+  prepararContenidoCsvConBom,
+} from "@/lib/csv";
+import {
+  formatearFecha,
+  formatearMes,
+  formatearNumeroFactura,
+  formatearPesos,
+} from "@/lib/formato";
+import { supabase } from "@/lib/supabase";
+import type {
+  AmbienteArca,
+  CondicionIva,
+  EstadoEmision,
+  Factura,
+  IvaMensual,
+  MovimientoCaja,
+  Servicio,
+} from "@/lib/tipos";
+import { ETIQUETA_CONDICION_IVA, ETIQUETA_TIPO } from "@/lib/tipos";
+import {
   emitirFacturaArca,
+  obtenerEstadoWorker,
   reenviarFacturaMail,
   type EstadoWorker,
   type RespuestaEmitirArca,
 } from "@/lib/worker";
-import type { Factura, Servicio, CondicionIva, IvaMensual, MovimientoCaja, AmbienteArca, EstadoEmision } from "@/lib/tipos";
-import { ETIQUETA_CONDICION_IVA, ETIQUETA_TIPO } from "@/lib/tipos";
-import { formatearPesos, formatearFecha, formatearNumeroFactura, formatearMes } from "@/lib/formato";
-import { Tarjeta } from "@/components/ui/Tarjeta";
-import { Boton } from "@/components/ui/Boton";
-import { Entrada, Selector } from "@/components/ui/Campo";
-import { Aviso } from "@/components/ui/Aviso";
-import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
-import { MenuAcciones } from "@/components/ui/MenuAcciones";
+import { ChevronDown, ChevronRight, Download } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FormularioFactura } from "./FormularioFactura";
 import { FormularioNotaCredito } from "./FormularioNotaCredito";
-import { ModalProgresoEmision, type EtapaEmision } from "./ModalProgresoEmision";
 import { ModalLogArca } from "./ModalLogArca";
+import {
+  ModalProgresoEmision,
+  type EtapaEmision,
+} from "./ModalProgresoEmision";
 import { PestanaEmisionesAutomaticas } from "./PestanaEmisionesAutomaticas";
-
 
 function ChipEstadoEmision({
   estado,
@@ -90,21 +110,28 @@ export function PaginaFacturacion() {
     tabParam === "facturas"
       ? "facturas"
       : tabParam === "notas_credito"
-      ? "notas_credito"
-      : tabParam === "iva"
-      ? "iva"
-      : tabParam === "emisiones_automaticas"
-      ? "emisiones_automaticas"
-      : "pendientes";
+        ? "notas_credito"
+        : tabParam === "iva"
+          ? "iva"
+          : tabParam === "emisiones_automaticas"
+            ? "emisiones_automaticas"
+            : "pendientes";
 
   const cambiarPestana = (
-    nueva: "pendientes" | "facturas" | "notas_credito" | "iva" | "emisiones_automaticas"
+    nueva:
+      | "pendientes"
+      | "facturas"
+      | "notas_credito"
+      | "iva"
+      | "emisiones_automaticas",
   ) => {
     setSearchParams({ tab: nueva });
   };
 
   // --- Estado Worker y ARCA ---
-  const [estadoWorker, setEstadoWorker] = useState<EstadoWorker>({ online: false });
+  const [estadoWorker, setEstadoWorker] = useState<EstadoWorker>({
+    online: false,
+  });
   const [arcaAmbiente, setArcaAmbiente] = useState<AmbienteArca | null>(null);
   const puedeEmitir = arcaAmbiente === "produccion" || esModoPrueba;
 
@@ -113,7 +140,8 @@ export function PaginaFacturacion() {
   const [etapaEmision, setEtapaEmision] = useState<EtapaEmision>("emitiendo");
   const [clienteEmisionNombre, setClienteEmisionNombre] = useState("");
   const [cantidadServiciosEmision, setCantidadServiciosEmision] = useState(0);
-  const [resultadoEmision, setResultadoEmision] = useState<RespuestaEmitirArca | null>(null);
+  const [resultadoEmision, setResultadoEmision] =
+    useState<RespuestaEmitirArca | null>(null);
   const [errorEmision, setErrorEmision] = useState<string | null>(null);
 
   // --- Estado Modal Log ARCA ---
@@ -126,16 +154,19 @@ export function PaginaFacturacion() {
     texto: string;
   } | null>(null);
 
-
   // --- Estado pestaña Pendientes ---
   const [pendientes, setPendientes] = useState<Servicio[]>([]);
   const [cargandoPendientes, setCargandoPendientes] = useState(false);
-  const [seleccionadosPorGrupo, setSeleccionadosPorGrupo] = useState<Record<string, string[]>>({});
+  const [seleccionadosPorGrupo, setSeleccionadosPorGrupo] = useState<
+    Record<string, string[]>
+  >({});
   const [grupoFacturando, setGrupoFacturando] = useState<string | null>(null);
 
   // --- Estado pestaña Facturas ---
   const [facturas, setFacturas] = useState<Factura[]>([]);
-  const [serviciosFacturas, setServiciosFacturas] = useState<Record<string, Servicio[]>>({});
+  const [serviciosFacturas, setServiciosFacturas] = useState<
+    Record<string, Servicio[]>
+  >({});
   const [cargandoFacturas, setCargandoFacturas] = useState(false);
   const [busquedaFacturas, setBusquedaFacturas] = useState("");
   const [facturaExpandida, setFacturaExpandida] = useState<string | null>(null);
@@ -149,7 +180,9 @@ export function PaginaFacturacion() {
   const [ivaMensual, setIvaMensual] = useState<IvaMensual[]>([]);
   const [cargandoIva, setCargandoIva] = useState(false);
   const [mesExpandidoIva, setMesExpandidoIva] = useState<string | null>(null);
-  const [comprobantesMes, setComprobantesMes] = useState<Record<string, MovimientoCaja[]>>({});
+  const [comprobantesMes, setComprobantesMes] = useState<
+    Record<string, MovimientoCaja[]>
+  >({});
   const [cargandoComprobantesMes, setCargandoComprobantesMes] = useState(false);
   const [exportandoMes, setExportandoMes] = useState<string | null>(null);
 
@@ -177,10 +210,13 @@ export function PaginaFacturacion() {
     return `${yyyy}-${mm}`;
   }, []);
 
-  const [mesSeleccionadoCsv, setMesSeleccionadoCsv] = useState<string>(mesAnteriorDefecto);
+  const [mesSeleccionadoCsv, setMesSeleccionadoCsv] =
+    useState<string>(mesAnteriorDefecto);
 
   const hayDatosMesSeleccionado = useMemo(() => {
-    return ivaMensual.some((fila) => fila.mes.slice(0, 7) === mesSeleccionadoCsv);
+    return ivaMensual.some(
+      (fila) => fila.mes.slice(0, 7) === mesSeleccionadoCsv,
+    );
   }, [ivaMensual, mesSeleccionadoCsv]);
 
   // ==================== Cargar Pendientes ====================
@@ -188,7 +224,9 @@ export function PaginaFacturacion() {
     if (mostrarSpinner) setCargandoPendientes(true);
     const { data, error } = await supabase
       .from("servicios")
-      .select("id, numero, tipo, estado, descripcion, fecha_programada, monto, aplica_iva, cliente_id, no_facturable, factura_id, clientes(id, nombre, cuit, condicion_iva)")
+      .select(
+        "id, numero, tipo, estado, descripcion, fecha_programada, monto, aplica_iva, cliente_id, no_facturable, factura_id, clientes(id, nombre, cuit, condicion_iva)",
+      )
       .in("estado", ["terminado", "cobrado"])
       .is("factura_id", null)
       .eq("no_facturable", false)
@@ -206,7 +244,7 @@ export function PaginaFacturacion() {
     const { data: facs, error } = await supabase
       .from("facturas")
       .select(
-        "id, tipo, punto_venta, numero, fecha, cliente_id, neto, iva, total, anulada, notas, cae, cae_vencimiento, estado_emision, error_emision, pdf_path, enviada_email_at, email_destino, clientes(nombre)"
+        "id, tipo, punto_venta, numero, fecha, cliente_id, neto, iva, total, anulada, notas, cae, cae_vencimiento, estado_emision, error_emision, pdf_path, enviada_email_at, email_destino, clientes(nombre)",
       )
       .in("tipo", ["A", "B", "C"])
       .order("fecha", { ascending: false })
@@ -241,7 +279,7 @@ export function PaginaFacturacion() {
     const { data, error } = await supabase
       .from("facturas")
       .select(
-        "id, tipo, punto_venta, numero, fecha, total, notas, cliente_id, clientes(nombre), factura_asociada:facturas!factura_asociada_id(tipo, punto_venta, numero)"
+        "id, tipo, punto_venta, numero, fecha, total, notas, cliente_id, clientes(nombre), factura_asociada:facturas!factura_asociada_id(tipo, punto_venta, numero)",
       )
       .in("tipo", ["NC_A", "NC_B"])
       .order("fecha", { ascending: false })
@@ -279,16 +317,21 @@ export function PaginaFacturacion() {
         await cargarIvaMensual(mostrarSpinner);
       }
     },
-    [pestanaActiva, cargarPendientes, cargarFacturas, cargarNotasCredito, cargarIvaMensual]
+    [
+      pestanaActiva,
+      cargarPendientes,
+      cargarFacturas,
+      cargarNotasCredito,
+      cargarIvaMensual,
+    ],
   );
 
   useEffect(() => {
     cargar(true);
   }, [cargar]);
 
-  useRealtime(
-    ["servicios", "facturas", "movimientos_caja"],
-    () => cargar(false)
+  useRealtime(["servicios", "facturas", "movimientos_caja"], () =>
+    cargar(false),
   );
 
   // Consultar configuración de empresa y salud del worker
@@ -346,12 +389,17 @@ export function PaginaFacturacion() {
     } catch (err: any) {
       setAvisoReenvioMail({
         tipo: "error",
-        texto: err?.message || "Ocurrió un error al conectar con el servidor de correos.",
+        texto:
+          err?.message ||
+          "Ocurrió un error al conectar con el servidor de correos.",
       });
     }
   };
 
-  const handleEmitirArca = async (cliente: ClientePendiente, servicioIds: string[]) => {
+  const handleEmitirArca = async (
+    cliente: ClientePendiente,
+    servicioIds: string[],
+  ) => {
     setClienteEmisionNombre(cliente.nombre);
     setCantidadServiciosEmision(servicioIds.length);
     setResultadoEmision(null);
@@ -363,7 +411,9 @@ export function PaginaFacturacion() {
       const res = await emitirFacturaArca(cliente.id, servicioIds);
       if (!res.ok || !res.cae) {
         setEtapaEmision("error");
-        setErrorEmision(res.error || "La solicitud no pudo ser autorizada por ARCA.");
+        setErrorEmision(
+          res.error || "La solicitud no pudo ser autorizada por ARCA.",
+        );
       } else {
         setResultadoEmision(res);
         setEtapaEmision("exito");
@@ -372,10 +422,11 @@ export function PaginaFacturacion() {
       }
     } catch (err: any) {
       setEtapaEmision("error");
-      setErrorEmision(err?.message || "Error al conectar con el worker de ARCA.");
+      setErrorEmision(
+        err?.message || "Error al conectar con el worker de ARCA.",
+      );
     }
   };
-
 
   // ==================== Expandir comprobantes de compra ====================
   const toggleExpandirMes = async (mesIso: string) => {
@@ -432,14 +483,18 @@ export function PaginaFacturacion() {
       const [facRes, compRes] = await Promise.all([
         supabase
           .from("facturas")
-          .select("fecha, tipo, punto_venta, numero, neto, iva, total, clientes(nombre, cuit)")
+          .select(
+            "fecha, tipo, punto_venta, numero, neto, iva, total, clientes(nombre, cuit)",
+          )
           .gte("fecha", primerDia)
           .lte("fecha", ultimoDia)
           .eq("anulada", false)
           .order("fecha", { ascending: true }),
         supabase
           .from("movimientos_caja")
-          .select("fecha, comprobante_tipo, comprobante_punto_venta, comprobante_numero, proveedor_cuit, proveedor, neto, iva, monto")
+          .select(
+            "fecha, comprobante_tipo, comprobante_punto_venta, comprobante_numero, proveedor_cuit, proveedor, neto, iva, monto",
+          )
           .gte("fecha", primerDia)
           .lte("fecha", ultimoDia)
           .eq("tipo", "egreso")
@@ -451,54 +506,13 @@ export function PaginaFacturacion() {
       if (facRes.error) throw facRes.error;
       if (compRes.error) throw compRes.error;
 
-      const escapar = (val: any) => {
-        if (val == null) return "";
-        const str = String(val);
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-
-      const cabeceraVentas = "fecha,tipo,punto_venta,número,CUIT,razón social,neto,IVA,total";
-
-      const filasVentas = (facRes.data || []).map((f: any) =>
-        [
-          escapar(f.fecha),
-          escapar(f.tipo),
-          escapar(f.punto_venta),
-          escapar(f.numero),
-          escapar(f.clientes?.cuit || ""),
-          escapar(f.clientes?.nombre || ""),
-          escapar(f.neto != null ? f.neto : ""),
-          escapar(f.iva != null ? f.iva : ""),
-          escapar(f.total != null ? f.total : ""),
-        ].join(",")
-      );
-      const csvVentas = [cabeceraVentas, ...filasVentas].join("\r\n");
-
-      const cabeceraCompras = "fecha,proveedor,CUIT proveedor,tipo comprobante,número comprobante,neto,IVA,total";
-
-      const filasCompras = (compRes.data || []).map((m: any) => {
-        const numComp =
-          m.comprobante_punto_venta && m.comprobante_numero
-            ? `${String(m.comprobante_punto_venta).padStart(4, "0")}-${String(m.comprobante_numero).padStart(8, "0")}`
-            : m.comprobante_numero || "";
-        return [
-          escapar(m.fecha),
-          escapar(m.proveedor || ""),
-          escapar(m.proveedor_cuit || ""),
-          escapar(m.comprobante_tipo || ""),
-          escapar(numComp),
-          escapar(m.neto != null ? m.neto : ""),
-          escapar(m.iva != null ? m.iva : ""),
-          escapar(m.monto != null ? m.monto : ""),
-        ].join(",");
-      });
-      const csvCompras = [cabeceraCompras, ...filasCompras].join("\r\n");
+      const csvVentas = armarCsvVentas(facRes.data || []);
+      const csvCompras = armarCsvCompras(compRes.data || []);
 
       const descargar = (contenido: string, nombreArchivo: string) => {
-        const blob = new Blob(["\uFEFF" + contenido], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob([prepararContenidoCsvConBom(contenido)], {
+          type: "text/csv;charset=utf-8;",
+        });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -521,14 +535,16 @@ export function PaginaFacturacion() {
   };
 
   const añoActual = new Date().getFullYear().toString();
-  const filasDelAño = ivaMensual.filter((fila) => fila.mes.startsWith(añoActual));
+  const filasDelAño = ivaMensual.filter((fila) =>
+    fila.mes.startsWith(añoActual),
+  );
   const totalIvaVentasAño = filasDelAño.reduce(
     (acc, f) => acc + (Number(f.iva_ventas) || 0),
-    0
+    0,
   );
   const totalIvaComprasAño = filasDelAño.reduce(
     (acc, f) => acc + (Number(f.iva_compras) || 0),
-    0
+    0,
   );
   const posicionAño = totalIvaVentasAño - totalIvaComprasAño;
 
@@ -557,7 +573,7 @@ export function PaginaFacturacion() {
     }
 
     const listaGrupos = Object.values(gruposMap).sort((a, b) =>
-      (a.cliente?.nombre || "").localeCompare(b.cliente?.nombre || "")
+      (a.cliente?.nombre || "").localeCompare(b.cliente?.nombre || ""),
     );
 
     if (sinCliente.length > 0) {
@@ -594,7 +610,7 @@ export function PaginaFacturacion() {
   const handleMarcarNoFacturable = async (servicioId: string) => {
     if (
       !window.confirm(
-        "¿Marcar como no facturable? Sale de esta lista. Se puede revertir desde el detalle del servicio."
+        "¿Marcar como no facturable? Sale de esta lista. Se puede revertir desde el detalle del servicio.",
       )
     ) {
       return;
@@ -617,7 +633,11 @@ export function PaginaFacturacion() {
     return facturas.filter((f) => {
       const clienteNombre = f.clientes?.nombre?.toLowerCase() || "";
       const numStr = String(f.numero);
-      const comprobante = formatearNumeroFactura(f.tipo, f.punto_venta, f.numero).toLowerCase();
+      const comprobante = formatearNumeroFactura(
+        f.tipo,
+        f.punto_venta,
+        f.numero,
+      ).toLowerCase();
       return (
         clienteNombre.includes(q) ||
         numStr.includes(q) ||
@@ -722,7 +742,10 @@ export function PaginaFacturacion() {
                 <span className="font-bold uppercase tracking-wider bg-amber-500/20 px-2 py-0.5 rounded">
                   Homologación ARCA
                 </span>
-                <span>Los comprobantes emitidos son de prueba y no tienen validez fiscal.</span>
+                <span>
+                  Los comprobantes emitidos son de prueba y no tienen validez
+                  fiscal.
+                </span>
               </div>
               <span className="font-semibold text-amber-700 dark:text-amber-300">
                 Worker: {estadoWorker.online ? "Conectado" : "Desconectado"}
@@ -739,7 +762,6 @@ export function PaginaFacturacion() {
               No hay servicios terminados o cobrados pendientes de facturar.
             </Tarjeta>
           ) : (
-
             gruposPendientes.map((grupo, idx) => {
               const esSinCliente = !grupo.cliente;
               const grupoKey = grupo.cliente?.id || "sin_cliente";
@@ -750,11 +772,11 @@ export function PaginaFacturacion() {
 
               const totalNetoGrupo = grupo.servicios.reduce(
                 (acc, s) => acc + (Number(s.monto) || 0),
-                0
+                0,
               );
 
               const serviciosParaFacturar = grupo.servicios.filter((s) =>
-                seleccionados.includes(s.id)
+                seleccionados.includes(s.id),
               );
 
               const estaFacturando = grupoFacturando === grupoKey;
@@ -768,14 +790,18 @@ export function PaginaFacturacion() {
                         <input
                           type="checkbox"
                           checked={todosSeleccionados}
-                          onChange={() => toggleTodosServicios(grupoKey, grupo.servicios)}
+                          onChange={() =>
+                            toggleTodosServicios(grupoKey, grupo.servicios)
+                          }
                           title="Seleccionar todos"
                           className="mt-1 size-4 rounded border-borde text-marca focus:ring-marca cursor-pointer"
                         />
                       )}
                       <div>
                         {esSinCliente ? (
-                          <h2 className="text-base font-semibold text-tinta">Sin cliente</h2>
+                          <h2 className="text-base font-semibold text-tinta">
+                            Sin cliente
+                          </h2>
                         ) : (
                           <Link
                             to={`/clientes/${grupo.cliente!.id}`}
@@ -786,17 +812,23 @@ export function PaginaFacturacion() {
                         )}
                         <div className="text-xs text-tinta-suave mt-0.5">
                           {esSinCliente ? (
-                            <span className="text-alerta">Sin cliente asignado</span>
+                            <span className="text-alerta">
+                              Sin cliente asignado
+                            </span>
                           ) : grupo.cliente!.cuit ? (
                             <>
                               CUIT {grupo.cliente!.cuit}
                               {" · "}
                               {grupo.cliente!.condicion_iva
-                                ? ETIQUETA_CONDICION_IVA[grupo.cliente!.condicion_iva]
+                                ? ETIQUETA_CONDICION_IVA[
+                                    grupo.cliente!.condicion_iva
+                                  ]
                                 : "Sin condición IVA"}
                             </>
                           ) : (
-                            <span className="text-alerta font-medium">Sin CUIT</span>
+                            <span className="text-alerta font-medium">
+                              Sin CUIT
+                            </span>
                           )}
                         </div>
                       </div>
@@ -805,11 +837,16 @@ export function PaginaFacturacion() {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <div className="text-sm font-semibold tabular-nums text-tinta">
-                          {formatearPesos(totalNetoGrupo)} <span className="font-normal text-xs text-tinta-suave">neto</span>
+                          {formatearPesos(totalNetoGrupo)}{" "}
+                          <span className="font-normal text-xs text-tinta-suave">
+                            neto
+                          </span>
                         </div>
                         <div className="text-xs text-tinta-suave">
                           {grupo.servicios.length}{" "}
-                          {grupo.servicios.length === 1 ? "servicio" : "servicios"}
+                          {grupo.servicios.length === 1
+                            ? "servicio"
+                            : "servicios"}
                         </div>
                       </div>
 
@@ -818,23 +855,45 @@ export function PaginaFacturacion() {
                           {estadoWorker.online && puedeEmitir ? (
                             <>
                               <Boton
-                                disabled={seleccionados.length === 0 || estaFacturando}
-                                onClick={() => handleEmitirArca(grupo.cliente!, seleccionados)}
+                                disabled={
+                                  seleccionados.length === 0 || estaFacturando
+                                }
+                                onClick={() =>
+                                  handleEmitirArca(
+                                    grupo.cliente!,
+                                    seleccionados,
+                                  )
+                                }
                               >
-                                {esModoPrueba ? "Emitir en ARCA (prueba)" : "Emitir en ARCA"} ({seleccionados.length})
+                                {esModoPrueba
+                                  ? "Emitir en ARCA (prueba)"
+                                  : "Emitir en ARCA"}{" "}
+                                ({seleccionados.length})
                               </Boton>
                               <Boton
                                 variante="secundario"
                                 disabled={seleccionados.length === 0}
-                                onClick={() => setGrupoFacturando(estaFacturando ? null : grupoKey)}
+                                onClick={() =>
+                                  setGrupoFacturando(
+                                    estaFacturando ? null : grupoKey,
+                                  )
+                                }
                               >
-                                {estaFacturando ? "Cancelar carga" : "Registrar factura del portal"}
+                                {estaFacturando
+                                  ? "Cancelar carga"
+                                  : "Registrar factura del portal"}
                               </Boton>
                             </>
                           ) : (
                             <Boton
-                              disabled={seleccionados.length === 0 || estaFacturando}
-                              onClick={() => setGrupoFacturando(estaFacturando ? null : grupoKey)}
+                              disabled={
+                                seleccionados.length === 0 || estaFacturando
+                              }
+                              onClick={() =>
+                                setGrupoFacturando(
+                                  estaFacturando ? null : grupoKey,
+                                )
+                              }
                             >
                               Facturar seleccionados ({seleccionados.length})
                             </Boton>
@@ -843,7 +902,6 @@ export function PaginaFacturacion() {
                       )}
                     </div>
                   </div>
-
 
                   {esSinCliente && (
                     <Aviso variante="alerta">
@@ -877,7 +935,9 @@ export function PaginaFacturacion() {
                             <input
                               type="checkbox"
                               checked={seleccionado}
-                              onChange={() => toggleSeleccionServicio(grupoKey, s.id)}
+                              onChange={() =>
+                                toggleSeleccionServicio(grupoKey, s.id)
+                              }
                               className="size-4 rounded border-borde text-marca focus:ring-marca cursor-pointer"
                             />
                           ) : (
@@ -941,7 +1001,9 @@ export function PaginaFacturacion() {
       {pestanaActiva === "facturas" && (
         <div className="space-y-4">
           {avisoReenvioMail && (
-            <Aviso variante={avisoReenvioMail.tipo === "exito" ? "exito" : "peligro"}>
+            <Aviso
+              variante={avisoReenvioMail.tipo === "exito" ? "exito" : "peligro"}
+            >
               {avisoReenvioMail.texto}
             </Aviso>
           )}
@@ -961,7 +1023,9 @@ export function PaginaFacturacion() {
             </div>
           ) : facturasFiltradas.length === 0 ? (
             <Tarjeta className="p-8 text-center text-tinta-suave">
-              {busquedaFacturas ? "No se encontraron facturas." : "No hay facturas registradas."}
+              {busquedaFacturas
+                ? "No se encontraron facturas."
+                : "No hay facturas registradas."}
             </Tarjeta>
           ) : (
             <Tarjeta>
@@ -1040,8 +1104,15 @@ export function PaginaFacturacion() {
                           </div>
                         </div>
                         <div className="text-[13px] text-tinta-suave truncate">
-                          {formatearFecha(f.fecha)} · {formatearNumeroFactura(f.tipo, f.punto_venta, f.numero)}
-                          {servsDeEstaFactura.length > 0 ? ` · ${servsDeEstaFactura.length} serv.` : ""}
+                          {formatearFecha(f.fecha)} ·{" "}
+                          {formatearNumeroFactura(
+                            f.tipo,
+                            f.punto_venta,
+                            f.numero,
+                          )}
+                          {servsDeEstaFactura.length > 0
+                            ? ` · ${servsDeEstaFactura.length} serv.`
+                            : ""}
                         </div>
                         {f.cae && (
                           <div className="text-[11px] font-mono text-tinta-suave">
@@ -1077,7 +1148,8 @@ export function PaginaFacturacion() {
                                     to={`/servicios/${s.id}`}
                                     className="text-marca hover:underline truncate"
                                   >
-                                    #{s.numero} · {s.descripcion || ETIQUETA_TIPO[s.tipo]}
+                                    #{s.numero} ·{" "}
+                                    {s.descripcion || ETIQUETA_TIPO[s.tipo]}
                                   </Link>
                                   <span className="tabular-nums font-medium text-tinta shrink-0">
                                     {formatearPesos(s.monto)}
@@ -1133,7 +1205,9 @@ export function PaginaFacturacion() {
 
                       const acciones = [
                         {
-                          texto: expandido ? "Ocultar servicios" : "Ver servicios",
+                          texto: expandido
+                            ? "Ocultar servicios"
+                            : "Ver servicios",
                           onClick: () =>
                             setFacturaExpandida(expandido ? null : f.id),
                         },
@@ -1176,7 +1250,10 @@ export function PaginaFacturacion() {
                       ];
 
                       return (
-                        <tr key={f.id} className="hover:bg-fondo/40 transition-colors">
+                        <tr
+                          key={f.id}
+                          className="hover:bg-fondo/40 transition-colors"
+                        >
                           <td colSpan={11} className="p-0">
                             <div className="flex items-center w-full px-3.5 py-3">
                               <div className="w-24 shrink-0 text-tinta-suave tabular-nums">
@@ -1184,7 +1261,11 @@ export function PaginaFacturacion() {
                               </div>
 
                               <div className="w-36 shrink-0 font-medium tabular-nums text-tinta">
-                                {formatearNumeroFactura(f.tipo, f.punto_venta, f.numero)}
+                                {formatearNumeroFactura(
+                                  f.tipo,
+                                  f.punto_venta,
+                                  f.numero,
+                                )}
                               </div>
 
                               <div className="min-w-0 flex-1 truncate font-medium text-tinta pr-2">
@@ -1203,7 +1284,10 @@ export function PaginaFacturacion() {
                                 {formatearPesos(f.total)}
                               </div>
 
-                              <div className="w-28 shrink-0 text-center font-mono text-xs text-tinta-suave truncate" title={f.cae || undefined}>
+                              <div
+                                className="w-28 shrink-0 text-center font-mono text-xs text-tinta-suave truncate"
+                                title={f.cae || undefined}
+                              >
                                 {f.cae || "—"}
                               </div>
 
@@ -1252,7 +1336,9 @@ export function PaginaFacturacion() {
                                           to={`/servicios/${s.id}`}
                                           className="text-marca hover:underline truncate"
                                         >
-                                          #{s.numero} · {s.descripcion || ETIQUETA_TIPO[s.tipo]}
+                                          #{s.numero} ·{" "}
+                                          {s.descripcion ||
+                                            ETIQUETA_TIPO[s.tipo]}
                                         </Link>
                                         <span className="tabular-nums font-medium text-tinta shrink-0">
                                           {formatearPesos(s.monto)}
@@ -1310,13 +1396,13 @@ export function PaginaFacturacion() {
                   const comprobante = formatearNumeroFactura(
                     nc.tipo,
                     nc.punto_venta,
-                    nc.numero
+                    nc.numero,
                   );
                   const corrigeA = nc.factura_asociada
                     ? formatearNumeroFactura(
                         nc.factura_asociada.tipo,
                         nc.factura_asociada.punto_venta,
-                        nc.factura_asociada.numero
+                        nc.factura_asociada.numero,
                       )
                     : "—";
 
@@ -1365,18 +1451,21 @@ export function PaginaFacturacion() {
                       const comprobante = formatearNumeroFactura(
                         nc.tipo,
                         nc.punto_venta,
-                        nc.numero
+                        nc.numero,
                       );
                       const corrigeA = nc.factura_asociada
                         ? formatearNumeroFactura(
                             nc.factura_asociada.tipo,
                             nc.factura_asociada.punto_venta,
-                            nc.factura_asociada.numero
+                            nc.factura_asociada.numero,
                           )
                         : "—";
 
                       return (
-                        <tr key={nc.id} className="hover:bg-fondo/40 transition-colors">
+                        <tr
+                          key={nc.id}
+                          className="hover:bg-fondo/40 transition-colors"
+                        >
                           <td className="p-3.5 text-tinta-suave tabular-nums">
                             {formatearFecha(nc.fecha)}
                           </td>
@@ -1420,7 +1509,9 @@ export function PaginaFacturacion() {
               <div className="mt-2 text-2xl font-bold tracking-tight text-tinta tabular-nums">
                 {formatearPesos(totalIvaVentasAño)}
               </div>
-              <p className="text-[11px] text-tinta-suave mt-1">Débito fiscal acumulado</p>
+              <p className="text-[11px] text-tinta-suave mt-1">
+                Débito fiscal acumulado
+              </p>
             </Tarjeta>
 
             <Tarjeta className="p-5">
@@ -1430,7 +1521,9 @@ export function PaginaFacturacion() {
               <div className="mt-2 text-2xl font-bold tracking-tight text-tinta tabular-nums">
                 {formatearPesos(totalIvaComprasAño)}
               </div>
-              <p className="text-[11px] text-tinta-suave mt-1">Crédito fiscal acumulado</p>
+              <p className="text-[11px] text-tinta-suave mt-1">
+                Crédito fiscal acumulado
+              </p>
             </Tarjeta>
 
             <Tarjeta className="p-5">
@@ -1454,7 +1547,9 @@ export function PaginaFacturacion() {
 
           {/* Encabezado con selector de mes y exportación para el contador */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h3 className="text-base sm:text-lg font-semibold text-tinta">Liquidación mensual</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-tinta">
+              Liquidación mensual
+            </h3>
             <div className="flex flex-wrap items-center gap-2">
               <Selector
                 value={mesSeleccionadoCsv}
@@ -1472,7 +1567,11 @@ export function PaginaFacturacion() {
                 variante="secundario"
                 disabled={!hayDatosMesSeleccionado || exportandoMes !== null}
                 onClick={() => exportarCsvIvaContador(mesSeleccionadoCsv)}
-                title={!hayDatosMesSeleccionado ? "Sin datos calculados para este mes" : undefined}
+                title={
+                  !hayDatosMesSeleccionado
+                    ? "Sin datos calculados para este mes"
+                    : undefined
+                }
               >
                 <Download className="size-4 mr-1.5" />
                 {exportandoMes === mesSeleccionadoCsv
@@ -1530,13 +1629,17 @@ export function PaginaFacturacion() {
 
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="p-2.5 rounded-md bg-fondo">
-                          <span className="text-tinta-suave block mb-0.5">IVA ventas (débito)</span>
+                          <span className="text-tinta-suave block mb-0.5">
+                            IVA ventas (débito)
+                          </span>
                           <span className="font-semibold text-tinta tabular-nums text-sm">
                             {formatearPesos(fila.iva_ventas)}
                           </span>
                         </div>
                         <div className="p-2.5 rounded-md bg-fondo">
-                          <span className="text-tinta-suave block mb-0.5">IVA compras (crédito)</span>
+                          <span className="text-tinta-suave block mb-0.5">
+                            IVA compras (crédito)
+                          </span>
                           <span className="font-semibold text-tinta tabular-nums text-sm">
                             {formatearPesos(fila.iva_compras)}
                           </span>
@@ -1548,7 +1651,8 @@ export function PaginaFacturacion() {
                           <div className="text-xs font-semibold text-tinta uppercase tracking-wider">
                             Comprobantes de compra del mes
                           </div>
-                          {cargandoComprobantesMes && !comprobantesMes[mesKey] ? (
+                          {cargandoComprobantesMes &&
+                          !comprobantesMes[mesKey] ? (
                             <div className="py-4 text-center text-xs text-tinta-suave">
                               Cargando compras...
                             </div>
@@ -1562,10 +1666,13 @@ export function PaginaFacturacion() {
                                 const numComp = formatearNumeroFactura(
                                   comp.comprobante_tipo,
                                   comp.comprobante_punto_venta,
-                                  comp.comprobante_numero
+                                  comp.comprobante_numero,
                                 );
                                 return (
-                                  <div key={comp.id} className="py-2.5 space-y-1 text-xs">
+                                  <div
+                                    key={comp.id}
+                                    className="py-2.5 space-y-1 text-xs"
+                                  >
                                     <div className="flex items-center justify-between">
                                       <span className="font-medium text-tinta">
                                         {comp.proveedor || "Sin proveedor"}
@@ -1583,9 +1690,12 @@ export function PaginaFacturacion() {
                                       </Link>
                                     </div>
                                     <div className="flex items-center justify-between text-tinta-suave">
-                                      <span>{numComp || "Sin comprobante"}</span>
+                                      <span>
+                                        {numComp || "Sin comprobante"}
+                                      </span>
                                       <span className="tabular-nums">
-                                        Neto: {formatearPesos(comp.neto || 0)} · IVA: {formatearPesos(comp.iva || 0)}
+                                        Neto: {formatearPesos(comp.neto || 0)} ·
+                                        IVA: {formatearPesos(comp.iva || 0)}
                                       </span>
                                     </div>
                                   </div>
@@ -1608,7 +1718,9 @@ export function PaginaFacturacion() {
                       <th className="p-3.5 w-10"></th>
                       <th className="p-3.5">Mes</th>
                       <th className="p-3.5 text-right">IVA ventas (débito)</th>
-                      <th className="p-3.5 text-right">IVA compras (crédito)</th>
+                      <th className="p-3.5 text-right">
+                        IVA compras (crédito)
+                      </th>
                       <th className="p-3.5 text-right">Posición</th>
                     </tr>
                   </thead>
@@ -1642,7 +1754,9 @@ export function PaginaFacturacion() {
                               {formatearPesos(fila.iva_compras)}
                             </td>
                             <td className="p-3.5 text-right tabular-nums font-semibold">
-                              <span className={pos > 0 ? "text-alerta" : "text-ok"}>
+                              <span
+                                className={pos > 0 ? "text-alerta" : "text-ok"}
+                              >
                                 {pos > 0
                                   ? `${formatearPesos(pos)} a pagar`
                                   : `${formatearPesos(Math.abs(pos))} a favor`}
@@ -1652,18 +1766,26 @@ export function PaginaFacturacion() {
 
                           {estaExpandido && (
                             <tr className="bg-fondo/30">
-                              <td colSpan={5} className="p-4 border-t border-borde">
+                              <td
+                                colSpan={5}
+                                className="p-4 border-t border-borde"
+                              >
                                 <div className="space-y-3 pl-6">
                                   <div className="flex items-center justify-between">
                                     <h4 className="text-xs font-semibold text-tinta uppercase tracking-wider">
-                                      Comprobantes de compra — {formatearMes(fila.mes)}
+                                      Comprobantes de compra —{" "}
+                                      {formatearMes(fila.mes)}
                                     </h4>
                                     <span className="text-xs text-tinta-suave">
-                                      {comprobantes.length} {comprobantes.length === 1 ? "comprobante" : "comprobantes"}
+                                      {comprobantes.length}{" "}
+                                      {comprobantes.length === 1
+                                        ? "comprobante"
+                                        : "comprobantes"}
                                     </span>
                                   </div>
 
-                                  {cargandoComprobantesMes && !comprobantesMes[mesKey] ? (
+                                  {cargandoComprobantesMes &&
+                                  !comprobantesMes[mesKey] ? (
                                     <div className="py-4 text-center text-xs text-tinta-suave">
                                       Cargando compras...
                                     </div>
@@ -1678,22 +1800,36 @@ export function PaginaFacturacion() {
                                           <tr className="border-b border-borde bg-fondo text-tinta-suave">
                                             <th className="p-2.5">Fecha</th>
                                             <th className="p-2.5">Proveedor</th>
-                                            <th className="p-2.5">Comprobante</th>
-                                            <th className="p-2.5 text-right">Neto</th>
-                                            <th className="p-2.5 text-right">IVA</th>
-                                            <th className="p-2.5 text-right">Total</th>
-                                            <th className="p-2.5 text-right">Acción</th>
+                                            <th className="p-2.5">
+                                              Comprobante
+                                            </th>
+                                            <th className="p-2.5 text-right">
+                                              Neto
+                                            </th>
+                                            <th className="p-2.5 text-right">
+                                              IVA
+                                            </th>
+                                            <th className="p-2.5 text-right">
+                                              Total
+                                            </th>
+                                            <th className="p-2.5 text-right">
+                                              Acción
+                                            </th>
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-borde">
                                           {comprobantes.map((comp) => {
-                                            const numComp = formatearNumeroFactura(
-                                              comp.comprobante_tipo,
-                                              comp.comprobante_punto_venta,
-                                              comp.comprobante_numero
-                                            );
+                                            const numComp =
+                                              formatearNumeroFactura(
+                                                comp.comprobante_tipo,
+                                                comp.comprobante_punto_venta,
+                                                comp.comprobante_numero,
+                                              );
                                             return (
-                                              <tr key={comp.id} className="hover:bg-fondo/40">
+                                              <tr
+                                                key={comp.id}
+                                                className="hover:bg-fondo/40"
+                                              >
                                                 <td className="p-2.5 text-tinta-suave tabular-nums">
                                                   {formatearFecha(comp.fecha)}
                                                 </td>
@@ -1709,13 +1845,19 @@ export function PaginaFacturacion() {
                                                   {numComp || "—"}
                                                 </td>
                                                 <td className="p-2.5 text-right text-tinta-suave tabular-nums font-medium">
-                                                  {formatearPesos(comp.neto || 0)}
+                                                  {formatearPesos(
+                                                    comp.neto || 0,
+                                                  )}
                                                 </td>
                                                 <td className="p-2.5 text-right text-tinta tabular-nums font-semibold">
-                                                  {formatearPesos(comp.iva || 0)}
+                                                  {formatearPesos(
+                                                    comp.iva || 0,
+                                                  )}
                                                 </td>
                                                 <td className="p-2.5 text-right text-tinta tabular-nums font-semibold">
-                                                  {formatearPesos(comp.monto || 0)}
+                                                  {formatearPesos(
+                                                    comp.monto || 0,
+                                                  )}
                                                 </td>
                                                 <td className="p-2.5 text-right">
                                                   <Link
@@ -1751,7 +1893,10 @@ export function PaginaFacturacion() {
       {/* PESTAÑA: EMISIONES AUTOMÁTICAS */}
       {/* ============================================================ */}
       {pestanaActiva === "emisiones_automaticas" && (
-        <PestanaEmisionesAutomaticas esAdmin={esAdmin} puedeEmitir={puedeEmitir} />
+        <PestanaEmisionesAutomaticas
+          esAdmin={esAdmin}
+          puedeEmitir={puedeEmitir}
+        />
       )}
 
       {/* ============================================================ */}
