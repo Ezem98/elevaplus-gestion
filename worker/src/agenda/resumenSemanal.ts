@@ -44,6 +44,52 @@ function formatearFechaCorta(isoFecha: string): string {
 }
 
 /**
+ * Obtiene el email de destino para las comunicaciones de la empresa.
+ * Prioriza `empresa.email`, con fallback a `empresa.email_facturacion`.
+ */
+export async function obtenerEmailDestinoEmpresa(): Promise<{
+  email: string | null;
+  error?: string;
+}> {
+  const { data: empresa, error: errEmpresa } = await supabaseAdmin
+    .from("empresa")
+    .select("email, email_facturacion")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (errEmpresa) {
+    console.error(
+      "[RESUMEN-SEMANAL] Error al consultar tabla empresa:",
+      errEmpresa,
+    );
+    return {
+      email: null,
+      error: `Error al consultar tabla empresa: ${errEmpresa.message}`,
+    };
+  }
+
+  if (!empresa) {
+    return {
+      email: null,
+      error:
+        "No se encontró el registro de la empresa en la base de datos (id = 1).",
+    };
+  }
+
+  const emailDestino = (empresa.email?.trim() || empresa.email_facturacion?.trim() || "");
+
+  if (!emailDestino) {
+    return {
+      email: null,
+      error:
+        "No hay email configurado en la tabla empresa (se verificaron las columnas 'email' y 'email_facturacion').",
+    };
+  }
+
+  return { email: emailDestino };
+}
+
+/**
  * Cron 07:00 lunes - Envía resumen semanal a empresa.email con compromisos,
  * cheques a cobrar/cubrir y proyección de caja a 7 días.
  */
@@ -74,20 +120,17 @@ export async function resumenSemanal(
 
   try {
     // 1. Obtener email de la empresa
-    const { data: empresa, error: errEmpresa } = await supabaseAdmin
-      .from("empresa")
-      .select("email, nombre")
-      .limit(1)
-      .single();
+    const { email: emailDestino, error: errorEmail } =
+      await obtenerEmailDestinoEmpresa();
 
-    if (errEmpresa || !empresa?.email) {
-      const msg = "No hay email configurado en la tabla empresa.";
+    if (errorEmail || !emailDestino) {
+      const msg =
+        errorEmail ||
+        "No hay email configurado en la tabla empresa (se verificaron las columnas 'email' y 'email_facturacion').";
       console.warn(`[RESUMEN-SEMANAL] ${msg}`);
       await finalizarEjecucion("resumen-semanal", clave, { error: msg });
       return { ok: false, error: msg };
     }
-
-    const emailDestino = empresa.email.trim();
 
     // 2. Verificar política de lista blanca
     const chequeoLista = filtrarDestinatarioPorListaBlanca(emailDestino);

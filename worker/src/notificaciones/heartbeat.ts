@@ -51,8 +51,6 @@ export async function latir(nombre: NombreHeartbeat): Promise<void> {
     }
   } catch (err: unknown) {
     const mensaje = err instanceof Error ? err.message : String(err);
-    logger.warn(
-      `[HEARTBEAT] Falló el latido '${nombre}': ${mensaje}`,
-    );
+    logger.warn(`[HEARTBEAT] Falló el latido '${nombre}': ${mensaje}`);
   }
 }

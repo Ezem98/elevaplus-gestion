@@ -49,11 +49,15 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
     .eq("factura_id", facturaId);
 
   // 3. Obtener configuración de empresa
-  const { data: empresa } = await supabaseAdmin
+  const { data: empresa, error: errEmpresa } = await supabaseAdmin
     .from("empresa")
     .select("*")
-    .limit(1)
-    .single();
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (errEmpresa) {
+    console.error("[PDF] Error al consultar datos de empresa:", errEmpresa);
+  }
 
   // 4. Generar QR de ARCA
   const cuitEmisorLimpio = Number((empresa?.cuit || "27226514878").replace(/\D/g, ""));
@@ -97,7 +101,7 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
       razonSocial: empresa?.razon_social || "ELEVAPLUS",
       cuit: empresa?.cuit || "27-22651487-8",
       condicionIva: "Responsable Inscripto",
-      domicilio: empresa?.direccion || "Buenos Aires, Argentina",
+      domicilio: empresa?.domicilio || (empresa as any)?.direccion || "Buenos Aires, Argentina",
       iibb: empresa?.iibb || null,
       inicioActividades: empresa?.inicio_actividades || null,
       cbu: empresa?.cbu || null,

@@ -362,18 +362,22 @@ describe("Worker - Heartbeats de Better Stack", () => {
             } as any;
           }
           if (tabla === "empresa") {
+            const mockData = {
+              data: {
+                email: "contacto@empresa.com",
+                email_facturacion: null,
+                razon_social: "ELEVAPLUS",
+              },
+              error: null,
+            };
+            const mockChain: any = {
+              eq: vi.fn().mockReturnThis(),
+              limit: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue(mockData),
+              maybeSingle: vi.fn().mockResolvedValue(mockData),
+            };
             return {
-              select: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue({
-                  single: vi.fn().mockResolvedValue({
-                    data: {
-                      email: "contacto@empresa.com",
-                      nombre: "ELEVAPLUS",
-                    },
-                    error: null,
-                  }),
-                }),
-              }),
+              select: vi.fn().mockReturnValue(mockChain),
             } as any;
           }
           return {} as any;
@@ -412,15 +416,18 @@ describe("Worker - Heartbeats de Better Stack", () => {
             } as any;
           }
           if (tabla === "empresa") {
+            const mockData = {
+              data: { email: null, email_facturacion: null },
+              error: null,
+            };
+            const mockChain: any = {
+              eq: vi.fn().mockReturnThis(),
+              limit: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue(mockData),
+              maybeSingle: vi.fn().mockResolvedValue(mockData),
+            };
             return {
-              select: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue({
-                  single: vi.fn().mockResolvedValue({
-                    data: { email: null },
-                    error: null,
-                  }),
-                }),
-              }),
+              select: vi.fn().mockReturnValue(mockChain),
             } as any;
           }
           return {} as any;

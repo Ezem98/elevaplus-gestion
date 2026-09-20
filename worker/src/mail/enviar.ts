@@ -40,11 +40,15 @@ export async function enviarFacturaEmail(facturaId: string): Promise<ResultadoPr
   }
 
   // 2. Obtener datos de la empresa
-  const { data: empresa } = await supabaseAdmin
+  const { data: empresa, error: errEmpresa } = await supabaseAdmin
     .from("empresa")
-    .select("nombre, cuit, cbu, alias_cbu, banco, telefono, email")
-    .limit(1)
-    .single();
+    .select("razon_social, cuit, cbu, alias_cbu, banco, telefono, email")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (errEmpresa) {
+    console.error("[MAIL] Error al consultar datos de empresa:", errEmpresa);
+  }
 
   // 3. Obtener servicios vinculados
   const { data: servicios } = await supabaseAdmin
@@ -99,7 +103,8 @@ export async function enviarFacturaEmail(facturaId: string): Promise<ResultadoPr
       emailFacturacion: cliente.email_facturacion,
     },
     empresa: {
-      nombre: empresa?.nombre || "ELEVAPLUS",
+      nombre: (empresa as any)?.razon_social || "ELEVAPLUS",
+      razonSocial: (empresa as any)?.razon_social || "ELEVAPLUS",
       cuit: empresa?.cuit,
       cbu: empresa?.cbu,
       aliasCbu: empresa?.alias_cbu,
