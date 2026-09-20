@@ -114,14 +114,29 @@ export function PaginaConfiguracion() {
   const [errorParametros, setErrorParametros] = useState<string | null>(null);
 
   const cargarEmpresa = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("empresa")
       .select("*")
       .eq("id", 1)
       .maybeSingle();
 
-    if (data) {
-      const emp = data as Empresa;
+    if (error) {
+      console.error(
+        "[PaginaConfiguracion] Error al consultar tabla empresa (select):",
+        error.message,
+        error,
+      );
+      return;
+    }
+
+    if (!data) {
+      console.warn(
+        "[PaginaConfiguracion] No se encontró el registro de empresa (id = 1).",
+      );
+      return;
+    }
+
+    const emp = data as Empresa;
       setRazonSocial(emp.razon_social || "");
       setCuit(emp.cuit || "");
       setCondicionIva(emp.condicion_iva || "responsable_inscripto");
@@ -148,7 +163,6 @@ export function PaginaConfiguracion() {
         emp.email_facturacion || "facturacion@eleva-plus.com.ar",
       );
       setTextoPieFactura(emp.texto_pie_factura || "");
-    }
   };
 
   const cargarParametros = async () => {

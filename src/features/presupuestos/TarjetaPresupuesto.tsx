@@ -192,7 +192,19 @@ export function TarjetaPresupuesto({
       .from("adjuntos")
       .createSignedUrl(storagePath, 7 * 24 * 60 * 60);
 
-    if (signedError || !signedData?.signedUrl) {
+    if (signedError) {
+      console.error(
+        "[TarjetaPresupuesto] Error al generar URL firmada en Storage adjuntos (createSignedUrl):",
+        signedError.message,
+        signedError,
+      );
+      throw new Error("Error al generar la URL de descarga.");
+    }
+
+    if (!signedData?.signedUrl) {
+      console.warn(
+        "[TarjetaPresupuesto] Storage adjuntos no devolvió signedUrl.",
+      );
       throw new Error("Error al generar la URL de descarga.");
     }
 

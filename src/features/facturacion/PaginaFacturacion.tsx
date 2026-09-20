@@ -341,7 +341,15 @@ export function PaginaFacturacion() {
       .select("arca_ambiente")
       .eq("id", 1)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          console.error(
+            "[PaginaFacturacion] Error al consultar tabla empresa (select arca_ambiente):",
+            error.message,
+            error,
+          );
+          return;
+        }
         if (data?.arca_ambiente) {
           setArcaAmbiente(data.arca_ambiente as AmbienteArca);
         }
@@ -359,13 +367,31 @@ export function PaginaFacturacion() {
         .from("facturas")
         .createSignedUrl(pdfPath, 3600);
 
-      if (error || !data?.signedUrl) {
+      if (error) {
+        console.error(
+          "[PaginaFacturacion] Error al obtener URL firmada en Storage facturas (createSignedUrl):",
+          error.message,
+          error,
+        );
+        alert("No se pudo obtener el enlace de descarga del PDF.");
+        return;
+      }
+
+      if (!data?.signedUrl) {
+        console.warn(
+          "[PaginaFacturacion] Storage facturas no devolvió signedUrl.",
+        );
         alert("No se pudo obtener el enlace de descarga del PDF.");
         return;
       }
 
       window.open(data.signedUrl, "_blank");
-    } catch {
+    } catch (err: any) {
+      console.error(
+        "[PaginaFacturacion] Excepción no controlada al descargar PDF:",
+        err?.message || err,
+        err,
+      );
       alert("Error al intentar descargar el PDF.");
     }
   };

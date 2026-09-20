@@ -287,8 +287,20 @@ export function FormularioCobro({
           .select("id")
           .single();
 
-        if (chequeError || !chequeData) {
-          throw new Error(chequeError?.message || "Error al registrar el cheque.");
+        if (chequeError) {
+          console.error(
+            "[FormularioCobro] Error al insertar cheque en tabla cheques (insert):",
+            chequeError.message,
+            chequeError,
+          );
+          throw new Error("No se pudo registrar el cheque. Probá de nuevo.");
+        }
+
+        if (!chequeData) {
+          console.warn(
+            "[FormularioCobro] Inserción de cheque sin datos retornados en tabla cheques.",
+          );
+          throw new Error("No se pudo registrar el cheque. Probá de nuevo.");
         }
         chequeId = chequeData.id;
       }
@@ -331,8 +343,20 @@ export function FormularioCobro({
         .select("id")
         .single();
 
-      if (cobroError || !cobroData) {
-        throw new Error(cobroError?.message || "Error al registrar el cobro.");
+      if (cobroError) {
+        console.error(
+          "[FormularioCobro] Error al insertar cobro en tabla cobros (insert):",
+          cobroError.message,
+          cobroError,
+        );
+        throw new Error("No se pudo registrar el cobro. Probá de nuevo.");
+      }
+
+      if (!cobroData) {
+        console.warn(
+          "[FormularioCobro] Inserción de cobro sin datos retornados en tabla cobros.",
+        );
+        throw new Error("No se pudo registrar el cobro. Probá de nuevo.");
       }
 
       const nuevoCobroId = cobroData.id;
@@ -344,7 +368,14 @@ export function FormularioCobro({
           servicio_id: servicios[0].id,
           monto: montoNum,
         });
-        if (aplError) throw aplError;
+        if (aplError) {
+          console.error(
+            "[FormularioCobro] Error al insertar aplicación en tabla cobro_aplicaciones (insert):",
+            aplError.message,
+            aplError,
+          );
+          throw new Error("No se pudo aplicar el cobro al servicio. Probá de nuevo.");
+        }
       } else if (esMultiServicio) {
         const filas = Object.entries(aplicaciones)
           .filter(([, montoAp]) => Number(montoAp) > 0)
@@ -358,7 +389,16 @@ export function FormularioCobro({
           const { error: aplError } = await supabase
             .from("cobro_aplicaciones")
             .insert(filas);
-          if (aplError) throw aplError;
+          if (aplError) {
+            console.error(
+              "[FormularioCobro] Error al insertar aplicaciones en tabla cobro_aplicaciones (insert):",
+              aplError.message,
+              aplError,
+            );
+            throw new Error(
+              "No se pudieron aplicar los cobros a los servicios. Probá de nuevo.",
+            );
+          }
         }
       }
 

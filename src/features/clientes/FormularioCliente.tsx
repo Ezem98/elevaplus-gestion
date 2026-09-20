@@ -182,6 +182,11 @@ export function FormularioCliente() {
           .eq("id", id);
 
         if (error) {
+          console.error(
+            "[FormularioCliente] Error al actualizar cliente en tabla clientes (update):",
+            error.message,
+            error,
+          );
           setErrorGuardar("No se pudo guardar. Probá de nuevo.");
           setGuardando(false);
           return;
@@ -194,14 +199,33 @@ export function FormularioCliente() {
           .select("id")
           .single();
 
-        if (error || !data?.id) {
+        if (error) {
+          console.error(
+            "[FormularioCliente] Error al insertar cliente en tabla clientes (insert):",
+            error.message,
+            error,
+          );
+          setErrorGuardar("No se pudo guardar. Probá de nuevo.");
+          setGuardando(false);
+          return;
+        }
+
+        if (!data?.id) {
+          console.warn(
+            "[FormularioCliente] Inserción de cliente sin id retornado en tabla clientes.",
+          );
           setErrorGuardar("No se pudo guardar. Probá de nuevo.");
           setGuardando(false);
           return;
         }
         navigate(`/clientes/${data.id}`);
       }
-    } catch {
+    } catch (err: any) {
+      console.error(
+        "[FormularioCliente] Excepción no controlada al guardar cliente:",
+        err?.message || err,
+        err,
+      );
       setErrorGuardar("No se pudo guardar. Probá de nuevo.");
       setGuardando(false);
     }

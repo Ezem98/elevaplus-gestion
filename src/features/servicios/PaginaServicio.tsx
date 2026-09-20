@@ -170,7 +170,16 @@ export function PaginaServicio() {
       .eq("servicio_id", servicioId)
       .order("created_at", { ascending: true });
 
-    if (error || !data) return [];
+    if (error) {
+      console.error(
+        "[PaginaServicio] Error al consultar tabla adjuntos (select):",
+        error.message,
+        error,
+      );
+      return [];
+    }
+
+    if (!data) return [];
 
     const items: AdjuntoItem[] = await Promise.all(
       data.map(async (a: any) => {
@@ -206,7 +215,7 @@ export function PaginaServicio() {
         { data: scData },
         { data: caData },
         { data: alqData },
-        { data: empData },
+        { data: empData, error: empError },
         adjuntosLista,
         { data: renvData },
       ] = await Promise.all([
@@ -245,10 +254,30 @@ export function PaginaServicio() {
           .limit(1),
       ]);
 
-      if (sError || !sData) {
+      if (sError) {
+        console.error(
+          "[PaginaServicio] Error al consultar tabla servicios (select):",
+          sError.message,
+          sError,
+        );
         setServicio(null);
         setCargando(false);
         return;
+      }
+
+      if (!sData) {
+        console.warn(`[PaginaServicio] Servicio no encontrado (id: ${id}).`);
+        setServicio(null);
+        setCargando(false);
+        return;
+      }
+
+      if (empError) {
+        console.error(
+          "[PaginaServicio] Error al consultar tabla empresa (select):",
+          empError.message,
+          empError,
+        );
       }
 
       setServicio(sData as Servicio);
