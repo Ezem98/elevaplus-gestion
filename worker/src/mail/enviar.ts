@@ -1,7 +1,7 @@
-import { supabaseAdmin } from "../supabase";
-import { generarPlantillaFactura } from "./plantillas";
-import { enviarMailConResend, type ResultadoEnvioMail } from "./cliente";
 import { generarYSubirPdfFactura } from "../pdf/generar";
+import { supabaseAdmin } from "../supabase";
+import { enviarMailConResend, type ResultadoEnvioMail } from "./cliente";
+import { generarPlantillaFactura } from "./plantillas";
 
 export interface ResultadoProcesoEnvioMail {
   exito: boolean;
@@ -13,26 +13,40 @@ export interface ResultadoProcesoEnvioMail {
  * Carga los datos de una factura emitida, obtiene su PDF adjunto
  * y la envía por correo electrónico al cliente usando Resend.
  */
-export async function enviarFacturaEmail(facturaId: string): Promise<ResultadoProcesoEnvioMail> {
+export async function enviarFacturaEmail(
+  facturaId: string,
+): Promise<ResultadoProcesoEnvioMail> {
   // 1. Obtener la factura y su cliente
   const { data: factura, error: errFactura } = await supabaseAdmin
     .from("facturas")
-    .select("id, tipo, punto_venta, numero, total, cae, periodo_desde, periodo_hasta, estado_emision, pdf_path, cliente_id, clientes(id, nombre, email, email_facturacion, enviar_factura_email)")
+    .select(
+      "id, tipo, punto_venta, numero, total, cae, periodo_desde, periodo_hasta, estado_emision, pdf_path, cliente_id, clientes(id, nombre, email, email_facturacion, enviar_factura_email)",
+    )
     .eq("id", facturaId)
     .single();
 
   if (errFactura || !factura) {
-    throw new Error(`Factura ${facturaId} no encontrada: ${errFactura?.message}`);
+    throw new Error(
+      `Factura ${facturaId} no encontrada: ${errFactura?.message}`,
+    );
   }
 
   const cliente = factura.clientes as any;
   if (!cliente) {
-    throw new Error(`Cliente asociado a la factura ${facturaId} no encontrado.`);
+    throw new Error(
+      `Cliente asociado a la factura ${facturaId} no encontrado.`,
+    );
   }
 
-  const emailDestino = (cliente.email_facturacion || cliente.email || "").trim();
+  const emailDestino = (
+    cliente.email_facturacion ||
+    cliente.email ||
+    ""
+  ).trim();
   if (!emailDestino) {
-    console.warn(`[MAIL] Cliente ${cliente.nombre} (${cliente.id}) no tiene email cargado.`);
+    console.warn(
+      `[MAIL] Cliente ${cliente.nombre} (${cliente.id}) no tiene email cargado.`,
+    );
     return {
       exito: false,
       motivo: "sin_email",
@@ -70,7 +84,10 @@ export async function enviarFacturaEmail(facturaId: string): Promise<ResultadoPr
         pdfBuffer = Buffer.from(arrayBuf);
       }
     } catch (errDescarga) {
-      console.warn(`[MAIL] No se pudo descargar el PDF existente en Storage (${factura.pdf_path}):`, errDescarga);
+      console.warn(
+        `[MAIL] No se pudo descargar el PDF existente en Storage (${factura.pdf_path}):`,
+        errDescarga,
+      );
     }
   }
 
@@ -82,9 +99,10 @@ export async function enviarFacturaEmail(facturaId: string): Promise<ResultadoPr
   }
 
   if (!pdfBuffer) {
-    throw new Error(`No se pudo obtener ni generar el PDF para la factura ${facturaId}.`);
+    throw new Error(
+      `No se pudo obtener ni generar el PDF para la factura ${facturaId}.`,
+    );
   }
-
 
   // 5. Generar contenido del correo
   const contenido = generarPlantillaFactura({

@@ -2,15 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { config } from "../config";
 import * as mailCliente from "../mail/cliente";
 import { supabaseAdmin } from "../supabase";
-import {
-  obtenerEmailDestinoEmpresa,
-  resumenSemanal,
-} from "./resumenSemanal";
+import { obtenerEmailDestinoEmpresa, resumenSemanal } from "./resumenSemanal";
 
 describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    config.MAIL_LISTA_BLANCA = "elevaplus.one@gmail.com,facturacion@eleva-plus.com.ar";
+    config.MAIL_LISTA_BLANCA =
+      "elevaplus.one@gmail.com,facturacion@eleva-plus.com.ar";
   });
 
   describe("obtenerEmailDestinoEmpresa", () => {
@@ -89,7 +87,9 @@ describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
       const res = await obtenerEmailDestinoEmpresa();
 
       expect(res.email).toBeNull();
-      expect(res.error).toContain("No hay email configurado en la tabla empresa");
+      expect(res.error).toContain(
+        "No hay email configurado en la tabla empresa",
+      );
       expect(res.error).toContain("'email'");
       expect(res.error).toContain("'email_facturacion'");
     });
@@ -102,7 +102,10 @@ describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
               eq: vi.fn().mockReturnValue({
                 maybeSingle: vi.fn().mockResolvedValue({
                   data: null,
-                  error: { code: "42703", message: "column empresa.nombre does not exist" },
+                  error: {
+                    code: "42703",
+                    message: "column empresa.nombre does not exist",
+                  },
                 }),
               }),
             }),
@@ -114,7 +117,9 @@ describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
       const res = await obtenerEmailDestinoEmpresa();
 
       expect(res.email).toBeNull();
-      expect(res.error).toBe("Error al consultar tabla empresa: column empresa.nombre does not exist");
+      expect(res.error).toBe(
+        "Error al consultar tabla empresa: column empresa.nombre does not exist",
+      );
     });
 
     it("retorna error descriptivo si el registro de empresa (id = 1) no existe", async () => {
@@ -137,7 +142,9 @@ describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
       const res = await obtenerEmailDestinoEmpresa();
 
       expect(res.email).toBeNull();
-      expect(res.error).toContain("No se encontró el registro de la empresa en la base de datos (id = 1)");
+      expect(res.error).toContain(
+        "No se encontró el registro de la empresa en la base de datos (id = 1)",
+      );
     });
   });
 
@@ -154,7 +161,9 @@ describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
           return {
             upsert: vi.fn().mockReturnValue({
               select: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: { id: 1 }, error: null }),
+                single: vi
+                  .fn()
+                  .mockResolvedValue({ data: { id: 1 }, error: null }),
               }),
             }),
             update: vi.fn().mockReturnValue({
@@ -242,7 +251,9 @@ describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
           return {
             upsert: vi.fn().mockReturnValue({
               select: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: { id: 1 }, error: null }),
+                single: vi
+                  .fn()
+                  .mockResolvedValue({ data: { id: 1 }, error: null }),
               }),
             }),
             update: vi.fn().mockReturnValue({
@@ -326,7 +337,9 @@ describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
           return {
             upsert: vi.fn().mockReturnValue({
               select: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: { id: 1 }, error: null }),
+                single: vi
+                  .fn()
+                  .mockResolvedValue({ data: { id: 1 }, error: null }),
               }),
             }),
             update: vi.fn().mockReturnValue({
@@ -341,7 +354,10 @@ describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
               eq: vi.fn().mockReturnValue({
                 maybeSingle: vi.fn().mockResolvedValue({
                   data: null,
-                  error: { code: "42703", message: "column empresa.nombre does not exist" },
+                  error: {
+                    code: "42703",
+                    message: "column empresa.nombre does not exist",
+                  },
                 }),
               }),
             }),
@@ -354,7 +370,9 @@ describe("resumenSemanal - Resolución de destinatario desde empresa", () => {
       const resultado = await resumenSemanal({ forzar: true });
 
       expect(resultado.ok).toBe(false);
-      expect(resultado.error).toBe("Error al consultar tabla empresa: column empresa.nombre does not exist");
+      expect(resultado.error).toBe(
+        "Error al consultar tabla empresa: column empresa.nombre does not exist",
+      );
       expect(spyEnviar).not.toHaveBeenCalled();
     });
   });

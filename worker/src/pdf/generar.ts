@@ -1,8 +1,12 @@
-import React from "react";
 import { pdf } from "@react-pdf/renderer";
+import React from "react";
 import { supabaseAdmin } from "../supabase";
+import {
+  FacturaDocumento,
+  type FacturaPDFProps,
+  type ItemFacturaPDF,
+} from "./FacturaPDF";
 import { generarImagenQrArca } from "./qr";
-import { FacturaDocumento, type FacturaPDFProps, type ItemFacturaPDF } from "./FacturaPDF";
 
 async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -15,7 +19,9 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
 /**
  * Genera el documento PDF de una factura y lo retorna como Buffer.
  */
-export async function renderizarPdfFactura(props: FacturaPDFProps): Promise<Buffer> {
+export async function renderizarPdfFactura(
+  props: FacturaPDFProps,
+): Promise<Buffer> {
   const elemento = React.createElement(FacturaDocumento, props);
   const stream = await pdf(elemento as any).toBuffer();
   return await streamToBuffer(stream as any);
@@ -31,10 +37,12 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
   // 1. Obtener factura con datos del cliente
   const { data: factura, error: errorFactura } = await supabaseAdmin
     .from("facturas")
-    .select(`
+    .select(
+      `
       *,
       clientes (*)
-    `)
+    `,
+    )
     .eq("id", facturaId)
     .single();
 
@@ -45,7 +53,9 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
   // 2. Obtener servicios asociados a la factura
   const { data: servicios } = await supabaseAdmin
     .from("servicios")
-    .select("id, numero, descripcion, monto, aplica_iva, fecha_programada, fecha_fin")
+    .select(
+      "id, numero, descripcion, monto, aplica_iva, fecha_programada, fecha_fin",
+    )
     .eq("factura_id", facturaId);
 
   // 3. Obtener configuración de empresa
@@ -60,13 +70,18 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
   }
 
   // 4. Generar QR de ARCA
-  const cuitEmisorLimpio = Number((empresa?.cuit || "27226514878").replace(/\D/g, ""));
-  const cuitReceptorLimpio = Number((factura.clientes?.cuit || "0").replace(/\D/g, ""));
+  const cuitEmisorLimpio = Number(
+    (empresa?.cuit || "27226514878").replace(/\D/g, ""),
+  );
+  const cuitReceptorLimpio = Number(
+    (factura.clientes?.cuit || "0").replace(/\D/g, ""),
+  );
   const tipoCbte = factura.tipo === "A" ? 1 : 6;
   const tipoDocRec = cuitReceptorLimpio > 0 ? 80 : 99;
 
   const qrDataUrl = await generarImagenQrArca({
-    fecha: factura.emitida_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+    fecha:
+      factura.emitida_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
     cuit: cuitEmisorLimpio,
     ptoVta: factura.punto_venta,
     tipoCmp: tipoCbte,
@@ -101,7 +116,10 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
       razonSocial: empresa?.razon_social || "ELEVAPLUS",
       cuit: empresa?.cuit || "27-22651487-8",
       condicionIva: "Responsable Inscripto",
-      domicilio: empresa?.domicilio || (empresa as any)?.direccion || "Buenos Aires, Argentina",
+      domicilio:
+        empresa?.domicilio ||
+        (empresa as any)?.direccion ||
+        "Buenos Aires, Argentina",
       iibb: empresa?.iibb || null,
       inicioActividades: empresa?.inicio_actividades || null,
       cbu: empresa?.cbu || null,

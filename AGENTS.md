@@ -11,3 +11,4 @@ Antes de cualquier cambio, leé docs/DISEÑO.md y README.md.
 - Todos los archivos se escriben en UTF-8 sin BOM. En PowerShell nunca usar Out-File ni Set-Content sin -Encoding utf8NoBOM; preferir fs.writeFileSync de Node. El migrador de Supabase falla con BOM.
 - Una feature por tarea. Si el pedido implica más de un módulo, decirlo y proponer el corte antes de empezar.
 - Tests de RLS: ningún test de "no puede ver X" vale si la tabla está vacía. Siempre insertar el dato con un rol permitido antes de verificar que el rol restringido no lo ve (para evitar falsos positivos por tablas vacías).
+- Nunca colapsar el error de una consulta con la ausencia del dato. `if (error) { … }` va siempre separado de `if (!data) { … }`, y el mensaje de error tiene que incluir `error.message`. Un select con una columna inexistente falla con 42703 y esa causa tiene que ser visible en el log.

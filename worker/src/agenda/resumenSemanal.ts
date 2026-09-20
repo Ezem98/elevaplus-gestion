@@ -76,7 +76,8 @@ export async function obtenerEmailDestinoEmpresa(): Promise<{
     };
   }
 
-  const emailDestino = (empresa.email?.trim() || empresa.email_facturacion?.trim() || "");
+  const emailDestino =
+    empresa.email?.trim() || empresa.email_facturacion?.trim() || "";
 
   if (!emailDestino) {
     return {
