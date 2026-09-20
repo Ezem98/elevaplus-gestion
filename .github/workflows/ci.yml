@@ -16,10 +16,10 @@ jobs:
       - name: Clonar repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js (v20) y cache de npm
+      - name: Configurar Node.js (v22 LTS) y cache de npm
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Cachear binarios de Playwright
