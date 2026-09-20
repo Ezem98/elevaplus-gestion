@@ -15,6 +15,8 @@ El sistema tiene 77 tests y todos son de funciones puras (cotizador, formato, fe
 | BOM UTF-8 en migraciones — la integración de Supabase falló en producción                         | El deploy fallido                        | `supabase db reset` en CI           |
 | Policy `facturas_leer` duplicada                                                                  | El deploy fallido                        | `supabase db reset` en CI           |
 | Vista agenda con tipos heterogéneos en el UNION — las migraciones 14 y 15 no aplicaban desde cero | Lo detectó `supabase db reset` en Fase 5 | `supabase db reset` en CI           |
+| `cambiar_estado` perdía `estado_anterior` en `servicio_eventos` — corregido en migración 18       | Lo detectó pgTAP en Fase 5               | pgTAP en CI                         |
+| Violación de Rules of Hooks en `PaginaServicio.tsx` (hooks tras retornos condicionales)           | Lo detectó Playwright E2E en Fase 5      | Test E2E en CI                      |
 
 Y hay una lista de verificaciones manuales que se repite en cada fase (cheque rechazado, endoso, cobro parcial, chofer que no ve precios). Eso es exactamente lo que automatiza esta fase.
 
@@ -159,6 +161,8 @@ Sin servicios, cobros ni facturas: cada test crea los suyos.
 - `iva_mensual`: ventas menos compras; factura B de compra no suma crédito fiscal.
 
 ### 4.4 Integración (vitest + supabase-js) — casos
+
+> **Regla de RLS sobre tablas no vacías:** ningún test de "no puede ver X" vale si la tabla está vacía. Siempre insertar el dato con un rol permitido antes de verificar que el rol restringido no lo ve (para evitar falsos positivos por tablas vacías).
 
 `setup.ts` crea un cliente de Supabase autenticado por rol (login con los usuarios del seed) y expone `comoAdmin()`, `comoOficina()`, `comoChofer(1|2)`, `comoAnonimo()`.
 

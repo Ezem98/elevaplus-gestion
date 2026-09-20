@@ -220,8 +220,5 @@ export async function limpiarRegistrosTest(prefijo: string) {
     .ilike("notas", `%${prefijo}%`);
 
   // 9. Borrar logs de ARCA creados por el test
-  await admin
-    .from("arca_log")
-    .delete()
-    .ilike("accion", `%${prefijo}%`);
+  await admin.from("arca_log").delete().ilike("accion", `%${prefijo}%`);
 }

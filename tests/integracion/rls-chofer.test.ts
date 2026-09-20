@@ -431,6 +431,17 @@ describe("RLS Chofer — Permisos y Restricciones", () => {
       .eq("id", novChofer2!.id);
 
     expect(leido).toEqual([]);
+
+    // Control positivo: Chofer 2 sí puede leer su propia novedad
+    const chofer2 = await comoChofer2();
+    const { data: leidoChofer2 } = await chofer2
+      .from("novedades_empleado")
+      .select("id")
+      .eq("id", novChofer2!.id);
+
+    expect(leidoChofer2).toBeDefined();
+    expect(leidoChofer2!.length).toBe(1);
+    expect(leidoChofer2![0].id).toBe(novChofer2!.id);
   });
 
   it("Caso 42 (§A.5): Terminé con foto — sube adjunto a Storage y fila en adjuntos", async () => {

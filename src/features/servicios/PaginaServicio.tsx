@@ -497,6 +497,58 @@ export function PaginaServicio() {
     }
   };
 
+  const puedeRenovar = Boolean(
+    servicio &&
+    servicio.tipo === "alquiler_periodo" &&
+    alquiler?.fecha_hasta &&
+    (servicio.estado === "en_curso" ||
+      (servicio.estado === "terminado" &&
+        (() => {
+          const partes = alquiler.fecha_hasta.split("-").map(Number);
+          if (partes.length !== 3) return false;
+          const [y, m, d] = partes;
+          const hastaUtc = Date.UTC(y, m - 1, d);
+          const ahora = new Date();
+          const hoyUtc = Date.UTC(
+            ahora.getFullYear(),
+            ahora.getMonth(),
+            ahora.getDate(),
+          );
+          const diffDias = Math.round(
+            (hoyUtc - hastaUtc) / (1000 * 60 * 60 * 24),
+          );
+          return diffDias <= 15;
+        })())),
+  );
+
+  const abrirRenovar = useCallback(() => {
+    if (!alquiler) return;
+    const { nuevaDesde, nuevaHasta } = calcularRangoRenovacion(
+      alquiler.fecha_desde,
+      alquiler.fecha_hasta,
+    );
+
+    setRenvDesde(nuevaDesde);
+    setRenvHasta(nuevaHasta);
+    setRenvUnidad(alquiler.unidad);
+    setRenvCantidad(alquiler.cantidad);
+    setRenvPrecioUnidad(alquiler.precio_unidad);
+    setRenvMonto(alquiler.cantidad * alquiler.precio_unidad);
+    setErrorRenovacion(null);
+    setMostrarRenovar(true);
+  }, [alquiler]);
+
+  useEffect(() => {
+    if (
+      searchParams.get("renovar") === "1" &&
+      alquiler &&
+      puedeRenovar &&
+      !servicioRenovado
+    ) {
+      abrirRenovar();
+    }
+  }, [searchParams, alquiler, puedeRenovar, servicioRenovado, abrirRenovar]);
+
   if (cargando) {
     return (
       <div className="py-12 text-center text-tinta-suave">
@@ -582,57 +634,6 @@ export function PaginaServicio() {
   const fechaHastaDdMm = alquiler?.fecha_hasta
     ? `${alquiler.fecha_hasta.split("-")[2]}/${alquiler.fecha_hasta.split("-")[1]}`
     : "";
-
-  const puedeRenovar = Boolean(
-    servicio.tipo === "alquiler_periodo" &&
-    alquiler?.fecha_hasta &&
-    (servicio.estado === "en_curso" ||
-      (servicio.estado === "terminado" &&
-        (() => {
-          const partes = alquiler.fecha_hasta.split("-").map(Number);
-          if (partes.length !== 3) return false;
-          const [y, m, d] = partes;
-          const hastaUtc = Date.UTC(y, m - 1, d);
-          const ahora = new Date();
-          const hoyUtc = Date.UTC(
-            ahora.getFullYear(),
-            ahora.getMonth(),
-            ahora.getDate(),
-          );
-          const diffDias = Math.round(
-            (hoyUtc - hastaUtc) / (1000 * 60 * 60 * 24),
-          );
-          return diffDias <= 15;
-        })())),
-  );
-
-  const abrirRenovar = useCallback(() => {
-    if (!alquiler) return;
-    const { nuevaDesde, nuevaHasta } = calcularRangoRenovacion(
-      alquiler.fecha_desde,
-      alquiler.fecha_hasta,
-    );
-
-    setRenvDesde(nuevaDesde);
-    setRenvHasta(nuevaHasta);
-    setRenvUnidad(alquiler.unidad);
-    setRenvCantidad(alquiler.cantidad);
-    setRenvPrecioUnidad(alquiler.precio_unidad);
-    setRenvMonto(alquiler.cantidad * alquiler.precio_unidad);
-    setErrorRenovacion(null);
-    setMostrarRenovar(true);
-  }, [alquiler]);
-
-  useEffect(() => {
-    if (
-      searchParams.get("renovar") === "1" &&
-      alquiler &&
-      puedeRenovar &&
-      !servicioRenovado
-    ) {
-      abrirRenovar();
-    }
-  }, [searchParams, alquiler, puedeRenovar, servicioRenovado, abrirRenovar]);
 
   const handleCambioPrecioOCantidad = (cant: number, precio: number | null) => {
     setRenvCantidad(cant);
