@@ -38,7 +38,8 @@ jobs:
         run: npm ci
 
       - name: Instalar dependencias del worker
-        run: npm ci --prefix worker
+        working-directory: worker
+        run: npm ci --legacy-peer-deps
 
       # Calidad estática
       - name: Verificar codificación de archivos (UTF-8 sin BOM)
