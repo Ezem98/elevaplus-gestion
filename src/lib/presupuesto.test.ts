@@ -198,6 +198,28 @@ describe("presupuesto", () => {
         importe: 50000,
       });
     });
+
+    it("incluye (servicio nocturno) en la descripción del ítem si nocturno es true", () => {
+      const items = armarItems({
+        tipo: "traslado",
+        carga: "autoelevador 2,5 t",
+        monto: 250000,
+        nocturno: true,
+      });
+
+      expect(items[0].descripcion).toBe("Traslado de autoelevador 2,5 t (servicio nocturno)");
+    });
+
+    it("no incluye (servicio nocturno) si nocturno es false o undefined", () => {
+      const items = armarItems({
+        tipo: "traslado",
+        carga: "autoelevador 2,5 t",
+        monto: 250000,
+        nocturno: false,
+      });
+
+      expect(items[0].descripcion).toBe("Traslado de autoelevador 2,5 t");
+    });
   });
 
   describe("calcularTotalesPresupuesto", () => {

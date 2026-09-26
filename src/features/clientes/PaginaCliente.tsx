@@ -12,7 +12,7 @@ import {
 } from "@/lib/tipos";
 import { formatearPesos, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
-import { ChipEstado } from "@/components/ui/Chip";
+import { ChipEstado, ChipNocturno } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
 import { Aviso } from "@/components/ui/Aviso";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
@@ -199,7 +199,10 @@ export function PaginaCliente() {
                     )}
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-1">
-                    <ChipEstado estado={s.estado} />
+                    <div className="flex items-center gap-1.5">
+                      {s.nocturno && <ChipNocturno />}
+                      <ChipEstado estado={s.estado} />
+                    </div>
                     {(() => {
                       const fac = Array.isArray(s.facturas) ? s.facturas[0] : s.facturas;
                       if (!fac) return null;

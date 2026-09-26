@@ -103,6 +103,9 @@ export function armarItems(servicio: Partial<Servicio> & {
       descripcion = `${tipoLabel} de ${cargaLimpia}`;
     }
   }
+  if (servicio.nocturno) {
+    descripcion = `${descripcion} (servicio nocturno)`;
+  }
 
   // Detalle: origen → destino, km e ida y vuelta, vehículo, según lo que exista
   const partesTrayecto: string[] = [];

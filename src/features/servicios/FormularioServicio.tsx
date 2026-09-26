@@ -52,6 +52,7 @@ const UNIDADES: { valor: UnidadAlquiler; etiqueta: string }[] = [
 ];
 
 import { calcularCantidadAlquiler, calcularDiasAlquiler } from "@/lib/alquiler";
+import { esHorarioNocturno } from "@/lib/cotizador";
 
 export function FormularioServicio() {
   const navigate = useNavigate();
@@ -103,6 +104,11 @@ export function FormularioServicio() {
   const [descripcion, setDescripcion] = useState("");
   const [fechaProgramada, setFechaProgramada] = useState("");
   const [horaProgramada, setHoraProgramada] = useState("");
+  const [nocturno, setNocturno] = useState(false);
+  const [franjaNocturna, setFranjaNocturna] = useState<{ desde: string; hasta: string }>({
+    desde: "20:00",
+    hasta: "06:00",
+  });
   const [monto, setMonto] = useState<number | null>(null);
   const [montoEditadoManualmente, setMontoEditadoManualmente] = useState(false);
   const [aplicaIva, setAplicaIva] = useState(true);
@@ -159,6 +165,21 @@ export function FormularioServicio() {
       .order("nombre")
       .then(({ data }) => {
         setTercerizados((data as Tercerizado[]) ?? []);
+      });
+
+    supabase
+      .from("parametros_cotizador")
+      .select("nocturno_desde, nocturno_hasta")
+      .order("id", { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setFranjaNocturna({
+            desde: data.nocturno_desde ? data.nocturno_desde.slice(0, 5) : "20:00",
+            hasta: data.nocturno_hasta ? data.nocturno_hasta.slice(0, 5) : "06:00",
+          });
+        }
       });
   }, [clienteParam]);
 
@@ -259,6 +280,7 @@ export function FormularioServicio() {
             ? `${horaProgramada}:00`
             : horaProgramada
           : null,
+        nocturno: (tipo === "traslado" || tipo === "alquiler_hora") ? nocturno : false,
         remito: remito.trim() || null,
         orden_compra: ordenCompra.trim() || null,
         descripcion: descripcion.trim() || null,
@@ -879,6 +901,59 @@ export function FormularioServicio() {
                 />
               </Campo>
             </div>
+
+            {(tipo === "traslado" || tipo === "alquiler_hora") && (
+              <div className="space-y-3">
+                <fieldset>
+                  <legend className="mb-1.5 block text-sm font-medium text-tinta-suave">
+                    Servicio nocturno
+                  </legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNocturno(false)}
+                      aria-pressed={!nocturno}
+                      className={`min-h-[44px] px-3 py-2 rounded-md border text-center text-sm font-medium transition-colors ${
+                        !nocturno
+                          ? "border-marca bg-marca-suave text-marca font-semibold"
+                          : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+                      }`}
+                    >
+                      Día
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNocturno(true)}
+                      aria-pressed={nocturno}
+                      className={`min-h-[44px] px-3 py-2 rounded-md border text-center text-sm font-medium transition-colors ${
+                        nocturno
+                          ? "border-marca bg-marca-suave text-marca font-semibold"
+                          : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+                      }`}
+                    >
+                      Noche
+                    </button>
+                  </div>
+                </fieldset>
+
+                {esHorarioNocturno(horaProgramada, franjaNocturna.desde, franjaNocturna.hasta) && !nocturno && (
+                  <Aviso
+                    variante="alerta"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                  >
+                    <span>Es horario nocturno, ¿lo marcás como servicio nocturno?</span>
+                    <Boton
+                      type="button"
+                      variante="fantasma"
+                      onClick={() => setNocturno(true)}
+                      className="min-h-[44px] text-xs font-semibold shrink-0"
+                    >
+                      Marcar como nocturno
+                    </Boton>
+                  </Aviso>
+                )}
+              </div>
+            )}
 
             <div>
               <Campo etiqueta="Monto *" id="monto">

@@ -212,6 +212,9 @@ export interface ParametrosCotizador {
   monto_minimo: number;
   km_minimo: number;
   precio_gasoil: number | null;
+  recargo_nocturno_pct?: number | null;
+  nocturno_desde?: string | null;
+  nocturno_hasta?: string | null;
 }
 
 export type TipoMaquina =
@@ -253,6 +256,7 @@ export interface Servicio {
   carga: string | null;
   km: number | null;
   ida_y_vuelta: boolean;
+  nocturno?: boolean;
   fecha_programada: string | null;
   hora_programada: string | null;
   fecha_inicio?: string | null;

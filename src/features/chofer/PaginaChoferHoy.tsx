@@ -8,7 +8,7 @@ import { ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearFecha } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
-import { ChipEstado } from "@/components/ui/Chip";
+import { ChipEstado, ChipNocturno } from "@/components/ui/Chip";
 import { Aviso } from "@/components/ui/Aviso";
 import { PantallaCobraste } from "./PantallaCobraste";
 import { PantallaNoPlanificado } from "./PantallaNoPlanificado";
@@ -366,7 +366,10 @@ export function PaginaChoferHoy() {
                       · {ETIQUETA_TIPO[s.tipo]}
                     </div>
                   </div>
-                  <ChipEstado estado={s.estado} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {s.nocturno && <ChipNocturno />}
+                    <ChipEstado estado={s.estado} />
+                  </div>
                 </div>
 
                 {(s.origen || s.destino) && (
@@ -429,7 +432,10 @@ function TarjetaServicioItem({
             {s.hora_programada?.slice(0, 5) ?? ""} · {ETIQUETA_TIPO[s.tipo]}
           </div>
         </div>
-        <ChipEstado estado={s.estado} />
+        <div className="flex items-center gap-1.5 shrink-0">
+          {s.nocturno && <ChipNocturno />}
+          <ChipEstado estado={s.estado} />
+        </div>
       </div>
 
       {/* Bloque Desde / Hasta en dos líneas */}

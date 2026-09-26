@@ -1,5 +1,5 @@
 import { Aviso } from "@/components/ui/Aviso";
-import { ChipEstado } from "@/components/ui/Chip";
+import { ChipEstado, ChipNocturno } from "@/components/ui/Chip";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useRealtime } from "@/hooks/use-realtime";
@@ -483,7 +483,8 @@ function ListaServicios({ servicios }: { servicios: Servicio[] }) {
             <div className="hidden w-28 shrink-0 text-right text-sm font-semibold tabular-nums md:block">
               {formatearPesos(s.monto)}
             </div>
-            <div className="flex shrink-0 justify-end md:w-28">
+            <div className="flex shrink-0 items-center justify-end gap-1.5">
+              {s.nocturno && <ChipNocturno />}
               <ChipEstado estado={s.estado} />
             </div>
           </Link>

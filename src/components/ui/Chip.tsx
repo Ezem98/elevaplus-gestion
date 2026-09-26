@@ -1,3 +1,4 @@
+import { Moon } from "lucide-react";
 import type {
   EstadoCheque,
   EstadoCobro,
@@ -81,6 +82,17 @@ export function ChipMovimiento({ estado }: { estado: EstadoMovimiento }) {
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${colorMovimiento[estado]}`}
     >
       {estado === "pendiente" ? "Pendiente" : "Pagado"}
+    </span>
+  );
+}
+
+export function ChipNocturno({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border border-borde bg-fondo px-2.5 py-0.5 text-xs font-medium text-tinta-suave ${className}`}
+    >
+      <Moon size={12} className="size-3 text-tinta-suave" aria-hidden="true" />
+      Nocturno
     </span>
   );
 }

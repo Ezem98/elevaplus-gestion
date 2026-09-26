@@ -30,6 +30,7 @@ export function PaginaCotizador() {
   const [vehiculoId, setVehiculoId] = useState("");
   const [cargaMayor50, setCargaMayor50] = useState(false);
   const [idaYVuelta, setIdaYVuelta] = useState(true);
+  const [nocturno, setNocturno] = useState(false);
   const [clienteId, setClienteId] = useState("");
   const [importeManual, setImporteManual] = useState<number | null>(null);
 
@@ -74,10 +75,18 @@ export function PaginaCotizador() {
   const desglose = useMemo(() => {
     if (!vehiculo || !params) return null;
     return cotizar(
-      { km: Number(km) || 0, vehiculo, cargaMayor50, idaYVuelta },
-      { precio_km: Number(params.precio_km), monto_minimo: Number(params.monto_minimo), km_minimo: Number(params.km_minimo) },
+      { km: Number(km) || 0, vehiculo, cargaMayor50, idaYVuelta, nocturno },
+      {
+        precio_km: Number(params.precio_km),
+        monto_minimo: Number(params.monto_minimo),
+        km_minimo: Number(params.km_minimo),
+        recargo_nocturno_pct:
+          params.recargo_nocturno_pct != null
+            ? Number(params.recargo_nocturno_pct)
+            : null,
+      },
     );
-  }, [km, vehiculo, cargaMayor50, idaYVuelta, params]);
+  }, [km, vehiculo, cargaMayor50, idaYVuelta, nocturno, params]);
 
   const importeFinal = importeManual != null ? importeManual : desglose?.importe ?? null;
 
@@ -87,7 +96,7 @@ export function PaginaCotizador() {
     setError(null);
 
     try {
-      const descripcion = `Traslado cotizado — ${vehiculo?.nombre ?? ""}, ${km} km ${idaYVuelta ? "ida y vuelta" : "solo ida"}, carga ${cargaMayor50 ? "más" : "menos"} del 50 %`;
+      const descripcion = `Traslado cotizado — ${vehiculo?.nombre ?? ""}, ${km} km ${idaYVuelta ? "ida y vuelta" : "solo ida"}, carga ${cargaMayor50 ? "más" : "menos"} del 50 %${nocturno ? ", servicio nocturno" : ""}`;
 
       const { data, error: errorInsert } = await supabase
         .from("servicios")
@@ -96,6 +105,7 @@ export function PaginaCotizador() {
           cliente_id: clienteId ? clienteId : null,
           km: Number(km) || 0,
           ida_y_vuelta: idaYVuelta,
+          nocturno,
           vehiculo_id: vehiculoId || null,
           monto: importeFinal,
           descripcion,
@@ -184,6 +194,13 @@ export function PaginaCotizador() {
               <Opcion activa={idaYVuelta} onClick={() => setIdaYVuelta(true)}>Ida y vuelta</Opcion>
             </div>
           </fieldset>
+          <fieldset>
+            <legend className="mb-1.5 block text-sm font-medium text-tinta-suave">Servicio nocturno</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <Opcion activa={!nocturno} onClick={() => setNocturno(false)}>Día</Opcion>
+              <Opcion activa={nocturno} onClick={() => setNocturno(true)}>Noche</Opcion>
+            </div>
+          </fieldset>
           <Campo etiqueta="Cliente" id="cliente">
             <Selector id="cliente" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
               <option value="">Sin cliente</option>
@@ -220,6 +237,12 @@ export function PaginaCotizador() {
                 </span>
                 <span className="text-tinta tabular-nums">{formatearPesos(desglose.deltaCarga)}</span>
               </div>
+              {desglose.deltaNocturno != null && desglose.deltaNocturno > 0 && (
+                <div className="flex items-center justify-between gap-3 text-tinta-suave">
+                  <span>{`Recargo nocturno (+${desglose.recargoNocturnoPct} %)`}</span>
+                  <span className="text-tinta tabular-nums">{formatearPesos(desglose.deltaNocturno)}</span>
+                </div>
+              )}
               <div className="my-2 border-t border-borde" />
               <div className="flex items-center justify-between gap-3 font-medium text-tinta">
                 <span>Subtotal</span>
@@ -273,7 +296,7 @@ function Opcion({ activa, onClick, children }: { activa: boolean; onClick: () =>
       type="button"
       onClick={onClick}
       aria-pressed={activa}
-      className={`h-10 rounded-md border text-sm font-medium ${activa ? "border-marca bg-marca-suave text-marca" : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"}`}
+      className={`min-h-[44px] rounded-md border text-sm font-medium transition-colors ${activa ? "border-marca bg-marca-suave text-marca font-semibold" : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"}`}
     >
       {children}
     </button>

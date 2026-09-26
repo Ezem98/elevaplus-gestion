@@ -1,5 +1,6 @@
+import { Aviso } from "@/components/ui/Aviso";
 import { Boton } from "@/components/ui/Boton";
-import { ChipEstado } from "@/components/ui/Chip";
+import { ChipEstado, ChipNocturno } from "@/components/ui/Chip";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import {
   ConMenuContextual,
@@ -81,6 +82,8 @@ export function PaginaServicios() {
     cancelados: 0,
   });
 
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+
   const cambiarFiltro = (nuevo: ClaveFiltro) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -90,7 +93,13 @@ export function PaginaServicios() {
   };
 
   const cargarConteos = useCallback(async () => {
-    const { data } = await supabase.from("servicios").select("tipo, estado");
+    const { data, error } = await supabase.from("servicios").select("tipo, estado");
+    if (error) {
+      console.error("Error al cargar conteos de servicios:", error.message);
+      return;
+    }
+    if (!data) return;
+
     const nuevos: Record<ClaveFiltro, number> = {
       todos: 0,
       presupuestos: 0,
@@ -99,37 +108,36 @@ export function PaginaServicios() {
       cobrados: 0,
       cancelados: 0,
     };
-    if (data) {
-      nuevos.todos = data.length;
-      for (const item of data) {
-        const e = item.estado as EstadoServicio;
-        if (item.tipo === "alquiler_periodo" && e === "en_curso") {
-          nuevos.alquileres_activos++;
-        }
-        if (e === "consulta" || e === "presupuestado") {
-          nuevos.presupuestos++;
-        } else if (
-          e === "aceptado" ||
-          e === "programado" ||
-          e === "en_curso" ||
-          e === "terminado"
-        ) {
-          nuevos.en_curso++;
-        } else if (e === "cobrado" || e === "facturado") {
-          nuevos.cobrados++;
-        } else if (e === "cancelado") {
-          nuevos.cancelados++;
-        }
+    nuevos.todos = data.length;
+    for (const item of data) {
+      const e = item.estado as EstadoServicio;
+      if (item.tipo === "alquiler_periodo" && e === "en_curso") {
+        nuevos.alquileres_activos++;
+      }
+      if (e === "consulta" || e === "presupuestado") {
+        nuevos.presupuestos++;
+      } else if (
+        e === "aceptado" ||
+        e === "programado" ||
+        e === "en_curso" ||
+        e === "terminado"
+      ) {
+        nuevos.en_curso++;
+      } else if (e === "cobrado" || e === "facturado") {
+        nuevos.cobrados++;
+      } else if (e === "cancelado") {
+        nuevos.cancelados++;
       }
     }
     setConteos(nuevos);
   }, []);
 
   const cargarServicios = useCallback(async () => {
+    setErrorCarga(null);
     let q = supabase
       .from("servicios")
-      .select("*, clientes(nombre), alquileres(fecha_desde, fecha_hasta)")
-      .order("fecha_programada", { ascending: false })
+      .select("*, clientes(nombre), alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta)")
+      .order("fecha_programada", { ascending: false, nullsFirst: false })
       .limit(100);
 
     if (filtroActivo === "alquileres_activos") {
@@ -141,8 +149,17 @@ export function PaginaServicios() {
       }
     }
 
-    const { data } = await q;
-    setServicios((data as Servicio[]) ?? []);
+    const { data, error } = await q;
+    if (error) {
+      console.error("Error al cargar lista de servicios:", error.message);
+      setErrorCarga(`Error al cargar los servicios: ${error.message}`);
+      return;
+    }
+    if (!data) {
+      setServicios([]);
+      return;
+    }
+    setServicios(data as Servicio[]);
   }, [filtroActivo]);
 
   const cargar = useCallback(async () => {
@@ -161,11 +178,17 @@ export function PaginaServicios() {
     );
     if (!confirmado) return;
 
-    await supabase.rpc("cambiar_estado", {
+    const { error } = await supabase.rpc("cambiar_estado", {
       p_servicio_id: s.id,
       p_nuevo: "cancelado",
       p_nota: "Cancelado desde la lista",
     });
+
+    if (error) {
+      console.error("Error al cancelar servicio:", error.message);
+      alert(`No se pudo cancelar el servicio: ${error.message}`);
+      return;
+    }
 
     await Promise.all([cargarServicios(), cargarConteos()]);
   };
@@ -203,6 +226,8 @@ export function PaginaServicios() {
         })}
       </div>
 
+      {errorCarga && <Aviso variante="peligro">{errorCarga}</Aviso>}
+
       <Tarjeta className="overflow-hidden">
         {/* Vista móvil (< md): lista dividida */}
         <div className="divide-y divide-borde md:hidden">
@@ -234,7 +259,10 @@ export function PaginaServicios() {
                     <span className="font-semibold text-tinta truncate">
                       {s.clientes?.nombre ?? "—"}
                     </span>
-                    <ChipEstado estado={s.estado} />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {s.nocturno && <ChipNocturno />}
+                      <ChipEstado estado={s.estado} />
+                    </div>
                   </div>
                   <div className="text-[13px] text-tinta-suave truncate">
                     {filtroActivo === "alquileres_activos" &&
@@ -334,7 +362,10 @@ export function PaginaServicios() {
                         {formatearPesos(s.monto_cobrado)}
                       </td>
                       <td className="px-4 py-3">
-                        <ChipEstado estado={s.estado} />
+                        <div className="flex items-center gap-1.5">
+                          {s.nocturno && <ChipNocturno />}
+                          <ChipEstado estado={s.estado} />
+                        </div>
                       </td>
                       <td
                         className="w-12 px-2 py-3 text-right"

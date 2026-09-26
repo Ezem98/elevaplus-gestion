@@ -28,6 +28,8 @@ export interface ParametrosCotizacion {
   km_minimo: number;
   /** Multiplicador de km cuando el viaje es ida y vuelta. Default 2. */
   factor_ida_vuelta?: number;
+  /** Porcentaje de recargo para servicios nocturnos (ej: 30 para 30%). Null o undefined = sin recargo. */
+  recargo_nocturno_pct?: number | null;
 }
 
 export interface EntradaCotizacion {
@@ -35,6 +37,8 @@ export interface EntradaCotizacion {
   vehiculo: VehiculoCotizable;
   cargaMayor50: boolean;
   idaYVuelta: boolean;
+  /** Indica si se aplica la tarifa/recargo de servicio nocturno. */
+  nocturno?: boolean;
 }
 
 export interface DesgloseCotizacion {
@@ -48,6 +52,8 @@ export interface DesgloseCotizacion {
   importe: number;
   deltaVehiculo: number;
   deltaCarga: number;
+  deltaNocturno?: number;
+  recargoNocturnoPct?: number | null;
 }
 
 export function cotizar(e: EntradaCotizacion, p: ParametrosCotizacion): DesgloseCotizacion {
@@ -56,7 +62,15 @@ export function cotizar(e: EntradaCotizacion, p: ParametrosCotizacion): Desglose
   const base = kmFacturables * p.precio_km;
   const coefVehiculo = e.vehiculo.coef_precio;
   const coefCarga = e.cargaMayor50 ? e.vehiculo.coef_carga_mayor_50 : e.vehiculo.coef_carga_menor_50;
-  const subtotal = base * coefVehiculo * coefCarga;
+  const subtotalBase = base * coefVehiculo * coefCarga;
+
+  const tieneRecargoNocturno = Boolean(
+    e.nocturno && p.recargo_nocturno_pct != null && p.recargo_nocturno_pct > 0,
+  );
+  const recargoNocturnoPct = tieneRecargoNocturno ? p.recargo_nocturno_pct! : null;
+  const deltaNocturno = tieneRecargoNocturno ? subtotalBase * (recargoNocturnoPct! / 100) : 0;
+  const subtotal = subtotalBase + deltaNocturno;
+
   const deltaVehiculo = base * (coefVehiculo - 1);
   const deltaCarga = base * coefVehiculo * (coefCarga - 1);
   const aplicoMinimo = subtotal < p.monto_minimo;
@@ -72,5 +86,29 @@ export function cotizar(e: EntradaCotizacion, p: ParametrosCotizacion): Desglose
     importe,
     deltaVehiculo,
     deltaCarga,
+    deltaNocturno: tieneRecargoNocturno ? deltaNocturno : undefined,
+    recargoNocturnoPct,
   };
+}
+
+/**
+ * Determina si una hora ("HH:mm" o "HH:mm:ss") se encuentra dentro de la franja nocturna.
+ * La franja suele cruzar la medianoche (por defecto de 20:00 a 06:00).
+ */
+export function esHorarioNocturno(
+  hora: string | null | undefined,
+  desde: string | null | undefined = "20:00",
+  hasta: string | null | undefined = "06:00",
+): boolean {
+  if (!hora) return false;
+  const h = hora.slice(0, 5);
+  const d = (desde || "20:00").slice(0, 5);
+  const a = (hasta || "06:00").slice(0, 5);
+
+  if (d > a) {
+    // Cruza medianoche (ej: 20:00 a 06:00)
+    return h >= d || h < a;
+  }
+  // Mismo día (ej: 01:00 a 05:00)
+  return h >= d && h < a;
 }

@@ -107,6 +107,10 @@ export function PaginaConfiguracion() {
   const [nuevoPrecioGasoil, setNuevoPrecioGasoil] = useState<number | null>(
     null,
   );
+  const [nuevoRecargoNocturnoPct, setNuevoRecargoNocturnoPct] =
+    useState<string>("");
+  const [nuevoNocturnoDesde, setNuevoNocturnoDesde] = useState<string>("20:00");
+  const [nuevoNocturnoHasta, setNuevoNocturnoHasta] = useState<string>("06:00");
   const [guardandoParametros, setGuardandoParametros] = useState(false);
   const [mensajeParametros, setMensajeParametros] = useState<string | null>(
     null,
@@ -182,6 +186,17 @@ export function PaginaConfiguracion() {
       setNuevoMontoMinimo(vigente.monto_minimo ?? null);
       setNuevoKmMinimo(vigente.km_minimo);
       setNuevoPrecioGasoil(vigente.precio_gasoil ?? null);
+      setNuevoRecargoNocturnoPct(
+        vigente.recargo_nocturno_pct != null
+          ? String(vigente.recargo_nocturno_pct)
+          : "",
+      );
+      setNuevoNocturnoDesde(
+        vigente.nocturno_desde ? vigente.nocturno_desde.slice(0, 5) : "20:00",
+      );
+      setNuevoNocturnoHasta(
+        vigente.nocturno_hasta ? vigente.nocturno_hasta.slice(0, 5) : "06:00",
+      );
     }
     setCargandoParametros(false);
   };
@@ -301,12 +316,22 @@ export function PaginaConfiguracion() {
     setGuardandoParametros(true);
     setErrorParametros(null);
 
+    const pct =
+      nuevoRecargoNocturnoPct.trim() === ""
+        ? null
+        : Number(nuevoRecargoNocturnoPct);
+    const desde = nuevoNocturnoDesde.trim() || "20:00";
+    const hasta = nuevoNocturnoHasta.trim() || "06:00";
+
     const { error } = await supabase.from("parametros_cotizador").insert({
       vigente_desde: nuevoVigenteDesde,
       precio_km: nuevoPrecioKm ?? 0,
       monto_minimo: nuevoMontoMinimo ?? 0,
       km_minimo: Number(nuevoKmMinimo) || 1,
       precio_gasoil: nuevoPrecioGasoil,
+      recargo_nocturno_pct: pct,
+      nocturno_desde: desde,
+      nocturno_hasta: hasta,
     });
 
     setGuardandoParametros(false);
@@ -877,6 +902,8 @@ export function PaginaConfiguracion() {
                 <th className="px-4 py-2.5 font-medium">Mínimo</th>
                 <th className="px-4 py-2.5 font-medium">Km mínimo</th>
                 <th className="px-4 py-2.5 font-medium">Gasoil</th>
+                <th className="px-4 py-2.5 font-medium">Recargo nocturno</th>
+                <th className="px-4 py-2.5 font-medium">Franja nocturna</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-borde">
@@ -901,12 +928,22 @@ export function PaginaConfiguracion() {
                       ? formatearPesos(p.precio_gasoil)
                       : "—"}
                   </td>
+                  <td className="px-4 py-2.5 text-tinta-suave">
+                    {p.recargo_nocturno_pct != null
+                      ? `+${p.recargo_nocturno_pct} %`
+                      : "Sin recargo"}
+                  </td>
+                  <td className="px-4 py-2.5 text-tinta-suave">
+                    {p.nocturno_desde && p.nocturno_hasta
+                      ? `${p.nocturno_desde.slice(0, 5)} a ${p.nocturno_hasta.slice(0, 5)}`
+                      : "20:00 a 06:00"}
+                  </td>
                 </tr>
               ))}
               {parametros.length === 0 && !cargandoParametros && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={7}
                     className="px-4 py-6 text-center text-tinta-suave"
                   >
                     No hay parámetros registrados.
@@ -922,6 +959,12 @@ export function PaginaConfiguracion() {
           <h3 className="text-sm font-semibold text-tinta mb-3">
             Nuevos parámetros
           </h3>
+
+          {parametros.length === 0 && !cargandoParametros && (
+            <p className="mb-3 text-xs font-medium text-alerta">
+              Primero cargá los parámetros del cotizador
+            </p>
+          )}
 
           <form
             onSubmit={handleGuardarParametros}
@@ -981,6 +1024,62 @@ export function PaginaConfiguracion() {
                   onChange={setNuevoPrecioGasoil}
                 />
               </div>
+            </div>
+
+            <div className="border-t border-borde pt-3">
+              <h4 className="text-xs font-semibold text-tinta uppercase tracking-wider mb-2">
+                Servicio nocturno
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                <div>
+                  <Etiqueta htmlFor="param-recargo-nocturno">
+                    Recargo nocturno (%)
+                  </Etiqueta>
+                  <div className="relative flex items-center">
+                    <Entrada
+                      id="param-recargo-nocturno"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      placeholder="Sin recargo automático"
+                      value={nuevoRecargoNocturnoPct}
+                      onChange={(e) => setNuevoRecargoNocturnoPct(e.target.value)}
+                      className="pr-8"
+                    />
+                    <span className="pointer-events-none absolute right-3 text-sm text-tinta-suave">
+                      %
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <Etiqueta htmlFor="param-nocturno-desde">
+                    Horario nocturno desde
+                  </Etiqueta>
+                  <Entrada
+                    id="param-nocturno-desde"
+                    type="time"
+                    value={nuevoNocturnoDesde}
+                    onChange={(e) => setNuevoNocturnoDesde(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Etiqueta htmlFor="param-nocturno-hasta">
+                    Horario nocturno hasta
+                  </Etiqueta>
+                  <Entrada
+                    id="param-nocturno-hasta"
+                    type="time"
+                    value={nuevoNocturnoHasta}
+                    onChange={(e) => setNuevoNocturnoHasta(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="mt-1.5 text-xs text-tinta-suave">
+                Opcional. Si el recargo está vacío no aplica recargo automático en el cotizador.
+              </p>
             </div>
 
             {mensajeParametros && (

@@ -209,6 +209,31 @@ Cotizador o "Nuevo presupuesto"
    → vencido automático cuando fecha + validez_dias < hoy y sigue 'enviado'
 ```
 
+### 4.1.1 Puntos de entrada
+
+| Desde                                                      | Qué hace                                                                                                             |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Servicios → pestaña Presupuestos → "Nuevo presupuesto"** | El camino principal para presupuestar desde cero. Abre `/presupuestos/nuevo`.                                        |
+| **Ficha de cliente → "Nuevo presupuesto"**                 | Igual, con el cliente ya elegido (`/presupuestos/nuevo?cliente=<id>`). Hoy ese botón lleva al cotizador: se corrige. |
+| **Cotizador → "Crear presupuesto"**                        | El atajo rápido: crea el presupuesto con un ítem de traslado ya calculado y abre `/presupuestos/:id`.                |
+| **FAB en móvil** (en Servicios, pestaña Presupuestos)      | "Nuevo presupuesto".                                                                                                 |
+
+"Nuevo servicio" deja de ofrecer "Presupuesto" como estado inicial: un presupuesto siempre nace como presupuesto.
+
+### 4.1.2 Pantalla `/presupuestos/nuevo`
+
+Una sola pantalla, de arriba a abajo:
+
+1. **Para** — cliente existente o prospecto (§4.2).
+2. **Ítems** — lista vacía con dos botones:
+   - **"Agregar ítem"**: despliega inline los campos de `FormularioServicio` (tipo, descripción, fechas, máquina, monto, moneda si es alquiler por período, paradas si es un recorrido, nocturno), sin estado inicial ni choferes: todo ítem nace en `consulta` con `presupuesto_id`. Al confirmar, el ítem queda como una fila resumida (tipo · descripción · monto) con editar y quitar.
+   - **"Cotizar un traslado"**: abre el cotizador en modo ítem (`/cotizador?presupuesto=<id>`); al confirmar vuelve con el traslado calculado agregado como ítem.
+3. **Totales** por moneda, en vivo.
+4. **Validez y condiciones** (con los valores por defecto de Configuración).
+5. **Acciones**: "Guardar borrador" y "Guardar y generar PDF". El presupuesto se crea recién al guardar (no quedan borradores vacíos).
+
+En `/presupuestos/:id` están los mismos dos botones para agregar ítems mientras el presupuesto esté en `borrador` o `enviado`. Agregar o quitar un ítem de un presupuesto ya enviado lo deja con un aviso: "Cambiaste el presupuesto después de enviarlo. Generá el PDF de nuevo."
+
 ### 4.2 Destinatario
 
 En el formulario, un solo campo **"Para"** con dos modos:

@@ -74,7 +74,7 @@ export function PaginaFlota() {
       // Servicios en curso para ver máquinas alquiladas y cliente
       supabase
         .from("servicios")
-        .select("id, maquina_id, clientes(nombre), alquileres(fecha_hasta)")
+        .select("id, maquina_id, clientes(nombre), alquileres!alquileres_servicio_id_fkey(fecha_hasta)")
         .eq("estado", "en_curso")
         .not("maquina_id", "is", null),
       // Últimos eventos de flota

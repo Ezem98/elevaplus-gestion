@@ -2,7 +2,7 @@ import { Aviso } from "@/components/ui/Aviso";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Boton } from "@/components/ui/Boton";
 import { Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
-import { ChipEstado } from "@/components/ui/Chip";
+import { ChipEstado, ChipNocturno } from "@/components/ui/Chip";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import {
@@ -248,7 +248,7 @@ export function PaginaServicio() {
         cargarAdjuntos(id),
         supabase
           .from("alquileres")
-          .select("servicio_id, fecha_desde, servicios(id, numero)")
+          .select("servicio_id, fecha_desde, servicios!alquileres_servicio_id_fkey(id, numero)")
           .eq("renovado_de", id)
           .order("fecha_desde", { ascending: false })
           .limit(1),
@@ -817,6 +817,7 @@ export function PaginaServicio() {
         titulo={
           <div className="flex flex-wrap items-center gap-3">
             <span>Servicio #{servicio.numero}</span>
+            {servicio.nocturno && <ChipNocturno />}
             <ChipEstado estado={servicio.estado} />
             {servicio.no_facturable && (
               <span className="rounded-full bg-fondo px-2.5 py-0.5 text-xs font-medium text-tinta-suave border border-borde">

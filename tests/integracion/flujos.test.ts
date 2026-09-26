@@ -609,4 +609,157 @@ describe("Flujos de Integración y Casos de Negocio", () => {
       expect(s.factura_id).toBe(factura!.id);
     }
   });
+
+  it("Regresión PGRST201: la lista de cada pestaña devuelve la misma cantidad de filas que el contador, con alquiler embebido y sin error", async () => {
+    const oficina = await comoOficina();
+    const hoy = new Date().toISOString().slice(0, 10);
+    const manana = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+    // 1. Crear servicios para poblar varios estados y tipos
+    // Servicio 1: alquiler_periodo en_curso (con fila en alquileres)
+    const { data: sAlq, error: errSAlq } = await oficina
+      .from("servicios")
+      .insert({
+        cliente_id: CLIENTES.deza.id,
+        tipo: "alquiler_periodo",
+        estado: "en_curso",
+        descripcion: `${PREFIJO}Alquiler con embedding`,
+        monto: 150000,
+        fecha_programada: hoy,
+      })
+      .select("id")
+      .single();
+    expect(errSAlq).toBeNull();
+
+    const { error: errAlq } = await oficina.from("alquileres").insert({
+      servicio_id: sAlq!.id,
+      fecha_desde: hoy,
+      fecha_hasta: manana,
+      unidad: "mes",
+      cantidad: 1,
+      precio_unidad: 150000,
+    });
+    expect(errAlq).toBeNull();
+
+    // Servicio 2: presupuesto (estado presupuestado)
+    const { error: errS2 } = await oficina.from("servicios").insert({
+      cliente_id: CLIENTES.deza.id,
+      tipo: "traslado",
+      estado: "presupuestado",
+      descripcion: `${PREFIJO}Presupuesto pendiente`,
+      monto: 50000,
+      fecha_programada: hoy,
+    });
+    expect(errS2).toBeNull();
+
+    // Servicio 3: cobrado
+    const { error: errS3 } = await oficina.from("servicios").insert({
+      cliente_id: CLIENTES.deza.id,
+      tipo: "mantenimiento",
+      estado: "cobrado",
+      descripcion: `${PREFIJO}Servicio cobrado`,
+      monto: 30000,
+      fecha_programada: hoy,
+    });
+    expect(errS3).toBeNull();
+
+    // Servicio 4: cancelado
+    const { error: errS4 } = await oficina.from("servicios").insert({
+      cliente_id: CLIENTES.deza.id,
+      tipo: "otro",
+      estado: "cancelado",
+      descripcion: `${PREFIJO}Servicio cancelado`,
+      monto: 20000,
+      fecha_programada: hoy,
+    });
+    expect(errS4).toBeNull();
+
+    // 2. Ejecutar la consulta de conteos tal cual lo hace PaginaServicios (aislada por PREFIJO del test)
+    const { data: conteoData, error: errConteo } = await oficina
+      .from("servicios")
+      .select("tipo, estado")
+      .ilike("descripcion", `%${PREFIJO}%`);
+    expect(errConteo).toBeNull();
+    expect(conteoData).toBeDefined();
+
+    type ClaveFiltro =
+      | "todos"
+      | "presupuestos"
+      | "en_curso"
+      | "alquileres_activos"
+      | "cobrados"
+      | "cancelados";
+
+    const conteos: Record<ClaveFiltro, number> = {
+      todos: 0,
+      presupuestos: 0,
+      en_curso: 0,
+      alquileres_activos: 0,
+      cobrados: 0,
+      cancelados: 0,
+    };
+    conteos.todos = conteoData!.length;
+    for (const item of conteoData!) {
+      const e = item.estado;
+      if (item.tipo === "alquiler_periodo" && e === "en_curso") {
+        conteos.alquileres_activos++;
+      }
+      if (e === "consulta" || e === "presupuestado") {
+        conteos.presupuestos++;
+      } else if (
+        e === "aceptado" ||
+        e === "programado" ||
+        e === "en_curso" ||
+        e === "terminado"
+      ) {
+        conteos.en_curso++;
+      } else if (e === "cobrado" || e === "facturado") {
+        conteos.cobrados++;
+      } else if (e === "cancelado") {
+        conteos.cancelados++;
+      }
+    }
+
+    // 3. Probar la consulta de lista de cada pestaña
+    const pestanas: { id: ClaveFiltro; estados: string[] }[] = [
+      { id: "todos", estados: [] },
+      { id: "presupuestos", estados: ["consulta", "presupuestado"] },
+      { id: "en_curso", estados: ["aceptado", "programado", "en_curso", "terminado"] },
+      { id: "alquileres_activos", estados: [] },
+      { id: "cobrados", estados: ["cobrado", "facturado"] },
+      { id: "cancelados", estados: ["cancelado"] },
+    ];
+
+    for (const p of pestanas) {
+      let q = oficina
+        .from("servicios")
+        .select(
+          "*, clientes(nombre), alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta)",
+        )
+        .ilike("descripcion", `%${PREFIJO}%`)
+        .order("fecha_programada", { ascending: false, nullsFirst: false })
+        .limit(100);
+
+      if (p.id === "alquileres_activos") {
+        q = q.eq("tipo", "alquiler_periodo").eq("estado", "en_curso");
+      } else if (p.estados.length > 0) {
+        q = q.in("estado", p.estados);
+      }
+
+      const { data, error } = await q;
+
+      expect(error).toBeNull();
+      expect(data).toBeDefined();
+      expect(data!.length).toBe(conteos[p.id]);
+
+      // En la pestaña de alquileres_activos, verificar que el alquiler está embebido correctamente
+      if (p.id === "alquileres_activos") {
+        const itemAlq = data!.find((s: any) => s.id === sAlq!.id);
+        expect(itemAlq).toBeDefined();
+        expect(itemAlq.alquileres).toBeDefined();
+        expect(itemAlq.alquileres.fecha_desde).toBe(hoy);
+        expect(itemAlq.alquileres.fecha_hasta).toBe(manana);
+      }
+    }
+  });
 });
