@@ -1,6 +1,5 @@
 -- =============================================================================
 -- ELEVAPLUS Gestión — 0021 Servicios nocturnos y recargo horario
--- Requiere revisión antes de commitear.
 --
 -- Agrega:
 -- 1. Columna nocturno en servicios para marcar servicios en franja nocturna.
