@@ -4,7 +4,7 @@ import { FingerprintPattern as Fingerprint } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./AuthProvider";
 import { Boton } from "@/components/ui/Boton";
-import { Campo, Entrada } from "@/components/ui/Campo";
+import { Campo, Entrada, EntradaClave } from "@/components/ui/Campo";
 
 function esCancelacion(err: any): boolean {
   if (!err) return false;
@@ -208,9 +208,8 @@ export function PaginaIngresar() {
             />
           </Campo>
           <Campo etiqueta="Contraseña" id="clave">
-            <Entrada
+            <EntradaClave
               id="clave"
-              type="password"
               autoComplete="current-password"
               value={clave}
               onChange={(e) => setClave(e.target.value)}

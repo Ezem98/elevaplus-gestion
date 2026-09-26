@@ -1,5 +1,17 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import {
+  useState,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+  forwardRef,
+  type InputHTMLAttributes,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+  type ReactNode,
+} from "react";
+import { ChevronDown, Eye, EyeOff } from "lucide-react";
+
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const base =
   "h-10 w-full rounded-md border border-borde bg-superficie px-3 text-sm text-tinta placeholder:text-tinta-tenue focus:border-marca";
@@ -12,9 +24,90 @@ export function Etiqueta({ children, htmlFor }: { children: ReactNode; htmlFor?:
   );
 }
 
-export function Entrada({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`${base} ${className}`} {...props} />;
-}
+export const Entrada = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function Entrada({ className = "", ...props }, ref) {
+    return <input ref={ref} className={`${base} ${className}`} {...props} />;
+  }
+);
+
+export const EntradaClave = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function EntradaClave(
+    { className = "", autoComplete = "current-password", disabled, ...props },
+    ref
+  ) {
+    const [mostrar, setMostrar] = useState(false);
+    const inputInternoRef = useRef<HTMLInputElement | null>(null);
+    const seleccionRef = useRef<{ inicio: number | null; fin: number | null } | null>(null);
+
+    const setRef = (el: HTMLInputElement | null) => {
+      inputInternoRef.current = el;
+      if (typeof ref === "function") {
+        ref(el);
+      } else if (ref && "current" in ref) {
+        (ref as React.MutableRefObject<HTMLInputElement | null>).current = el;
+      }
+    };
+
+    const alternarMostrar = () => {
+      const input = inputInternoRef.current;
+      if (input) {
+        seleccionRef.current = {
+          inicio: input.selectionStart,
+          fin: input.selectionEnd,
+        };
+      }
+      setMostrar((prev) => !prev);
+    };
+
+    useIsomorphicLayoutEffect(() => {
+      if (seleccionRef.current && inputInternoRef.current) {
+        const { inicio, fin } = seleccionRef.current;
+        seleccionRef.current = null;
+        const input = inputInternoRef.current;
+        input.focus();
+        if (inicio !== null && fin !== null) {
+          input.setSelectionRange(inicio, fin);
+        }
+        requestAnimationFrame(() => {
+          if (document.activeElement === input && inicio !== null && fin !== null) {
+            input.setSelectionRange(inicio, fin);
+          }
+        });
+      }
+    }, [mostrar]);
+
+    return (
+      <div className="relative">
+        <Entrada
+          {...props}
+          ref={setRef}
+          type={mostrar ? "text" : "password"}
+          autoComplete={autoComplete}
+          disabled={disabled}
+          className={`pr-11 ${className}`}
+        />
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={mostrar ? "Ocultar contraseña" : "Mostrar contraseña"}
+          aria-pressed={mostrar}
+          onClick={alternarMostrar}
+          onMouseDown={(e) => {
+            // Evita que el clic le quite el foco al campo en el mouse
+            e.preventDefault();
+          }}
+          className="absolute right-0 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-tinta-suave hover:text-tinta cursor-pointer transition-colors focus:outline-none focus-visible:outline-2 focus-visible:outline-marca disabled:pointer-events-none disabled:opacity-50"
+        >
+          {mostrar ? (
+            <EyeOff size={18} aria-hidden="true" />
+          ) : (
+            <Eye size={18} aria-hidden="true" />
+          )}
+        </button>
+      </div>
+    );
+  }
+);
 
 export function AreaTexto({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
