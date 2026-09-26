@@ -285,3 +285,11 @@ export function formatearCompacto(n: number): string {
   }
   return `${signo}${abs}`;
 }
+
+export function formatearDiaMes(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dia}/${mes}`;
+}

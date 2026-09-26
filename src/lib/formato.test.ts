@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatearCompacto,
+  formatearDiaMes,
   formatearMes,
   formatearMontoEntrada,
   formatearRangoSemana,
@@ -208,5 +209,17 @@ describe("formatearCompacto", () => {
     expect(formatearCompacto(350000)).toBe("350k");
     expect(formatearCompacto(1200000)).toBe("1,2M");
     expect(formatearCompacto(2000000)).toBe("2M");
+  });
+});
+
+describe("formatearDiaMes", () => {
+  it("formatea correctamente fecha a dd/mm", () => {
+    const f = new Date(2026, 8, 16, 10, 0);
+    expect(formatearDiaMes(f.toISOString())).toBe("16/09");
+  });
+
+  it("devuelve raya para null o undefined", () => {
+    expect(formatearDiaMes(null)).toBe("—");
+    expect(formatearDiaMes(undefined)).toBe("—");
   });
 });

@@ -12,6 +12,7 @@ import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { formatearDiaMes } from "@/lib/formato";
 import { supabase } from "@/lib/supabase";
 import type {
   Maquina,
@@ -34,7 +35,12 @@ interface ClienteOpcion {
   nombre: string;
 }
 
-type EstadoInicialOpcion = "presupuesto" | "aceptado" | "programado";
+type EstadoInicialOpcion =
+  | "presupuesto"
+  | "aceptado"
+  | "programado"
+  | "realizado"
+  | "en_curso";
 
 const TIPOS: TipoServicio[] = [
   "traslado",
@@ -105,7 +111,10 @@ export function FormularioServicio() {
   const [fechaProgramada, setFechaProgramada] = useState("");
   const [horaProgramada, setHoraProgramada] = useState("");
   const [nocturno, setNocturno] = useState(false);
-  const [franjaNocturna, setFranjaNocturna] = useState<{ desde: string; hasta: string }>({
+  const [franjaNocturna, setFranjaNocturna] = useState<{
+    desde: string;
+    hasta: string;
+  }>({
     desde: "20:00",
     hasta: "06:00",
   });
@@ -119,11 +128,72 @@ export function FormularioServicio() {
   // 5. Estado inicial
   const [estadoInicial, setEstadoInicial] =
     useState<EstadoInicialOpcion>("aceptado");
+  const [horaFin, setHoraFin] = useState("");
+  const [choferesDisponibles, setChoferesDisponibles] = useState<
+    { id: string; nombre: string }[]
+  >([]);
+  const [choferesSeleccionados, setChoferesSeleccionados] = useState<string[]>(
+    [],
+  );
+  const [yaSeCobro, setYaSeCobro] = useState(false);
+  const [avisoFechaPasada, setAvisoFechaPasada] = useState<string | null>(null);
 
   // Estados de interfaz
   const [guardando, setGuardando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  const toggleChofer = (choferId: string) => {
+    setChoferesSeleccionados((prev) =>
+      prev.includes(choferId)
+        ? prev.filter((cid) => cid !== choferId)
+        : [...prev, choferId],
+    );
+  };
+
+  const verificarFechasPasadas = (
+    tipoActual: TipoServicio,
+    fProg: string,
+    fDesde: string,
+    fHasta: string,
+  ) => {
+    const hoyLocal = new Date(Date.now() - 3 * 3600 * 1000)
+      .toISOString()
+      .slice(0, 10);
+
+    if (tipoActual === "alquiler_periodo") {
+      if (fDesde && fDesde < hoyLocal) {
+        if (fHasta && fHasta < hoyLocal) {
+          setEstadoInicial("realizado");
+          setAvisoFechaPasada(
+            "La fecha es pasada: se carga como servicio ya realizado",
+          );
+        } else {
+          setEstadoInicial("en_curso");
+          setAvisoFechaPasada(
+            "El alquiler empezó antes de hoy y sigue vigente",
+          );
+        }
+      } else {
+        setAvisoFechaPasada(null);
+        setEstadoInicial((prev) =>
+          prev === "realizado" || prev === "en_curso" ? "programado" : prev,
+        );
+      }
+    } else {
+      if (fProg && fProg < hoyLocal) {
+        setEstadoInicial("realizado");
+        setAvisoFechaPasada(
+          "La fecha es pasada: se carga como servicio ya realizado",
+        );
+      } else {
+        setAvisoFechaPasada(null);
+        setEstadoInicial((prev) =>
+          prev === "realizado" || prev === "en_curso" ? "programado" : prev,
+        );
+      }
+    }
+  };
 
   // Cargar clientes, vehículos y máquinas
   useEffect(() => {
@@ -159,6 +229,16 @@ export function FormularioServicio() {
       });
 
     supabase
+      .from("perfiles")
+      .select("id, nombre")
+      .eq("rol", "chofer")
+      .eq("activo", true)
+      .order("nombre")
+      .then(({ data }) => {
+        setChoferesDisponibles(data ?? []);
+      });
+
+    supabase
       .from("tercerizados")
       .select("*")
       .eq("activo", true)
@@ -176,8 +256,12 @@ export function FormularioServicio() {
       .then(({ data, error }) => {
         if (!error && data) {
           setFranjaNocturna({
-            desde: data.nocturno_desde ? data.nocturno_desde.slice(0, 5) : "20:00",
-            hasta: data.nocturno_hasta ? data.nocturno_hasta.slice(0, 5) : "06:00",
+            desde: data.nocturno_desde
+              ? data.nocturno_desde.slice(0, 5)
+              : "20:00",
+            hasta: data.nocturno_hasta
+              ? data.nocturno_hasta.slice(0, 5)
+              : "06:00",
           });
         }
       });
@@ -264,9 +348,76 @@ export function FormularioServicio() {
       return;
     }
 
+    if (estadoInicial === "realizado" || estadoInicial === "en_curso") {
+      const fechaBase =
+        tipo === "alquiler_periodo" ? fechaDesde : fechaProgramada;
+      if (!fechaBase) {
+        setErrorValidacion(
+          estadoInicial === "en_curso"
+            ? "Para registrar un alquiler en curso hace falta la fecha de inicio."
+            : "Para registrar un servicio ya realizado hace falta la fecha.",
+        );
+        return;
+      }
+      if (horaFin && horaProgramada && horaFin < horaProgramada) {
+        setErrorValidacion(
+          "La hora de fin no puede ser anterior a la de inicio.",
+        );
+        return;
+      }
+      const horaIni = horaProgramada
+        ? horaProgramada.length === 5
+          ? `${horaProgramada}:00`
+          : horaProgramada
+        : "12:00:00";
+      const fechaInicioDate = new Date(`${fechaBase}T${horaIni}-03:00`);
+      if (fechaInicioDate > new Date()) {
+        setErrorValidacion(
+          estadoInicial === "en_curso"
+            ? "Un alquiler en curso no puede tener fecha de inicio futura."
+            : "Un servicio realizado no puede tener fecha futura.",
+        );
+        return;
+      }
+    }
+
     setGuardando(true);
 
     try {
+      let fechaInicioIso: string | null = null;
+      let fechaFinIso: string | null = null;
+
+      if (estadoInicial === "realizado" || estadoInicial === "en_curso") {
+        const fechaBase =
+          tipo === "alquiler_periodo" ? fechaDesde : fechaProgramada;
+        const horaIni = horaProgramada
+          ? horaProgramada.length === 5
+            ? `${horaProgramada}:00`
+            : horaProgramada
+          : "12:00:00";
+        fechaInicioIso = `${fechaBase}T${horaIni}-03:00`;
+
+        if (estadoInicial === "realizado") {
+          if (tipo === "alquiler_periodo") {
+            const horaF = horaFin
+              ? horaFin.length === 5
+                ? `${horaFin}:00`
+                : horaFin
+              : "12:00:00";
+            fechaFinIso = `${fechaHasta}T${horaF}-03:00`;
+          } else {
+            if (horaFin) {
+              const horaF = horaFin.length === 5 ? `${horaFin}:00` : horaFin;
+              fechaFinIso = `${fechaBase}T${horaF}-03:00`;
+            } else {
+              fechaFinIso = fechaInicioIso;
+            }
+          }
+        } else {
+          fechaFinIso = null;
+        }
+      }
+
       // 1. Armar payload de servicios (campos de otros tipos van en null)
       const payloadServicio: Record<string, any> = {
         tipo,
@@ -274,13 +425,16 @@ export function FormularioServicio() {
         creado_por: session?.user?.id ?? null,
         monto: monto ?? 0,
         aplica_iva: aplicaIva,
-        fecha_programada: fechaProgramada || null,
+        fecha_programada: fechaProgramada || fechaDesde || null,
         hora_programada: horaProgramada
           ? horaProgramada.length === 5
             ? `${horaProgramada}:00`
             : horaProgramada
           : null,
-        nocturno: (tipo === "traslado" || tipo === "alquiler_hora") ? nocturno : false,
+        fecha_inicio: fechaInicioIso,
+        fecha_fin: fechaFinIso,
+        nocturno:
+          tipo === "traslado" || tipo === "alquiler_hora" ? nocturno : false,
         remito: remito.trim() || null,
         orden_compra: ordenCompra.trim() || null,
         descripcion: descripcion.trim() || null,
@@ -422,9 +576,66 @@ export function FormularioServicio() {
           setGuardando(false);
           return;
         }
+      } else if (
+        estadoInicial === "realizado" ||
+        estadoInicial === "en_curso"
+      ) {
+        // Choferes: asignar insertando en servicio_choferes después del insert del servicio y antes de la RPC
+        if (choferesSeleccionados.length > 0) {
+          const { error: errInsertChoferes } = await supabase
+            .from("servicio_choferes")
+            .insert(
+              choferesSeleccionados.map((chofer_id) => ({
+                servicio_id: nuevoId,
+                chofer_id,
+              })),
+            );
+
+          if (errInsertChoferes) {
+            console.error(
+              "[FormularioServicio] Error al asignar choferes:",
+              errInsertChoferes.message,
+              errInsertChoferes,
+            );
+            setErrorGuardar(
+              `No se pudieron asignar los choferes: ${errInsertChoferes.message}`,
+            );
+            setGuardando(false);
+            return;
+          }
+        }
+
+        const { error: errorRpc } = await supabase.rpc(
+          "registrar_servicio_realizado",
+          {
+            p_servicio_id: nuevoId,
+            p_estado_final:
+              estadoInicial === "en_curso" ? "en_curso" : "terminado",
+          },
+        );
+        if (errorRpc) {
+          console.error(
+            "[FormularioServicio] Error en registrar_servicio_realizado:",
+            errorRpc.message,
+            errorRpc,
+          );
+          navigate(
+            `/servicios/${nuevoId}?aviso=${encodeURIComponent(
+              `El servicio quedó creado pero no se pudo registrar como realizado: ${errorRpc.message}`,
+            )}`,
+          );
+          return;
+        }
       }
 
-      navigate(`/servicios/${nuevoId}`);
+      if (
+        (estadoInicial === "realizado" || estadoInicial === "en_curso") &&
+        yaSeCobro
+      ) {
+        navigate(`/servicios/${nuevoId}?cobrar=1`);
+      } else {
+        navigate(`/servicios/${nuevoId}`);
+      }
     } catch {
       setErrorGuardar("No se pudo guardar el servicio. Probá de nuevo.");
       setGuardando(false);
@@ -453,7 +664,15 @@ export function FormularioServicio() {
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setTipo(t)}
+                    onClick={() => {
+                      setTipo(t);
+                      verificarFechasPasadas(
+                        t,
+                        fechaProgramada,
+                        fechaDesde,
+                        fechaHasta,
+                      );
+                    }}
                     aria-pressed={activo}
                     className={`min-h-10 px-3 py-2 rounded-md border text-center text-sm font-medium transition-colors ${
                       activo
@@ -709,6 +928,12 @@ export function FormularioServicio() {
                       setFechaDesde(val);
                       if (!fechaProgramada) setFechaProgramada(val);
                       recalcularMonto(val, fechaHasta, unidad, precioUnidad);
+                      verificarFechasPasadas(
+                        "alquiler_periodo",
+                        fechaProgramada || val,
+                        val,
+                        fechaHasta,
+                      );
                     }}
                   />
                 </Campo>
@@ -722,6 +947,12 @@ export function FormularioServicio() {
                       const val = e.target.value;
                       setFechaHasta(val);
                       recalcularMonto(fechaDesde, val, unidad, precioUnidad);
+                      verificarFechasPasadas(
+                        "alquiler_periodo",
+                        fechaProgramada,
+                        fechaDesde,
+                        val,
+                      );
                     }}
                   />
                 </Campo>
@@ -882,17 +1113,37 @@ export function FormularioServicio() {
               />
             </Campo>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Campo etiqueta="Fecha programada" id="fecha_programada">
+            <div
+              className={`grid grid-cols-1 ${estadoInicial === "realizado" ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-4`}
+            >
+              <Campo
+                etiqueta={
+                  estadoInicial === "realizado"
+                    ? "Fecha del trabajo *"
+                    : "Fecha programada"
+                }
+                id="fecha_programada"
+              >
                 <Entrada
                   id="fecha_programada"
                   type="date"
                   value={fechaProgramada}
-                  onChange={(e) => setFechaProgramada(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFechaProgramada(val);
+                    verificarFechasPasadas(tipo, val, fechaDesde, fechaHasta);
+                  }}
                 />
               </Campo>
 
-              <Campo etiqueta="Hora programada" id="hora_programada">
+              <Campo
+                etiqueta={
+                  estadoInicial === "realizado" || estadoInicial === "en_curso"
+                    ? "Hora de inicio"
+                    : "Hora programada"
+                }
+                id="hora_programada"
+              >
                 <Entrada
                   id="hora_programada"
                   type="time"
@@ -900,6 +1151,17 @@ export function FormularioServicio() {
                   onChange={(e) => setHoraProgramada(e.target.value)}
                 />
               </Campo>
+
+              {estadoInicial === "realizado" && (
+                <Campo etiqueta="Hora de fin (opcional)" id="hora_fin">
+                  <Entrada
+                    id="hora_fin"
+                    type="time"
+                    value={horaFin}
+                    onChange={(e) => setHoraFin(e.target.value)}
+                  />
+                </Campo>
+              )}
             </div>
 
             {(tipo === "traslado" || tipo === "alquiler_hora") && (
@@ -936,22 +1198,29 @@ export function FormularioServicio() {
                   </div>
                 </fieldset>
 
-                {esHorarioNocturno(horaProgramada, franjaNocturna.desde, franjaNocturna.hasta) && !nocturno && (
-                  <Aviso
-                    variante="alerta"
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                  >
-                    <span>Es horario nocturno, ¿lo marcás como servicio nocturno?</span>
-                    <Boton
-                      type="button"
-                      variante="fantasma"
-                      onClick={() => setNocturno(true)}
-                      className="min-h-[44px] text-xs font-semibold shrink-0"
+                {esHorarioNocturno(
+                  horaProgramada,
+                  franjaNocturna.desde,
+                  franjaNocturna.hasta,
+                ) &&
+                  !nocturno && (
+                    <Aviso
+                      variante="alerta"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                     >
-                      Marcar como nocturno
-                    </Boton>
-                  </Aviso>
-                )}
+                      <span>
+                        Es horario nocturno, ¿lo marcás como servicio nocturno?
+                      </span>
+                      <Boton
+                        type="button"
+                        variante="fantasma"
+                        onClick={() => setNocturno(true)}
+                        className="min-h-[44px] text-xs font-semibold shrink-0"
+                      >
+                        Marcar como nocturno
+                      </Boton>
+                    </Aviso>
+                  )}
               </div>
             )}
 
@@ -1086,11 +1355,14 @@ export function FormularioServicio() {
           </div>
 
           {/* 5. Estado inicial */}
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 pt-2">
             <h3 className="text-base font-semibold text-tinta border-b border-borde pb-2">
               Estado inicial
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {avisoFechaPasada && (
+              <Aviso variante="info">{avisoFechaPasada}</Aviso>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <button
                 type="button"
                 onClick={() => setEstadoInicial("presupuesto")}
@@ -1150,7 +1422,111 @@ export function FormularioServicio() {
                   Ya tiene fecha asignada
                 </div>
               </button>
+
+              {(() => {
+                const hoyLocal = new Date(Date.now() - 3 * 3600 * 1000)
+                  .toISOString()
+                  .slice(0, 10);
+                const esAlquilerVigente =
+                  tipo === "alquiler_periodo" &&
+                  Boolean(
+                    fechaDesde &&
+                    fechaDesde < hoyLocal &&
+                    (!fechaHasta || hoyLocal <= fechaHasta),
+                  );
+                const etiquetaOpcionCuatro = esAlquilerVigente
+                  ? `En curso desde el ${formatearDiaMes(fechaDesde)}`
+                  : "Ya realizado";
+                const subetiquetaOpcionCuatro = esAlquilerVigente
+                  ? "El servicio continúa vigente"
+                  : "El trabajo ya fue ejecutado";
+                const valorOpcionCuatro: EstadoInicialOpcion = esAlquilerVigente
+                  ? "en_curso"
+                  : "realizado";
+                const activo =
+                  estadoInicial === valorOpcionCuatro ||
+                  (esAlquilerVigente && estadoInicial === "en_curso") ||
+                  (!esAlquilerVigente && estadoInicial === "realizado");
+
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setEstadoInicial(valorOpcionCuatro)}
+                    aria-pressed={activo}
+                    className={`p-3 rounded-md border text-left transition-colors ${
+                      activo
+                        ? "border-marca bg-marca-suave text-marca"
+                        : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+                    }`}
+                  >
+                    <div
+                      className={`text-sm font-semibold ${
+                        activo ? "text-marca" : "text-tinta"
+                      }`}
+                    >
+                      {etiquetaOpcionCuatro}
+                    </div>
+                    <div className="text-xs text-tinta-suave mt-0.5">
+                      {subetiquetaOpcionCuatro}
+                    </div>
+                  </button>
+                );
+              })()}
             </div>
+
+            {/* Choferes y cobro para Ya realizado / En curso */}
+            {(estadoInicial === "realizado" ||
+              estadoInicial === "en_curso") && (
+              <div className="space-y-4 pt-3 mt-3 border-t border-borde">
+                <div>
+                  <Etiqueta>Choferes asignados</Etiqueta>
+                  {choferesDisponibles.length === 0 ? (
+                    <p className="text-xs text-tinta-suave">
+                      No hay choferes disponibles.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {choferesDisponibles.map((ch) => {
+                        const seleccionado = choferesSeleccionados.includes(
+                          ch.id,
+                        );
+                        return (
+                          <button
+                            key={ch.id}
+                            type="button"
+                            onClick={() => toggleChofer(ch.id)}
+                            aria-pressed={seleccionado}
+                            className={`h-10 px-3 rounded-md border text-sm font-medium transition-colors text-center ${
+                              seleccionado
+                                ? "border-marca bg-marca-suave text-marca"
+                                : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+                            }`}
+                          >
+                            {ch.nombre}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2">
+                  <label className="flex items-center gap-2 text-sm text-tinta font-medium cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={yaSeCobro}
+                      onChange={(e) => setYaSeCobro(e.target.checked)}
+                      className="rounded border-borde text-marca focus:ring-marca"
+                    />
+                    ¿Ya se cobró?
+                  </label>
+                  <p className="text-xs text-tinta-suave mt-0.5 ml-6">
+                    Abre el formulario para registrar el cobro con la fecha del
+                    servicio.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Errores */}

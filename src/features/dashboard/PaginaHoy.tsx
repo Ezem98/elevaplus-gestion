@@ -86,7 +86,9 @@ export function PaginaHoy() {
         .order("hora_programada"),
       supabase
         .from("servicios")
-        .select("*, clientes!servicios_cliente_id_fkey(nombre)")
+        .select(
+          "*, clientes!servicios_cliente_id_fkey(nombre), alquileres!alquileres_servicio_id_fkey(fecha_hasta)",
+        )
         .lt("fecha_programada", fecha)
         .in("estado", ["programado", "en_curso"])
         .order("fecha_programada"),
@@ -134,9 +136,23 @@ export function PaginaHoy() {
       setHoy(resHoy.data as unknown as Servicio[]);
     }
     if (resSinCerrar.error) {
-      console.error("Error al cargar servicios sin cerrar:", resSinCerrar.error.message);
+      console.error(
+        "Error al cargar servicios sin cerrar:",
+        resSinCerrar.error.message,
+      );
     } else if (resSinCerrar.data) {
-      setSinCerrar(resSinCerrar.data as unknown as Servicio[]);
+      const filtrados = (resSinCerrar.data as any[]).filter((s) => {
+        if (s.tipo === "alquiler_periodo" && s.estado === "en_curso") {
+          const fechaHasta = Array.isArray(s.alquileres)
+            ? s.alquileres[0]?.fecha_hasta
+            : s.alquileres?.fecha_hasta;
+          if (fechaHasta && fechaHasta >= fecha) {
+            return false;
+          }
+        }
+        return true;
+      });
+      setSinCerrar(filtrados as unknown as Servicio[]);
     }
     if (resSaldo.data) {
       setSaldo(resSaldo.data.reduce((acc, r) => acc + Number(r.saldo), 0));

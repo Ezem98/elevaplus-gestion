@@ -115,7 +115,9 @@ export function PaginaServicio() {
 
   const [mostrarProgramar, setMostrarProgramar] = useState(false);
   const [guardandoProg, setGuardandoProg] = useState(false);
-  const [mostrarCobro, setMostrarCobro] = useState(false);
+  const [mostrarCobro, setMostrarCobro] = useState(
+    () => searchParams.get("cobrar") === "1",
+  );
   const [cobrosAplicados, setCobrosAplicados] = useState<CobroAplicadoItem[]>(
     [],
   );
@@ -248,7 +250,9 @@ export function PaginaServicio() {
         cargarAdjuntos(id),
         supabase
           .from("alquileres")
-          .select("servicio_id, fecha_desde, servicios!alquileres_servicio_id_fkey(id, numero)")
+          .select(
+            "servicio_id, fecha_desde, servicios!alquileres_servicio_id_fkey(id, numero)",
+          )
           .eq("renovado_de", id)
           .order("fecha_desde", { ascending: false })
           .limit(1),
@@ -308,13 +312,27 @@ export function PaginaServicio() {
       }
 
       setEventos(
-        (eData ?? []).map((e: any) => ({
-          id: e.id,
-          estado_nuevo: e.estado_nuevo,
-          created_at: e.created_at,
-          nombre_usuario: e.perfiles?.nombre ?? null,
-          nota: e.nota ?? null,
-        })),
+        (eData ?? []).map((e: any) => {
+          const esRetroactivo = e.nota?.includes("Carga retroactiva");
+          let fechaTrabajo: string | null = null;
+          if (esRetroactivo && sData) {
+            if (e.estado_nuevo === "terminado") {
+              fechaTrabajo =
+                sData.fecha_fin || sData.fecha_inicio || sData.fecha_programada;
+            } else {
+              fechaTrabajo = sData.fecha_inicio || sData.fecha_programada;
+            }
+          }
+          return {
+            id: e.id,
+            estado_nuevo: e.estado_nuevo,
+            created_at: e.created_at,
+            nombre_usuario: e.perfiles?.nombre ?? null,
+            nota: e.nota ?? null,
+            fecha_trabajo: fechaTrabajo,
+            tiene_hora: Boolean(sData?.hora_programada),
+          };
+        }),
       );
       setChoferes((scData as unknown as ServicioChofer[]) ?? []);
       setCobrosAplicados((caData as any) ?? []);
@@ -844,6 +862,10 @@ export function PaginaServicio() {
         }
       />
 
+      {searchParams.get("aviso") && (
+        <Aviso variante="alerta">{searchParams.get("aviso")}</Aviso>
+      )}
+
       {servicioRenovado && (
         <Aviso
           variante="info"
@@ -1101,6 +1123,12 @@ export function PaginaServicio() {
               monto_cobrado: servicio.monto_cobrado,
             },
           ]}
+          fechaDefault={
+            servicio.fecha_programada ??
+            (servicio.fecha_inicio
+              ? servicio.fecha_inicio.slice(0, 10)
+              : undefined)
+          }
           onGuardado={() => {
             setMostrarCobro(false);
             cargarDatos();
@@ -1276,19 +1304,22 @@ export function PaginaServicio() {
                 </div>
               </div>
 
-              {servicio.fecha_inicio && servicio.fecha_fin && (
-                <div>
-                  <span className="text-xs font-medium text-tinta-suave block">
-                    Duración
-                  </span>
-                  <div className="text-tinta font-medium mt-0.5">
-                    {formatearDuracion(
-                      servicio.fecha_inicio,
-                      servicio.fecha_fin,
-                    )}
+              {servicio.fecha_inicio &&
+                servicio.fecha_fin &&
+                new Date(servicio.fecha_inicio).getTime() !==
+                  new Date(servicio.fecha_fin).getTime() && (
+                  <div>
+                    <span className="text-xs font-medium text-tinta-suave block">
+                      Duración
+                    </span>
+                    <div className="text-tinta font-medium mt-0.5">
+                      {formatearDuracion(
+                        servicio.fecha_inicio,
+                        servicio.fecha_fin,
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               <div>
                 <span className="text-xs font-medium text-tinta-suave block">

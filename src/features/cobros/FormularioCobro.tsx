@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/features/auth/AuthProvider";
-import type { MedioPago, EstadoCobro, Cuenta } from "@/lib/tipos";
-import { formatearPesos, formatearFecha } from "@/lib/formato";
-import { Tarjeta } from "@/components/ui/Tarjeta";
-import { Boton } from "@/components/ui/Boton";
+import { Aviso } from "@/components/ui/Aviso";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
+import { Boton } from "@/components/ui/Boton";
 import { Campo, Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
-import { Aviso } from "@/components/ui/Aviso";
+import { Tarjeta } from "@/components/ui/Tarjeta";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { formatearFecha, formatearPesos } from "@/lib/formato";
+import { supabase } from "@/lib/supabase";
+import type { Cuenta, EstadoCobro, MedioPago } from "@/lib/tipos";
+import { useEffect, useState } from "react";
 
 export interface ServicioCobroItem {
   id: string;
@@ -22,6 +22,7 @@ export interface ServicioCobroItem {
 interface PropsFormularioCobro {
   clienteId: string | null;
   servicios: ServicioCobroItem[];
+  fechaDefault?: string;
   onGuardado: () => void;
   onCancelar: () => void;
 }
@@ -34,7 +35,15 @@ const MEDIOS: { id: MedioPago; label: string }[] = [
   { id: "otro", label: "Otro" },
 ];
 
-function Opcion({ activa, onClick, children }: { activa: boolean; onClick: () => void; children: React.ReactNode }) {
+function Opcion({
+  activa,
+  onClick,
+  children,
+}: {
+  activa: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -54,6 +63,7 @@ function Opcion({ activa, onClick, children }: { activa: boolean; onClick: () =>
 export function FormularioCobro({
   clienteId,
   servicios,
+  fechaDefault,
   onGuardado,
   onCancelar,
 }: PropsFormularioCobro) {
@@ -64,15 +74,21 @@ export function FormularioCobro({
   const [medio, setMedio] = useState<MedioPago>("efectivo");
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [cuentaId, setCuentaId] = useState<string>("");
-  const [fecha, setFecha] = useState(fechaHoy);
+  const [fecha, setFecha] = useState(fechaDefault || fechaHoy);
+
+  useEffect(() => {
+    if (fechaDefault) {
+      setFecha(fechaDefault);
+    }
+  }, [fechaDefault]);
 
   // Monto inicial: suma de saldos de los servicios
   const sumaSaldosInicial = servicios.reduce(
     (acc, s) => acc + Math.max(0, (s.monto ?? 0) - s.monto_cobrado),
-    0
+    0,
   );
   const [monto, setMonto] = useState<number | null>(
-    sumaSaldosInicial > 0 ? sumaSaldosInicial : null
+    sumaSaldosInicial > 0 ? sumaSaldosInicial : null,
   );
 
   // Transferencia
@@ -86,14 +102,16 @@ export function FormularioCobro({
   const [fechaPagoCheque, setFechaPagoCheque] = useState("");
 
   // Aplicación a múltiples servicios: Record<servicio_id, montoAplicado>
-  const [aplicaciones, setAplicaciones] = useState<Record<string, number>>(() => {
-    const init: Record<string, number> = {};
-    servicios.forEach((s) => {
-      const saldo = Math.max(0, (s.monto ?? 0) - s.monto_cobrado);
-      init[s.id] = saldo;
-    });
-    return init;
-  });
+  const [aplicaciones, setAplicaciones] = useState<Record<string, number>>(
+    () => {
+      const init: Record<string, number> = {};
+      servicios.forEach((s) => {
+        const saldo = Math.max(0, (s.monto ?? 0) - s.monto_cobrado);
+        init[s.id] = saldo;
+      });
+      return init;
+    },
+  );
 
   const [guardando, setGuardando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
@@ -141,7 +159,7 @@ export function FormularioCobro({
     async function actualizarCuentaPorDefecto() {
       if (medio === "efectivo") {
         const cEfectivo = cuentas.find(
-          (c) => c.nombre.toLowerCase() === "efectivo"
+          (c) => c.nombre.toLowerCase() === "efectivo",
         );
         if (cEfectivo && !cancelado) {
           setCuentaId(cEfectivo.id);
@@ -151,7 +169,11 @@ export function FormularioCobro({
         return;
       }
 
-      if (medio === "transferencia" || medio === "cheque" || medio === "echeq") {
+      if (
+        medio === "transferencia" ||
+        medio === "cheque" ||
+        medio === "echeq"
+      ) {
         const { data } = await supabase
           .from("cobros")
           .select("cuenta_id")
@@ -171,8 +193,8 @@ export function FormularioCobro({
         const primeraBancaria =
           cuentas.find((c) =>
             /banco|credicoop|galicia|macro|santander|bbva|nacion|provincia/i.test(
-              c.nombre
-            )
+              c.nombre,
+            ),
           ) ||
           cuentas.find((c) => c.nombre.toLowerCase() !== "efectivo") ||
           cuentas[0];
@@ -184,7 +206,8 @@ export function FormularioCobro({
       }
 
       const fallback =
-        cuentas.find((c) => c.nombre.toLowerCase() !== "efectivo") || cuentas[0];
+        cuentas.find((c) => c.nombre.toLowerCase() !== "efectivo") ||
+        cuentas[0];
       if (fallback && !cancelado) {
         setCuentaId(fallback.id);
       }
@@ -204,9 +227,13 @@ export function FormularioCobro({
   const saldoUnico = esUnSoloServicio
     ? Math.max(0, (servicios[0].monto ?? 0) - servicios[0].monto_cobrado)
     : 0;
-  const superaSaldoUnico = esUnSoloServicio && montoNum > saldoUnico && saldoUnico > 0;
+  const superaSaldoUnico =
+    esUnSoloServicio && montoNum > saldoUnico && saldoUnico > 0;
 
-  const totalAplicado = Object.values(aplicaciones).reduce((a, b) => a + (Number(b) || 0), 0);
+  const totalAplicado = Object.values(aplicaciones).reduce(
+    (a, b) => a + (Number(b) || 0),
+    0,
+  );
   const aplicacionesCoinciden = Math.abs(totalAplicado - montoNum) < 0.01;
 
   const aplicarALosMasAntiguos = () => {
@@ -363,18 +390,22 @@ export function FormularioCobro({
 
       // 3. Insertar cobro_aplicaciones (solo las > 0)
       if (esUnSoloServicio) {
-        const { error: aplError } = await supabase.from("cobro_aplicaciones").insert({
-          cobro_id: nuevoCobroId,
-          servicio_id: servicios[0].id,
-          monto: montoNum,
-        });
+        const { error: aplError } = await supabase
+          .from("cobro_aplicaciones")
+          .insert({
+            cobro_id: nuevoCobroId,
+            servicio_id: servicios[0].id,
+            monto: montoNum,
+          });
         if (aplError) {
           console.error(
             "[FormularioCobro] Error al insertar aplicación en tabla cobro_aplicaciones (insert):",
             aplError.message,
             aplError,
           );
-          throw new Error("No se pudo aplicar el cobro al servicio. Probá de nuevo.");
+          throw new Error(
+            "No se pudo aplicar el cobro al servicio. Probá de nuevo.",
+          );
         }
       } else if (esMultiServicio) {
         const filas = Object.entries(aplicaciones)
@@ -405,7 +436,9 @@ export function FormularioCobro({
       // 4. Éxito: el trigger recalculó monto_cobrado y estado
       onGuardado();
     } catch (err: any) {
-      setErrorValidacion(err.message || "Ocurrió un error al guardar el cobro.");
+      setErrorValidacion(
+        err.message || "Ocurrió un error al guardar el cobro.",
+      );
       setGuardando(false);
     }
   };
@@ -490,7 +523,10 @@ export function FormularioCobro({
                 onChange={(e) => setReferencia(e.target.value)}
               />
             </Campo>
-            <Campo etiqueta="Fecha de acreditación (opcional)" id="fecha_acred_transf">
+            <Campo
+              etiqueta="Fecha de acreditación (opcional)"
+              id="fecha_acred_transf"
+            >
               <Entrada
                 id="fecha_acred_transf"
                 type="date"
@@ -543,7 +579,8 @@ export function FormularioCobro({
         {/* Aviso si un solo servicio y monto supera saldo */}
         {superaSaldoUnico && (
           <Aviso variante="alerta">
-            El monto supera el saldo del servicio; el excedente queda registrado como cobrado de más.
+            El monto supera el saldo del servicio; el excedente queda registrado
+            como cobrado de más.
           </Aviso>
         )}
 
@@ -590,7 +627,9 @@ export function FormularioCobro({
                       <div className="text-sm text-tinta">
                         <span className="font-semibold">#{s.numero}</span>
                         {s.descripcion ? ` · ${s.descripcion}` : ""}
-                        {s.fecha_programada ? ` · ${formatearFecha(s.fecha_programada)}` : ""}
+                        {s.fecha_programada
+                          ? ` · ${formatearFecha(s.fecha_programada)}`
+                          : ""}
                       </div>
                     </div>
 
@@ -627,17 +666,14 @@ export function FormularioCobro({
                     : "text-peligro font-medium"
                 }
               >
-                Aplicado {formatearPesos(totalAplicado)} de {formatearPesos(montoNum)}
+                Aplicado {formatearPesos(totalAplicado)} de{" "}
+                {formatearPesos(montoNum)}
               </span>
             </div>
           </div>
         )}
 
-        {errorValidacion && (
-          <Aviso variante="peligro">
-            {errorValidacion}
-          </Aviso>
-        )}
+        {errorValidacion && <Aviso variante="peligro">{errorValidacion}</Aviso>}
 
         {/* Botones de acción */}
         <BarraAcciones>
