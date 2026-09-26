@@ -4,15 +4,15 @@ export type NombreHeartbeat =
   | "instancias"
   | "recordatorios"
   | "lote"
-  | "semanal";
-// | "calendario" // Preparado para punto 6 de Agenda: sincronizarCalendario
+  | "semanal"
+  | "calendario";
 
 const MAPA_HEARTBEATS: Record<NombreHeartbeat, string> = {
   instancias: "HEARTBEAT_INSTANCIAS",
   recordatorios: "HEARTBEAT_RECORDATORIOS",
   lote: "HEARTBEAT_LOTE",
   semanal: "HEARTBEAT_SEMANAL",
-  // calendario: "HEARTBEAT_CALENDARIO",
+  calendario: "HEARTBEAT_CALENDARIO",
 };
 
 export const logger = {

@@ -8,8 +8,13 @@ import { emitirFactura } from "../emision/emitir";
 import { correrLote } from "../emision/lote";
 import { enviarFacturaEmail } from "../mail/enviar";
 import { requerirAdminUOficina, requerirWorkerSecretOAdmin } from "./auth";
+import { gcalRouter } from "./gcal";
+import { sincronizarCalendario } from "../gcal/sincronizar";
 
 export const enrutador = Router();
+
+// Sub-rutas de Google Calendar
+enrutador.use("/gcal", gcalRouter);
 
 // Health check
 enrutador.get("/health", (_req, res) => {
@@ -174,10 +179,13 @@ enrutador.post(
         case "resumen-semanal":
           resultado = await resumenSemanal({ forzar });
           break;
+        case "calendario":
+          resultado = await sincronizarCalendario({ forzar });
+          break;
         default:
           res.status(400).json({
             ok: false,
-            error: `Tarea desconocida: '${nombre}'. Tareas válidas: instancias, recordatorios-hoy, recordatorios-manana, resumen-semanal.`,
+            error: `Tarea desconocida: '${nombre}'. Tareas válidas: instancias, recordatorios-hoy, recordatorios-manana, resumen-semanal, calendario.`,
           });
           return;
       }

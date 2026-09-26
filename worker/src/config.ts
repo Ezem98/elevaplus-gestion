@@ -36,6 +36,21 @@ const esquemaConfig = z.object({
   HEARTBEAT_LOTE: z.string().optional(),
   HEARTBEAT_SEMANAL: z.string().optional(),
   HEARTBEAT_CALENDARIO: z.string().optional(),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional().default(""),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().default(""),
+  GOOGLE_OAUTH_REDIRECT_URI: z
+    .string()
+    .optional()
+    .default(
+      process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+        "https://elevaplus-worker-production.up.railway.app/gcal/callback",
+    ),
+  APP_URL: z
+    .string()
+    .optional()
+    .default(
+      process.env.APP_URL || "https://gestion.eleva-plus.com.ar",
+    ),
 });
 
 export const config = esquemaConfig.parse(process.env);

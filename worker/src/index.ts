@@ -7,6 +7,7 @@ import { resumenSemanal } from "./agenda/resumenSemanal";
 import { config } from "./config";
 import { correrLote } from "./emision/lote";
 import { recuperarFacturasColgadas } from "./emision/recuperar";
+import { sincronizarCalendario } from "./gcal/sincronizar";
 import { enrutador } from "./http/rutas";
 
 const app = express();
@@ -121,9 +122,29 @@ app.listen(port, () => {
     { timezone: tz },
   );
 
+  // 6. Cron 01:00 hs - Sincronización con Google Calendar
+  cron.schedule(
+    "0 1 * * *",
+    async () => {
+      console.log(
+        `[CRON] Disparando sincronización con Google Calendar (${new Date().toISOString()})...`,
+      );
+      try {
+        await sincronizarCalendario();
+      } catch (err) {
+        console.error(
+          "[CRON] Error al sincronizar con Google Calendar:",
+          err,
+        );
+      }
+    },
+    { timezone: tz },
+  );
+
   console.log(`[CRON] Crons programados en zona horaria ${tz}:`);
   console.log(`  - Facturación nocturna: 21:30 hs (30 21 * * *)`);
   console.log(`  - Generación de instancias: 00:30 hs (30 0 * * *)`);
+  console.log(`  - Sincronización Google Calendar: 01:00 hs (0 1 * * *)`);
   console.log(`  - Resumen semanal lunes: 07:00 hs (0 7 * * 1)`);
   console.log(`  - Recordatorios de hoy: 08:00 hs (0 8 * * *)`);
   console.log(`  - Recordatorios de mañana: 09:00 hs (0 9 * * *)`);

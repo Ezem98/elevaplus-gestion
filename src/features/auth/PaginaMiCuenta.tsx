@@ -1,13 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, BellCheck, BellOff, FingerprintPattern as Fingerprint, Info } from "lucide-react";
+import {
+  Bell,
+  BellCheck,
+  BellOff,
+  Calendar,
+  CalendarCheck,
+  FingerprintPattern as Fingerprint,
+  Info,
+  RefreshCw,
+} from "lucide-react";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
 import { Aviso } from "@/components/ui/Aviso";
 import { supabase } from "@/lib/supabase";
-import { formatearFecha } from "@/lib/formato";
+import { formatearFecha, formatearFechaHoraCorta } from "@/lib/formato";
+import {
+  desconectarGcal,
+  iniciarConexionGcal,
+  obtenerEstadoGcal,
+  sincronizarGcal,
+} from "@/lib/worker";
 import {
   estadoPush,
   suscribirPush,
@@ -75,8 +90,41 @@ export function PaginaMiCuenta() {
   const [procesandoPush, setProcesandoPush] = useState(false);
   const [errorPush, setErrorPush] = useState<string | null>(null);
 
+  // Estados de Google Calendar
+  const [conectadoGcal, setConectadoGcal] = useState<boolean | null>(null);
+  const [emailGoogle, setEmailGoogle] = useState<string | null>(null);
+  const [ultimoSyncGcal, setUltimoSyncGcal] = useState<string | null>(null);
+  const [cargandoGcal, setCargandoGcal] = useState(true);
+  const [sincronizandoGcal, setSincronizandoGcal] = useState(false);
+  const [desconectandoGcal, setDesconectandoGcal] = useState(false);
+  const [mostrarModalDesconectar, setMostrarModalDesconectar] = useState(false);
+  const [borrarEventosAlDesconectar, setBorrarEventosAlDesconectar] = useState(true);
+  const [avisoGcal, setAvisoGcal] = useState<{ tipo: "exito" | "peligro"; mensaje: string } | null>(null);
+
   const esIosNoInstalado = esIosSinInstalar();
   const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
+  const cargarEstadoGcal = useCallback(async () => {
+    setCargandoGcal(true);
+    try {
+      const { data: tieneGcal, error: errRpc } = await supabase.rpc("tengo_google_calendar");
+      if (!errRpc && tieneGcal) {
+        setConectadoGcal(true);
+        const estado = await obtenerEstadoGcal();
+        setEmailGoogle(estado.email_google);
+        setUltimoSyncGcal(estado.ultimo_sync);
+      } else {
+        setConectadoGcal(false);
+        setEmailGoogle(null);
+        setUltimoSyncGcal(null);
+      }
+    } catch (err) {
+      console.error("Error al cargar estado de Google Calendar:", err);
+      setConectadoGcal(false);
+    } finally {
+      setCargandoGcal(false);
+    }
+  }, []);
 
   const cargarPasskeys = useCallback(async () => {
     setCargandoPasskeys(true);
@@ -105,9 +153,34 @@ export function PaginaMiCuenta() {
     if (typeof window !== "undefined" && "PublicKeyCredential" in window) {
       setSoportaWebAuthn(true);
     }
+
+    // Leer query params del retorno OAuth de Google Calendar
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const gcalParam = urlParams.get("gcal");
+      if (gcalParam === "ok") {
+        setAvisoGcal({
+          tipo: "exito",
+          mensaje: "Google Calendar conectado con éxito. Ya podés ver y sincronizar tus vencimientos.",
+        });
+        const url = new URL(window.location.href);
+        url.searchParams.delete("gcal");
+        window.history.replaceState({}, "", url.pathname);
+      } else if (gcalParam === "error") {
+        setAvisoGcal({
+          tipo: "peligro",
+          mensaje: "No se pudo conectar Google Calendar. Verificá los permisos o intentá de nuevo.",
+        });
+        const url = new URL(window.location.href);
+        url.searchParams.delete("gcal");
+        window.history.replaceState({}, "", url.pathname);
+      }
+    }
+
     cargarPasskeys();
     refrescarEstadoPush();
-  }, [cargarPasskeys]);
+    cargarEstadoGcal();
+  }, [cargarPasskeys, cargarEstadoGcal]);
 
   const handleRegistrarHuella = async () => {
     setErrorHuella(null);
@@ -198,6 +271,75 @@ export function PaginaMiCuenta() {
     }
   };
 
+  const handleConectarGcal = async () => {
+    try {
+      await iniciarConexionGcal();
+    } catch (err: any) {
+      setAvisoGcal({
+        tipo: "peligro",
+        mensaje: err?.message || "Error al iniciar conexión con Google Calendar.",
+      });
+    }
+  };
+
+  const handleSincronizarGcalAhora = async () => {
+    setSincronizandoGcal(true);
+    setAvisoGcal(null);
+    try {
+      const res = await sincronizarGcal();
+      if (res.ok) {
+        const creados = res.eventosCreados ?? 0;
+        const actualizados = res.eventosActualizados ?? 0;
+        const borrados = res.eventosBorrados ?? 0;
+        setAvisoGcal({
+          tipo: "exito",
+          mensaje: `Sincronización completada. Se crearon ${creados}, actualizaron ${actualizados} y borraron ${borrados} eventos.`,
+        });
+        await cargarEstadoGcal();
+      } else {
+        setAvisoGcal({
+          tipo: "peligro",
+          mensaje: res.error || "Ocurrió un error al sincronizar con Google Calendar.",
+        });
+      }
+    } catch (err: any) {
+      setAvisoGcal({
+        tipo: "peligro",
+        mensaje: err?.message || "Error al sincronizar con Google Calendar.",
+      });
+    } finally {
+      setSincronizandoGcal(false);
+    }
+  };
+
+  const handleDesconectarGcal = async () => {
+    setDesconectandoGcal(true);
+    setAvisoGcal(null);
+    try {
+      const res = await desconectarGcal(borrarEventosAlDesconectar);
+      if (res.ok) {
+        setAvisoGcal({
+          tipo: "exito",
+          mensaje: "Google Calendar desconectado correctamente.",
+        });
+        setMostrarModalDesconectar(false);
+        await cargarEstadoGcal();
+      } else {
+        setAvisoGcal({
+          tipo: "peligro",
+          mensaje: res.error || "No se pudo desconectar Google Calendar.",
+        });
+      }
+    } catch (err: any) {
+      setAvisoGcal({
+        tipo: "peligro",
+        mensaje: err?.message || "Error al desconectar.",
+      });
+    } finally {
+      setDesconectandoGcal(false);
+    }
+  };
+
   return (
     <div className="max-w-2xl space-y-6">
       {perfil?.rol === "chofer" && (
@@ -213,8 +355,14 @@ export function PaginaMiCuenta() {
 
       <EncabezadoPagina
         titulo="Mi cuenta"
-        subtitulo="Perfil de usuario, ingreso biométrico y notificaciones"
+        subtitulo="Perfil de usuario, ingreso biométrico, notificaciones y calendario"
       />
+
+      {avisoGcal && (
+        <Aviso variante={avisoGcal.tipo}>
+          {avisoGcal.mensaje}
+        </Aviso>
+      )}
 
       <Tarjeta className="p-6 space-y-4">
         <h2 className="text-base font-semibold text-tinta">Datos personales</h2>
@@ -403,6 +551,114 @@ export function PaginaMiCuenta() {
           </p>
         )}
       </Tarjeta>
+
+      {perfil?.rol !== "chofer" && (
+        <Tarjeta className="p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="size-5 text-marca" />
+            <h2 className="text-base font-semibold text-tinta">Google Calendar</h2>
+          </div>
+
+          <p className="text-sm text-tinta-suave leading-relaxed">
+            Se crea un calendario &apos;ELEVAPLUS&apos; en tu cuenta con los vencimientos, cheques y cobros. La app escribe en él; lo que cambies en Google no vuelve a la app.
+          </p>
+
+          {cargandoGcal ? (
+            <p className="text-sm text-tinta-suave">Comprobando estado de Google Calendar…</p>
+          ) : conectadoGcal ? (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 rounded-md bg-ok-suave p-3 text-sm text-ok">
+                <CalendarCheck className="size-5 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold">
+                    Conectado como {emailGoogle || "tu cuenta de Google"}
+                  </p>
+                  <p className="text-xs text-ok/80">
+                    {ultimoSyncGcal
+                      ? `Última sincronización: ${formatearFechaHoraCorta(ultimoSyncGcal)}`
+                      : "Sin sincronizaciones aún (se ejecutará automáticamente a la 01:00 hs)"}
+                  </p>
+                </div>
+              </div>
+
+              {mostrarModalDesconectar ? (
+                <div className="rounded-md border border-peligro/30 bg-peligro-suave/40 p-4 space-y-3">
+                  <p className="text-sm font-semibold text-peligro">
+                    ¿Querés desconectar Google Calendar?
+                  </p>
+                  <label className="flex items-start gap-2 text-xs text-tinta cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={borrarEventosAlDesconectar}
+                      onChange={(e) => setBorrarEventosAlDesconectar(e.target.checked)}
+                      className="size-4 mt-0.5 rounded border-borde text-peligro focus:ring-peligro"
+                    />
+                    <span>
+                      Borrar también los eventos ya creados en el calendario ELEVAPLUS
+                    </span>
+                  </label>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <Boton
+                      type="button"
+                      variante="peligro"
+                      onClick={handleDesconectarGcal}
+                      disabled={desconectandoGcal}
+                    >
+                      {desconectandoGcal ? "Desconectando…" : "Confirmar desconexión"}
+                    </Boton>
+                    <Boton
+                      type="button"
+                      variante="secundario"
+                      onClick={() => setMostrarModalDesconectar(false)}
+                      disabled={desconectandoGcal}
+                    >
+                      Cancelar
+                    </Boton>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <Boton
+                    type="button"
+                    variante="secundario"
+                    onClick={handleSincronizarGcalAhora}
+                    disabled={sincronizandoGcal}
+                  >
+                    <RefreshCw
+                      className={`size-4 mr-2 ${sincronizandoGcal ? "animate-spin" : ""}`}
+                    />
+                    {sincronizandoGcal ? "Sincronizando…" : "Sincronizar ahora"}
+                  </Boton>
+
+                  <Boton
+                    type="button"
+                    variante="secundario"
+                    className="text-peligro hover:bg-peligro-suave border-peligro/30"
+                    onClick={() => setMostrarModalDesconectar(true)}
+                    disabled={sincronizandoGcal}
+                  >
+                    Desconectar
+                  </Boton>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3 pt-1">
+              <div>
+                <Boton
+                  type="button"
+                  variante="primario"
+                  onClick={handleConectarGcal}
+                >
+                  <Calendar className="size-4 mr-2" />
+                  Conectar Google Calendar
+                </Boton>
+              </div>
+            </div>
+          )}
+        </Tarjeta>
+      )}
     </div>
   );
 }

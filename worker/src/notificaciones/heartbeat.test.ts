@@ -6,6 +6,7 @@ import { config } from "../config";
 import * as emitirModule from "../emision/emitir";
 import { correrLote } from "../emision/lote";
 import * as mailClienteModule from "../mail/cliente";
+import { sincronizarCalendario } from "../gcal/sincronizar";
 import { supabaseAdmin } from "../supabase";
 import { latir, logger } from "./heartbeat";
 
@@ -96,6 +97,28 @@ describe("Worker - Heartbeats de Better Stack", () => {
 
       expect(fetchMock).toHaveBeenCalledWith(
         "https://betterstack.com/heartbeat/semanal",
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it("hace fetch GET con timeout de 5s en camino exitoso para 'calendario'", async () => {
+      (config as any).HEARTBEAT_CALENDARIO =
+        "https://betterstack.com/heartbeat/calendario";
+
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response("ok", {
+          status: 200,
+          statusText: "OK",
+        }),
+      );
+      globalThis.fetch = fetchMock;
+      const warnSpy = vi.spyOn(logger, "warn");
+
+      await expect(latir("calendario")).resolves.not.toThrow();
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://betterstack.com/heartbeat/calendario",
         expect.objectContaining({ method: "GET" }),
       );
       expect(warnSpy).not.toHaveBeenCalled();
@@ -1186,6 +1209,58 @@ describe("Worker - Heartbeats de Better Stack", () => {
         expect(res.ok).toBe(false);
         expect(fetchMock).not.toHaveBeenCalledWith(
           "https://betterstack.com/heartbeat/semanal",
+          expect.anything(),
+        );
+      });
+    });
+
+    describe("sincronizarCalendario", () => {
+      it("llama a latir('calendario') en el camino feliz cuando no hay conexiones activas", async () => {
+        (config as any).HEARTBEAT_CALENDARIO =
+          "https://betterstack.com/heartbeat/calendario";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
+          }),
+        } as any);
+
+        const res = await sincronizarCalendario();
+
+        expect(res.ok).toBe(true);
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/calendario",
+          expect.objectContaining({ method: "GET" }),
+        );
+      });
+
+      it("NO llama a latir('calendario') cuando ocurre un error al consultar conexiones", async () => {
+        (config as any).HEARTBEAT_CALENDARIO =
+          "https://betterstack.com/heartbeat/calendario";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: "Error consultando conexiones de Google Calendar" },
+            }),
+          }),
+        } as any);
+
+        const res = await sincronizarCalendario();
+
+        expect(res.ok).toBe(false);
+        expect(fetchMock).not.toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/calendario",
           expect.anything(),
         );
       });

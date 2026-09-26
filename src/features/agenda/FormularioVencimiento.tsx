@@ -4,6 +4,7 @@ import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { formatearFecha } from "@/lib/formato";
 import { supabase } from "@/lib/supabase";
+import { dispararSyncGcalDebounced } from "@/lib/worker";
 import type {
   AmbitoMovimiento,
   CategoriaMovimiento,
@@ -256,6 +257,16 @@ export function FormularioVencimiento({
           });
 
         if (upsertErr) throw upsertErr;
+      }
+
+      // Sincronizar Google Calendar con debounce si la conexión está activa
+      try {
+        const { data: tieneGcal } = await supabase.rpc("tengo_google_calendar");
+        if (tieneGcal) {
+          dispararSyncGcalDebounced();
+        }
+      } catch (errGcal) {
+        console.warn("[GCAL] Error al comprobar conexión de calendario al guardar vencimiento:", errGcal);
       }
 
       onGuardado();

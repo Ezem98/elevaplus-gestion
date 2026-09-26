@@ -204,6 +204,43 @@ Para habilitar el inicio de sesión con huella dactilar, Face ID o llave de segu
 
 > **Aviso importante:** Sin esta configuración activa en Supabase, la API de WebAuthn devuelve error (`passkey_disabled`) y no permite registrar ni autenticar passkeys.
 
+## Sincronización con Google Calendar
+
+Para permitir la sincronización unidireccional de los compromisos de agenda (vencimientos, cheques a cobrar y cubrir, cobros diferidos y alquileres) hacia Google Calendar en el calendario `ELEVAPLUS`:
+
+### Pasos en Google Cloud Console
+
+1. **Crear o seleccionar proyecto**:
+   - Ingresar a [Google Cloud Console](https://console.cloud.google.com/).
+   - Crear un proyecto nuevo (ej. `elevaplus-gestion`) o seleccionar uno existente.
+2. **Habilitar la API de Google Calendar**:
+   - En **APIs y servicios** → **Biblioteca**, buscar `Google Calendar API` y hacer clic en **Habilitar**.
+3. **Configurar pantalla de consentimiento de OAuth**:
+   - Ir a **APIs y servicios** → **Pantalla de consentimiento de OAuth**.
+   - Tipo de usuario: **Externo**.
+   - Completar nombre de la app (ej. `ELEVAPLUS Gestión`), correo de asistencia y datos de contacto del desarrollador.
+   - En **Permisos** (Scopes), agregar el permiso sensible: `https://www.googleapis.com/auth/calendar` y `https://www.googleapis.com/auth/userinfo.email`.
+   - En **Usuarios de prueba** (Test users): dejar la app en estado **"Prueba" (Testing)** y agregar el correo de la dueña y el tuyo como usuarios de prueba autorizados. De este modo, la app funciona de inmediato sin necesidad de pasar por el proceso formal de verificación de Google.
+4. **Crear credenciales de OAuth 2.0**:
+   - Ir a **APIs y servicios** → **Credenciales** → **Crear credenciales** → **ID de cliente de OAuth**.
+   - Tipo de aplicación: **Aplicación web**.
+   - Nombre: `ELEVAPLUS Worker OAuth`.
+   - **URIs de redirección autorizados**:
+     - Producción: `https://elevaplus-worker-production.up.railway.app/gcal/callback`
+     - Desarrollo local (opcional): `http://localhost:3000/gcal/callback`
+   - Guardar y copiar el **ID de cliente** y el **Secreto de cliente**.
+
+### Variables de entorno requeridas en Railway (`elevaplus-worker`)
+
+Cargar las siguientes variables en el servicio `elevaplus-worker` en Railway antes del push / deploy:
+
+| Variable | Valor / Ejemplo |
+|---|---|
+| `GOOGLE_OAUTH_CLIENT_ID` | `<tu_client_id>.apps.googleusercontent.com` |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | `<tu_client_secret>` |
+| `GOOGLE_OAUTH_REDIRECT_URI` | `https://elevaplus-worker-production.up.railway.app/gcal/callback` |
+| `HEARTBEAT_CALENDARIO` | URL del monitor de latido en Better Stack (para cron 01:00 hs) |
+
 ## Estructura
 
 ```
