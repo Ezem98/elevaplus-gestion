@@ -96,6 +96,7 @@ export function PaginaServicios() {
     const { data, error } = await supabase.from("servicios").select("tipo, estado");
     if (error) {
       console.error("Error al cargar conteos de servicios:", error.message);
+      setErrorCarga("No se pudieron cargar los servicios");
       return;
     }
     if (!data) return;
@@ -136,7 +137,7 @@ export function PaginaServicios() {
     setErrorCarga(null);
     let q = supabase
       .from("servicios")
-      .select("*, clientes(nombre), alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta)")
+      .select("*, clientes!servicios_cliente_id_fkey(nombre), alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta)")
       .order("fecha_programada", { ascending: false, nullsFirst: false })
       .limit(100);
 
@@ -152,7 +153,7 @@ export function PaginaServicios() {
     const { data, error } = await q;
     if (error) {
       console.error("Error al cargar lista de servicios:", error.message);
-      setErrorCarga(`Error al cargar los servicios: ${error.message}`);
+      setErrorCarga("No se pudieron cargar los servicios");
       return;
     }
     if (!data) {
@@ -226,11 +227,15 @@ export function PaginaServicios() {
         })}
       </div>
 
-      {errorCarga && <Aviso variante="peligro">{errorCarga}</Aviso>}
-
       <Tarjeta className="overflow-hidden">
-        {/* Vista móvil (< md): lista dividida */}
-        <div className="divide-y divide-borde md:hidden">
+        {errorCarga ? (
+          <div className="p-8">
+            <Aviso variante="peligro">{errorCarga}</Aviso>
+          </div>
+        ) : (
+          <>
+            {/* Vista móvil (< md): lista dividida */}
+            <div className="divide-y divide-borde md:hidden">
           {servicios.map((s) => {
             const acciones: AccionMenu[] = [
               {
@@ -390,6 +395,8 @@ export function PaginaServicios() {
             </tbody>
           </table>
         </div>
+          </>
+        )}
       </Tarjeta>
     </div>
   );

@@ -80,13 +80,13 @@ export function PaginaHoy() {
     ] = await Promise.all([
       supabase
         .from("servicios")
-        .select("*, clientes(nombre)")
+        .select("*, clientes!servicios_cliente_id_fkey(nombre)")
         .eq("fecha_programada", fecha)
         .not("estado", "in", "(cancelado)")
         .order("hora_programada"),
       supabase
         .from("servicios")
-        .select("*, clientes(nombre)")
+        .select("*, clientes!servicios_cliente_id_fkey(nombre)")
         .lt("fecha_programada", fecha)
         .in("estado", ["programado", "en_curso"])
         .order("fecha_programada"),
@@ -128,9 +128,16 @@ export function PaginaHoy() {
         .order("fecha", { ascending: false }),
     ]);
 
-    if (resHoy.data) setHoy(resHoy.data as unknown as Servicio[]);
-    if (resSinCerrar.data)
+    if (resHoy.error) {
+      console.error("Error al cargar servicios de hoy:", resHoy.error.message);
+    } else if (resHoy.data) {
+      setHoy(resHoy.data as unknown as Servicio[]);
+    }
+    if (resSinCerrar.error) {
+      console.error("Error al cargar servicios sin cerrar:", resSinCerrar.error.message);
+    } else if (resSinCerrar.data) {
       setSinCerrar(resSinCerrar.data as unknown as Servicio[]);
+    }
     if (resSaldo.data) {
       setSaldo(resSaldo.data.reduce((acc, r) => acc + Number(r.saldo), 0));
     }

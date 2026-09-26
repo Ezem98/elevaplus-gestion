@@ -225,14 +225,16 @@ export function PaginaFacturacion() {
     const { data, error } = await supabase
       .from("servicios")
       .select(
-        "id, numero, tipo, estado, descripcion, fecha_programada, monto, aplica_iva, cliente_id, no_facturable, factura_id, clientes(id, nombre, cuit, condicion_iva)",
+        "id, numero, tipo, estado, descripcion, fecha_programada, monto, aplica_iva, cliente_id, no_facturable, factura_id, clientes!servicios_cliente_id_fkey(id, nombre, cuit, condicion_iva)",
       )
       .in("estado", ["terminado", "cobrado"])
       .is("factura_id", null)
       .eq("no_facturable", false)
       .order("fecha_programada", { ascending: true });
 
-    if (!error && data) {
+    if (error) {
+      console.error("Error al cargar servicios pendientes:", error.message);
+    } else if (data) {
       setPendientes(data as unknown as Servicio[]);
     }
     setCargandoPendientes(false);
@@ -255,10 +257,14 @@ export function PaginaFacturacion() {
 
       const fIds = facs.map((f: any) => f.id);
       if (fIds.length > 0) {
-        const { data: sData } = await supabase
+        const { data: sData, error: sError } = await supabase
           .from("servicios")
           .select("id, numero, tipo, descripcion, monto, factura_id")
           .in("factura_id", fIds);
+
+        if (sError) {
+          console.error("Error al cargar servicios de facturas:", sError.message);
+        }
 
         const mapa: Record<string, Servicio[]> = {};
         for (const s of (sData as any[]) || []) {

@@ -222,7 +222,7 @@ export function PaginaServicio() {
         supabase
           .from("servicios")
           .select(
-            "*, clientes(nombre, cuit, condicion_iva, telefono, email, direccion, localidad), vehiculos(nombre), maquinas(codigo_interno, tipo), facturas(id, tipo, punto_venta, numero, fecha)",
+            "*, clientes!servicios_cliente_id_fkey(nombre, cuit, condicion_iva, telefono, email, direccion, localidad), vehiculos!servicios_vehiculo_id_fkey(nombre), maquinas!servicios_maquina_id_fkey(codigo_interno, tipo), facturas!servicios_factura_id_fkey(id, tipo, punto_venta, numero, fecha)",
           )
           .eq("id", id)
           .single(),

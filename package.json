@@ -12,7 +12,7 @@
     "test": "node scripts/verificar-bom.mjs && node scripts/verificar-copias.mjs && vitest run --dir src",
     "test:unit": "vitest run --dir src",
     "test:db": "supabase test db",
-    "test:integracion": "vitest run --dir tests/integracion",
+    "test:integracion": "vitest run --dir tests/integracion --fileParallelism=false",
     "test:e2e": "playwright test",
     "db:local": "supabase start && supabase db reset && node scripts/aplicar-seed-test.mjs",
     "lint": "oxlint",

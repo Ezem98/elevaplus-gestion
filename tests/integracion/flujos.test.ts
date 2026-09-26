@@ -674,6 +674,21 @@ describe("Flujos de Integración y Casos de Negocio", () => {
     });
     expect(errS4).toBeNull();
 
+    // Servicio 5: sin cliente (cliente_id: null) en consulta
+    const { data: sSinCliente, error: errS5 } = await oficina
+      .from("servicios")
+      .insert({
+        cliente_id: null,
+        tipo: "otro",
+        estado: "consulta",
+        descripcion: `${PREFIJO}Servicio sin cliente`,
+        monto: 10000,
+        fecha_programada: hoy,
+      })
+      .select("id")
+      .single();
+    expect(errS5).toBeNull();
+
     // 2. Ejecutar la consulta de conteos tal cual lo hace PaginaServicios (aislada por PREFIJO del test)
     const { data: conteoData, error: errConteo } = await oficina
       .from("servicios")
@@ -734,7 +749,7 @@ describe("Flujos de Integración y Casos de Negocio", () => {
       let q = oficina
         .from("servicios")
         .select(
-          "*, clientes(nombre), alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta)",
+          "*, clientes!servicios_cliente_id_fkey(nombre), alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta)",
         )
         .ilike("descripcion", `%${PREFIJO}%`)
         .order("fecha_programada", { ascending: false, nullsFirst: false })
@@ -751,6 +766,13 @@ describe("Flujos de Integración y Casos de Negocio", () => {
       expect(error).toBeNull();
       expect(data).toBeDefined();
       expect(data!.length).toBe(conteos[p.id]);
+
+      // En la pestaña Todos, verificar que el servicio sin cliente aparece y tiene clientes en null
+      if (p.id === "todos") {
+        const itemSinCliente = data!.find((s: any) => s.id === sSinCliente!.id);
+        expect(itemSinCliente).toBeDefined();
+        expect(itemSinCliente.clientes).toBeNull();
+      }
 
       // En la pestaña de alquileres_activos, verificar que el alquiler está embebido correctamente
       if (p.id === "alquileres_activos") {

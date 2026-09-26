@@ -142,7 +142,7 @@ export function AvisosProvider({ children }: { children: ReactNode }) {
             const [{ data: serv }, { data: perf }] = await Promise.all([
               supabase
                 .from("servicios")
-                .select("numero, clientes(nombre)")
+                .select("numero, clientes!servicios_cliente_id_fkey(nombre)")
                 .eq("id", nuevo.servicio_id)
                 .maybeSingle(),
               nuevo.usuario_id
@@ -167,7 +167,7 @@ export function AvisosProvider({ children }: { children: ReactNode }) {
             const [{ data: serv }, { data: perf }] = await Promise.all([
               supabase
                 .from("servicios")
-                .select("numero, clientes(nombre)")
+                .select("numero, clientes!servicios_cliente_id_fkey(nombre)")
                 .eq("id", nuevo.servicio_id)
                 .maybeSingle(),
               nuevo.usuario_id

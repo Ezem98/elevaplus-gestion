@@ -74,7 +74,7 @@ export function PaginaFlota() {
       // Servicios en curso para ver máquinas alquiladas y cliente
       supabase
         .from("servicios")
-        .select("id, maquina_id, clientes(nombre), alquileres!alquileres_servicio_id_fkey(fecha_hasta)")
+        .select("id, maquina_id, clientes!servicios_cliente_id_fkey(nombre), alquileres!alquileres_servicio_id_fkey(fecha_hasta)")
         .eq("estado", "en_curso")
         .not("maquina_id", "is", null),
       // Últimos eventos de flota
@@ -84,6 +84,12 @@ export function PaginaFlota() {
         .order("fecha", { ascending: false })
         .order("created_at", { ascending: false }),
     ]);
+
+    if (resMaq.error) console.error("Error al cargar maquinas:", resMaq.error.message);
+    if (resVeh.error) console.error("Error al cargar vehiculos:", resVeh.error.message);
+    if (resTerc.error) console.error("Error al cargar tercerizados:", resTerc.error.message);
+    if (resAlq.error) console.error("Error al cargar alquileres de flota:", resAlq.error.message);
+    if (resEv.error) console.error("Error al cargar eventos de flota:", resEv.error.message);
 
     if (resMaq.data) setMaquinas(resMaq.data as Maquina[]);
     if (resVeh.data) setVehiculos(resVeh.data as Vehiculo[]);

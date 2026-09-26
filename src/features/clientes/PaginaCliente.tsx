@@ -41,7 +41,7 @@ export function PaginaCliente() {
         .maybeSingle(),
       supabase
         .from("servicios")
-        .select("*, facturas(tipo, punto_venta, numero)")
+        .select("*, facturas!servicios_factura_id_fkey(tipo, punto_venta, numero)")
         .eq("cliente_id", id)
         .not("estado", "in", '("consulta","presupuestado","cancelado")')
         .order("fecha_programada", { ascending: false }),
@@ -52,6 +52,16 @@ export function PaginaCliente() {
         .in("estado", ["terminado", "cobrado", "programado", "en_curso"])
         .order("fecha_programada", { ascending: true }),
     ]);
+
+    if (clienteRes.error) {
+      console.error("Error al cargar cliente:", clienteRes.error.message);
+    }
+    if (serviciosRes.error) {
+      console.error("Error al cargar servicios del cliente:", serviciosRes.error.message);
+    }
+    if (pendientesRes.error) {
+      console.error("Error al cargar servicios pendientes:", pendientesRes.error.message);
+    }
 
     setCliente((clienteRes.data as Cliente) ?? null);
     setCc((ccRes.data as CuentaCorrienteCliente) ?? null);

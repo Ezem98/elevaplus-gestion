@@ -252,7 +252,7 @@ export function PantallaNoPlanificado({
           descripcion: null,
           notas: notasCliente,
         })
-        .select("*, clientes(nombre)")
+        .select("*, clientes!servicios_cliente_id_fkey(nombre)")
         .single();
 
       if (servError) throw servError;

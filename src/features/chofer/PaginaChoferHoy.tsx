@@ -51,13 +51,16 @@ export function PaginaChoferHoy() {
 
   const cargar = useCallback(async () => {
     // RLS filtra: el chofer solo ve los servicios asignados a él o creados por él
-    const { data: servs } = await supabase
+    const { data: servs, error: servsError } = await supabase
       .from("servicios")
-      .select("*, clientes(nombre)")
+      .select("*, clientes!servicios_cliente_id_fkey(nombre)")
       .in("estado", ["programado", "en_curso", "terminado"])
       .order("fecha_programada")
       .order("hora_programada");
 
+    if (servsError) {
+      console.error("Error al cargar servicios del chofer:", servsError.message);
+    }
     setServicios((servs as Servicio[]) ?? []);
 
     // Consulta de últimos 7 días
@@ -65,14 +68,17 @@ export function PaginaChoferHoy() {
     d.setDate(d.getDate() - 7);
     const hace7Dias = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-    const { data: hist } = await supabase
+    const { data: hist, error: histError } = await supabase
       .from("servicios")
-      .select("*, clientes(nombre)")
+      .select("*, clientes!servicios_cliente_id_fkey(nombre)")
       .in("estado", ["terminado", "cobrado", "facturado"])
       .gte("fecha_programada", hace7Dias)
       .order("fecha_programada", { ascending: false })
       .order("hora_programada", { ascending: false });
 
+    if (histError) {
+      console.error("Error al cargar historial del chofer:", histError.message);
+    }
     setHistorial((hist as Servicio[]) ?? []);
   }, []);
 
