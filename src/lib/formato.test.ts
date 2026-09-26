@@ -1,10 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  proximoCuartoDeHora,
+  formatearCompacto,
   formatearMes,
-  parsearMonto,
   formatearMontoEntrada,
+  formatearRangoSemana,
+  formatearSemanaCorta,
   formatearTextoMonto,
+  obtenerLunesSemana,
+  parsearMonto,
+  proximoCuartoDeHora,
 } from "./formato";
 
 describe("proximoCuartoDeHora", () => {
@@ -149,3 +153,60 @@ describe("formatearTextoMonto (formateo en vivo)", () => {
   });
 });
 
+describe("formatearRangoSemana", () => {
+  it("formatea semana en el mismo mes (21 al 27 de septiembre)", () => {
+    expect(formatearRangoSemana("2026-09-21")).toBe("21 al 27 de septiembre");
+    // También pasando cualquier día de esa semana (ej. miércoles 23)
+    expect(formatearRangoSemana("2026-09-23")).toBe("21 al 27 de septiembre");
+  });
+
+  it("formatea semana que cruza mes (28 de septiembre al 4 de octubre)", () => {
+    expect(formatearRangoSemana("2026-09-28")).toBe(
+      "28 de septiembre al 4 de octubre",
+    );
+    expect(formatearRangoSemana("2026-10-02")).toBe(
+      "28 de septiembre al 4 de octubre",
+    );
+  });
+
+  it("formatea semana que cruza año (28 de diciembre de 2026 al 3 de enero de 2027)", () => {
+    expect(formatearRangoSemana("2026-12-28")).toBe(
+      "28 de diciembre de 2026 al 3 de enero de 2027",
+    );
+    expect(formatearRangoSemana("2027-01-01")).toBe(
+      "28 de diciembre de 2026 al 3 de enero de 2027",
+    );
+  });
+
+  it("formatea semana actual correctamente llamando sin argumentos o con Date", () => {
+    const rangoActual = formatearRangoSemana();
+    expect(typeof rangoActual).toBe("string");
+    expect(rangoActual).toContain(" al ");
+
+    const rangoDesdeDate = formatearRangoSemana(new Date());
+    expect(rangoDesdeDate).toBe(rangoActual);
+  });
+});
+
+describe("obtenerLunesSemana y formatearSemanaCorta", () => {
+  it("obtiene el lunes para cualquier fecha en string ISO", () => {
+    expect(obtenerLunesSemana("2026-09-21")).toBe("2026-09-21"); // Lunes
+    expect(obtenerLunesSemana("2026-09-24")).toBe("2026-09-21"); // Jueves
+    expect(obtenerLunesSemana("2026-09-27")).toBe("2026-09-21"); // Domingo
+  });
+
+  it("formatea etiqueta corta de semana para tablas comparativas", () => {
+    expect(formatearSemanaCorta("2026-09-21")).toBe("21-27 sep");
+    expect(formatearSemanaCorta("2026-09-28")).toBe("28 sep - 4 oct");
+  });
+});
+
+describe("formatearCompacto", () => {
+  it("formatea números compactos para gráficos", () => {
+    expect(formatearCompacto(500)).toBe("500");
+    expect(formatearCompacto(15000)).toBe("15k");
+    expect(formatearCompacto(350000)).toBe("350k");
+    expect(formatearCompacto(1200000)).toBe("1,2M");
+    expect(formatearCompacto(2000000)).toBe("2M");
+  });
+});
