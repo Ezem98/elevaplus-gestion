@@ -2,7 +2,7 @@ import { Aviso } from "@/components/ui/Aviso";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Boton } from "@/components/ui/Boton";
 import { Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
-import { ChipEstado, ChipNocturno } from "@/components/ui/Chip";
+import { ChipEstado, ChipEstadoParada, ChipNocturno } from "@/components/ui/Chip";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import {
@@ -102,7 +102,7 @@ export function PaginaServicio() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { session } = useAuth();
+  const { session, perfil } = useAuth();
 
   const [servicio, setServicio] = useState<Servicio | null>(null);
   const [eventos, setEventos] = useState<EventoLineaTiempo[]>([]);
@@ -130,6 +130,19 @@ export function PaginaServicio() {
     id: string;
     numero: number;
   } | null>(null);
+
+  // Estados de continuación / reprogramación de paradas
+  const [servicioContinuacion, setServicioContinuacion] = useState<{
+    id: string;
+    numero: number;
+  } | null>(null);
+  const [servicioContinuacionDe, setServicioContinuacionDe] = useState<{
+    id: string;
+    numero: number;
+  } | null>(null);
+  const [reprogramando, setReprogramando] = useState(false);
+  const [errorReprogramar, setErrorReprogramar] = useState<string | null>(null);
+
   const [mostrarRenovar, setMostrarRenovar] = useState(false);
   const [renvDesde, setRenvDesde] = useState("");
   const [renvHasta, setRenvHasta] = useState("");
@@ -219,11 +232,12 @@ export function PaginaServicio() {
         { data: alqData },
         adjuntosLista,
         { data: renvData },
+        { data: contData },
       ] = await Promise.all([
         supabase
           .from("servicios")
           .select(
-            "*, clientes!servicios_cliente_id_fkey(nombre, cuit, condicion_iva, telefono, email, direccion, localidad), vehiculos!servicios_vehiculo_id_fkey(nombre), maquinas!servicios_maquina_id_fkey(codigo_interno, tipo), facturas!servicios_factura_id_fkey(id, tipo, punto_venta, numero, fecha), presupuestos!servicios_presupuesto_id_fkey(id, numero)",
+            "*, clientes!servicios_cliente_id_fkey(nombre, cuit, condicion_iva, telefono, email, direccion, localidad), vehiculos!servicios_vehiculo_id_fkey(nombre), maquinas!servicios_maquina_id_fkey(codigo_interno, tipo), facturas!servicios_factura_id_fkey(id, tipo, punto_venta, numero, fecha), presupuestos!servicios_presupuesto_id_fkey(id, numero), paradas!paradas_servicio_id_fkey(*)",
           )
           .eq("id", id)
           .single(),
@@ -254,6 +268,12 @@ export function PaginaServicio() {
           .eq("renovado_de", id)
           .order("fecha_desde", { ascending: false })
           .limit(1),
+        supabase
+          .from("servicios")
+          .select("id, numero, estado")
+          .eq("continuacion_de", id)
+          .neq("estado", "cancelado")
+          .maybeSingle(),
       ]);
 
       if (sError) {
@@ -274,6 +294,10 @@ export function PaginaServicio() {
         return;
       }
 
+      if (Array.isArray((sData as any).paradas)) {
+        (sData as any).paradas.sort((a: any, b: any) => a.orden - b.orden);
+      }
+
       setServicio(sData as Servicio);
       const alqObj = (alqData as Alquiler) ?? null;
       setAlquiler(alqObj);
@@ -285,6 +309,25 @@ export function PaginaServicio() {
         );
       } else {
         setServicioRenovado(null);
+      }
+
+      if (contData) {
+        setServicioContinuacion(contData as { id: string; numero: number });
+      } else {
+        setServicioContinuacion(null);
+      }
+
+      if ((sData as any)?.continuacion_de) {
+        const { data: origContData } = await supabase
+          .from("servicios")
+          .select("id, numero")
+          .eq("id", (sData as any).continuacion_de)
+          .maybeSingle();
+        setServicioContinuacionDe(
+          origContData ? (origContData as { id: string; numero: number }) : null,
+        );
+      } else {
+        setServicioContinuacionDe(null);
       }
 
       if (alqObj?.renovado_de) {
@@ -346,6 +389,7 @@ export function PaginaServicio() {
       "cobros",
       "cobro_aplicaciones",
       "adjuntos",
+      "paradas",
     ],
     cargar,
   );
@@ -822,6 +866,35 @@ export function PaginaServicio() {
     }
   };
 
+  const handleReprogramarParadas = async () => {
+    if (!servicio) return;
+    setReprogramando(true);
+    setErrorReprogramar(null);
+    try {
+      const { data: nuevo, error } = await supabase.rpc(
+        "reprogramar_paradas_pendientes",
+        {
+          p_servicio_id: servicio.id,
+        },
+      );
+      if (error) {
+        throw error;
+      }
+      if (nuevo && (nuevo as any).id) {
+        navigate(`/servicios/${(nuevo as any).id}`);
+      }
+    } catch (err: any) {
+      console.error(
+        "[PaginaServicio] Error al reprogramar paradas pendientes:",
+        err,
+      );
+      setErrorReprogramar(
+        err?.message ?? "Error al reprogramar paradas pendientes",
+      );
+      setReprogramando(false);
+    }
+  };
+
   let cobroPillTexto = "Pendiente de cobro";
   let cobroPillClase = "bg-alerta-suave text-alerta";
   let cobroColor = "text-alerta";
@@ -932,6 +1005,86 @@ export function PaginaServicio() {
           </span>
         </Aviso>
       )}
+
+      {servicioContinuacionDe && (
+        <Aviso variante="neutro" className="flex items-center gap-2">
+          <span>
+            Continuación del servicio{" "}
+            <Link
+              to={`/servicios/${servicioContinuacionDe.id}`}
+              className="font-bold underline text-marca hover:opacity-80"
+            >
+              #{servicioContinuacionDe.numero}
+            </Link>
+          </span>
+        </Aviso>
+      )}
+
+      {(() => {
+        if (!servicio.paradas || servicio.paradas.length === 0) return null;
+        const noRealizadas = servicio.paradas.filter(
+          (p) => p.estado === "no_realizada",
+        );
+        const completadas = servicio.paradas.filter(
+          (p) => p.estado === "completada",
+        );
+        if (noRealizadas.length === 0) return null;
+
+        const totalParadas = servicio.paradas.length;
+        const cantCompletadas = completadas.length;
+
+        if (servicioContinuacion) {
+          return (
+            <Aviso variante="info">
+              <span>
+                Recorrido incompleto: llegó a {cantCompletadas} de {totalParadas}{" "}
+                {totalParadas === 1 ? "parada" : "paradas"}. Las paradas
+                pendientes fueron reprogramadas en el{" "}
+                <Link
+                  to={`/servicios/${servicioContinuacion.id}`}
+                  className="font-bold underline hover:opacity-80"
+                >
+                  #{servicioContinuacion.numero}
+                </Link>
+                .
+              </span>
+            </Aviso>
+          );
+        }
+
+        const puedeReprogramar =
+          (perfil?.rol === "admin" || perfil?.rol === "oficina") &&
+          ["terminado", "cobrado", "facturado"].includes(servicio.estado);
+
+        return (
+          <Aviso
+            variante="alerta"
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
+            <div>
+              <span className="font-medium">
+                Recorrido incompleto: llegó a {cantCompletadas} de {totalParadas}{" "}
+                {totalParadas === 1 ? "parada" : "paradas"}.
+              </span>
+              {errorReprogramar && (
+                <p className="text-xs text-peligro mt-1">{errorReprogramar}</p>
+              )}
+            </div>
+            {puedeReprogramar && (
+              <Boton
+                type="button"
+                className="h-8 px-3 text-xs"
+                onClick={handleReprogramarParadas}
+                disabled={reprogramando}
+              >
+                {reprogramando
+                  ? "Reprogramando…"
+                  : "Reprogramar paradas pendientes"}
+              </Boton>
+            )}
+          </Aviso>
+        );
+      })()}
 
       {servicio.no_planificado && (
         <Aviso variante="alerta">
@@ -1299,24 +1452,89 @@ export function PaginaServicio() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               {/* Recorrido ocupando 2 columnas */}
               <div className="md:col-span-2">
-                <span className="text-xs font-medium text-tinta-suave block">
+                <span className="text-xs font-medium text-tinta-suave block mb-1">
                   Recorrido
                 </span>
-                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-tinta">
-                  {servicio.origen && servicio.destino ? (
-                    <>
+                {servicio.paradas && servicio.paradas.length > 0 ? (
+                  <div className="space-y-2 rounded-lg border border-borde bg-fondo p-3">
+                    {/* Origen */}
+                    <div className="flex items-start gap-2.5">
+                      <span className="inline-flex h-5 items-center justify-center rounded-full bg-superficie px-2 text-[11px] font-semibold text-tinta border border-borde shrink-0 mt-0.5">
+                        Origen
+                      </span>
+                      <span className="font-medium text-tinta text-sm">
+                        {servicio.origen || "—"}
+                      </span>
+                    </div>
+
+                    {/* Paradas */}
+                    <div className="space-y-2 pl-2 border-l-2 border-borde ml-3 pt-1">
+                      {servicio.paradas.map((p) => (
+                        <div
+                          key={p.id ?? p.orden}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded bg-superficie p-2 border border-borde"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-marca-suave text-marca text-xs font-bold shrink-0">
+                                {p.orden}
+                              </span>
+                              <span className="font-medium text-tinta text-sm">
+                                {p.direccion}
+                              </span>
+                              {p.localidad && (
+                                <span className="text-xs text-tinta-suave">
+                                  ({p.localidad})
+                                </span>
+                              )}
+                            </div>
+                            {(p.carga ||
+                              p.carga_desde === "parada_anterior" ||
+                              p.notas) && (
+                              <div className="text-xs text-tinta-suave pl-7 mt-0.5 space-x-2">
+                                {p.carga && (
+                                  <span>
+                                    <strong className="text-tinta">Deja:</strong>{" "}
+                                    {p.carga}
+                                  </span>
+                                )}
+                                <span>
+                                  (se carga en:{" "}
+                                  {p.carga_desde === "origen"
+                                    ? "Origen"
+                                    : "Parada anterior"}
+                                  )
+                                </span>
+                                {p.notas && (
+                                  <span className="italic">· {p.notas}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="shrink-0 self-end sm:self-center pl-7 sm:pl-0">
+                            <ChipEstadoParada estado={p.estado} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-tinta">
+                    {servicio.origen && servicio.destino ? (
+                      <>
+                        <span className="font-medium">{servicio.origen}</span>
+                        <ArrowRight className="size-4 text-tinta-suave shrink-0" />
+                        <span className="font-medium">{servicio.destino}</span>
+                      </>
+                    ) : servicio.origen ? (
                       <span className="font-medium">{servicio.origen}</span>
-                      <ArrowRight className="size-4 text-tinta-suave shrink-0" />
+                    ) : servicio.destino ? (
                       <span className="font-medium">{servicio.destino}</span>
-                    </>
-                  ) : servicio.origen ? (
-                    <span className="font-medium">{servicio.origen}</span>
-                  ) : servicio.destino ? (
-                    <span className="font-medium">{servicio.destino}</span>
-                  ) : (
-                    <span>—</span>
-                  )}
-                </div>
+                    ) : (
+                      <span>—</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>

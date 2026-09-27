@@ -244,6 +244,29 @@ export interface Maquina {
   notas: string | null;
 }
 
+export type CargaDesde = "origen" | "parada_anterior";
+export type EstadoParada = "pendiente" | "completada" | "no_realizada";
+
+export const ETIQUETA_ESTADO_PARADA: Record<EstadoParada, string> = {
+  pendiente: "Pendiente",
+  completada: "Completada",
+  no_realizada: "No realizada",
+};
+
+export interface Parada {
+  id?: string;
+  servicio_id?: string;
+  orden: number;
+  direccion: string;
+  localidad?: string | null;
+  carga?: string | null;
+  carga_desde: CargaDesde;
+  estado: EstadoParada;
+  completada_at?: string | null;
+  notas?: string | null;
+}
+
+
 export interface Servicio {
   id: string;
   numero: number;
@@ -312,6 +335,7 @@ export interface Servicio {
     numero: number;
     estado: EstadoPresupuesto;
   } | null;
+  paradas?: Parada[] | null;
 }
 
 export type EstadoPresupuesto =

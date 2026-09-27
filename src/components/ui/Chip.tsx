@@ -3,6 +3,7 @@ import type {
   EstadoCheque,
   EstadoCobro,
   EstadoMovimiento,
+  EstadoParada,
   EstadoPresupuesto,
   EstadoServicio,
 } from "@/lib/tipos";
@@ -10,6 +11,7 @@ import {
   ETIQUETA_ESTADO,
   ETIQUETA_ESTADO_CHEQUE,
   ETIQUETA_ESTADO_COBRO,
+  ETIQUETA_ESTADO_PARADA,
 } from "@/lib/tipos";
 
 export const ETIQUETA_ESTADO_PRESUPUESTO: Record<EstadoPresupuesto, string> = {
@@ -123,3 +125,20 @@ export function ChipNocturno({ className = "" }: { className?: string }) {
     </span>
   );
 }
+
+const colorParada: Record<EstadoParada, string> = {
+  pendiente: "bg-fondo text-tinta-suave border-borde",
+  completada: "bg-ok-suave text-ok border-ok/20",
+  no_realizada: "bg-peligro-suave text-peligro border-peligro/20",
+};
+
+export function ChipEstadoParada({ estado }: { estado: EstadoParada }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${colorParada[estado] ?? colorParada.pendiente}`}
+    >
+      {ETIQUETA_ESTADO_PARADA[estado] ?? estado}
+    </span>
+  );
+}
+

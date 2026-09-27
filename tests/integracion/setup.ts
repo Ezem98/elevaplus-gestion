@@ -167,8 +167,11 @@ export async function limpiarRegistrosTest(prefijo: string) {
       .in("servicio_id", sIds);
     const cIds = (aplicas || []).map((a) => a.cobro_id).filter(Boolean);
 
-    // Desvincular factura_id de servicios del test
-    await admin.from("servicios").update({ factura_id: null }).in("id", sIds);
+    // Desvincular factura_id y continuacion_de de servicios del test
+    await admin
+      .from("servicios")
+      .update({ factura_id: null, continuacion_de: null })
+      .in("id", sIds);
     // Borrar aplicaciones de cobro asociadas a estos servicios
     await admin.from("cobro_aplicaciones").delete().in("servicio_id", sIds);
     // Borrar los cobros encontrados

@@ -7,7 +7,7 @@ import { formatearFechaCorta, formatearPesos } from "@/lib/formato";
 import { supabase } from "@/lib/supabase";
 import type { ItemAgenda, Servicio } from "@/lib/tipos";
 import { ETIQUETA_TIPO } from "@/lib/tipos";
-import { CalendarDays, ChevronRight, UserX, Wrench } from "lucide-react";
+import { CalendarDays, ChevronRight, Route, UserX, Wrench } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -64,6 +64,7 @@ export function PaginaHoy() {
   const [maquinasTaller, setMaquinasTaller] = useState<MaquinaTaller[]>([]);
   const [venceHoy, setVenceHoy] = useState<ItemAgenda[]>([]);
   const [atrasadosAgenda, setAtrasadosAgenda] = useState<ItemAgenda[]>([]);
+  const [incompletosSinReprogramar, setIncompletosSinReprogramar] = useState(0);
 
   const cargar = useCallback(async () => {
     const fecha = new Date().toISOString().slice(0, 10);
@@ -77,17 +78,20 @@ export function PaginaHoy() {
       resMaquinas,
       resVenceHoy,
       resAtrasados,
+      resIncompletos,
     ] = await Promise.all([
       supabase
         .from("servicios")
-        .select("*, clientes!servicios_cliente_id_fkey(nombre)")
+        .select(
+          "*, clientes!servicios_cliente_id_fkey(nombre), paradas!paradas_servicio_id_fkey(*)",
+        )
         .eq("fecha_programada", fecha)
         .not("estado", "in", "(cancelado)")
         .order("hora_programada"),
       supabase
         .from("servicios")
         .select(
-          "*, clientes!servicios_cliente_id_fkey(nombre), alquileres!alquileres_servicio_id_fkey(fecha_hasta)",
+          "*, clientes!servicios_cliente_id_fkey(nombre), alquileres!alquileres_servicio_id_fkey(fecha_hasta), paradas!paradas_servicio_id_fkey(*)",
         )
         .lt("fecha_programada", fecha)
         .in("estado", ["programado", "en_curso"])
@@ -128,12 +132,22 @@ export function PaginaHoy() {
         .lt("fecha", fecha)
         .neq("sentido", "info")
         .order("fecha", { ascending: false }),
+      supabase
+        .from("servicios")
+        .select("id, paradas!paradas_servicio_id_fkey!inner(id, estado)")
+        .eq("paradas.estado", "no_realizada"),
     ]);
 
     if (resHoy.error) {
       console.error("Error al cargar servicios de hoy:", resHoy.error.message);
     } else if (resHoy.data) {
-      setHoy(resHoy.data as unknown as Servicio[]);
+      const hoyOrdenados = (resHoy.data as unknown as Servicio[]).map((s) => ({
+        ...s,
+        paradas: Array.isArray(s.paradas)
+          ? [...s.paradas].sort((a, b) => a.orden - b.orden)
+          : s.paradas,
+      }));
+      setHoy(hoyOrdenados);
     }
     if (resSinCerrar.error) {
       console.error(
@@ -141,19 +155,50 @@ export function PaginaHoy() {
         resSinCerrar.error.message,
       );
     } else if (resSinCerrar.data) {
-      const filtrados = (resSinCerrar.data as any[]).filter((s) => {
-        if (s.tipo === "alquiler_periodo" && s.estado === "en_curso") {
-          const fechaHasta = Array.isArray(s.alquileres)
-            ? s.alquileres[0]?.fecha_hasta
-            : s.alquileres?.fecha_hasta;
-          if (fechaHasta && fechaHasta >= fecha) {
-            return false;
+      const filtrados = (resSinCerrar.data as any[])
+        .filter((s) => {
+          if (s.tipo === "alquiler_periodo" && s.estado === "en_curso") {
+            const fechaHasta = Array.isArray(s.alquileres)
+              ? s.alquileres[0]?.fecha_hasta
+              : s.alquileres?.fecha_hasta;
+            if (fechaHasta && fechaHasta >= fecha) {
+              return false;
+            }
           }
-        }
-        return true;
-      });
+          return true;
+        })
+        .map((s) => ({
+          ...s,
+          paradas: Array.isArray(s.paradas)
+            ? [...s.paradas].sort((a, b) => a.orden - b.orden)
+            : s.paradas,
+        }));
       setSinCerrar(filtrados as unknown as Servicio[]);
     }
+
+    if (resIncompletos.data) {
+      const ids = Array.from(
+        new Set(resIncompletos.data.map((s: any) => s.id)),
+      );
+      if (ids.length > 0) {
+        const { data: continuaciones } = await supabase
+          .from("servicios")
+          .select("continuacion_de")
+          .in("continuacion_de", ids)
+          .neq("estado", "cancelado");
+        const setConCont = new Set(
+          (continuaciones || []).map((c: any) => c.continuacion_de),
+        );
+        setIncompletosSinReprogramar(
+          ids.filter((id) => !setConCont.has(id)).length,
+        );
+      } else {
+        setIncompletosSinReprogramar(0);
+      }
+    } else {
+      setIncompletosSinReprogramar(0);
+    }
+
     if (resSaldo.data) {
       setSaldo(resSaldo.data.reduce((acc, r) => acc + Number(r.saldo), 0));
     }
@@ -223,6 +268,7 @@ export function PaginaHoy() {
       "maquinas",
       "vencimientos",
       "vencimiento_instancias",
+      "paradas",
     ],
     cargar,
   );
@@ -311,6 +357,24 @@ export function PaginaHoy() {
               className="underline font-semibold hover:opacity-80"
             >
               Ver en Agenda
+            </Link>
+          </span>
+        </Aviso>
+      )}
+
+      {incompletosSinReprogramar > 0 && (
+        <Aviso variante="alerta">
+          <span>
+            {incompletosSinReprogramar}{" "}
+            {incompletosSinReprogramar === 1
+              ? "recorrido incompleto sin reprogramar"
+              : "recorridos incompletos sin reprogramar"}
+            {" · "}
+            <Link
+              to="/servicios?filtro=incompletos"
+              className="underline font-semibold hover:opacity-80"
+            >
+              Ver recorridos incompletos
             </Link>
           </span>
         </Aviso>
@@ -476,12 +540,22 @@ function ListaServicios({ servicios }: { servicios: Servicio[] }) {
       {servicios.map((s) => {
         const hora = s.hora_programada?.slice(0, 5);
         const tipo = ETIQUETA_TIPO[s.tipo];
-        const detalle =
-          s.origen && s.destino
-            ? `${s.origen} → ${s.destino}`
-            : (s.descripcion ?? "");
-        const metaMovil = [hora, tipo, detalle].filter(Boolean).join(" · ");
-        const metaEscritorio = [tipo, detalle].filter(Boolean).join(" · ");
+        const tieneParadas = Boolean(s.paradas && s.paradas.length > 0);
+        const detalleNodo = tieneParadas ? (
+          <span className="inline-flex items-center gap-1">
+            <span>{s.origen || "Origen"}</span>
+            <span>→</span>
+            <Route className="inline size-3.5 text-marca shrink-0" />
+            <span>
+              {s.paradas!.length}{" "}
+              {s.paradas!.length === 1 ? "parada" : "paradas"}
+            </span>
+          </span>
+        ) : s.origen && s.destino ? (
+          `${s.origen} → ${s.destino}`
+        ) : (
+          (s.descripcion ?? "")
+        );
 
         return (
           <Link
@@ -497,10 +571,13 @@ function ListaServicios({ servicios }: { servicios: Servicio[] }) {
                 {s.clientes?.nombre ?? "Sin cliente"}
               </div>
               <div className="truncate text-[13px] leading-[18px] text-tinta-suave md:hidden">
-                {metaMovil}
+                {hora && `${hora} · `}
+                {tipo}
+                {detalleNodo ? <> · {detalleNodo}</> : null}
               </div>
               <div className="hidden truncate text-[13px] leading-[18px] text-tinta-suave md:block">
-                {metaEscritorio}
+                {tipo}
+                {detalleNodo ? <> · {detalleNodo}</> : null}
               </div>
             </div>
             <div className="hidden w-28 shrink-0 text-right text-sm font-semibold tabular-nums md:block">

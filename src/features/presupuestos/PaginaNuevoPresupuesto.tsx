@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Plus,
@@ -7,6 +7,10 @@ import {
   Search,
   Calculator,
   ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  X,
+  Route,
 } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { supabase } from "@/lib/supabase";
@@ -14,8 +18,10 @@ import type {
   Cliente,
   Empresa,
   Maquina,
+  Servicio,
   TipoServicio,
   UnidadAlquiler,
+  CargaDesde,
 } from "@/lib/tipos";
 import {
   ETIQUETA_TIPO,
@@ -52,6 +58,14 @@ interface ItemBorrador {
   fecha_programada?: string | null;
   hora_programada?: string | null;
   maquina_id?: string | null;
+  paradas?: {
+    orden?: number;
+    direccion: string;
+    localidad?: string;
+    carga?: string;
+    carga_desde?: CargaDesde;
+    notas?: string;
+  }[];
   alquiler?: {
     fecha_desde: string;
     fecha_hasta: string;
@@ -101,6 +115,92 @@ export function PaginaNuevoPresupuesto() {
   const [itemFechaProg, setItemFechaProg] = useState("");
   const [itemHoraProg, setItemHoraProg] = useState("");
   const [itemMaquinaId, setItemMaquinaId] = useState("");
+
+  // Paradas de ítem temporal (solo para traslado)
+  const [itemParadas, setItemParadas] = useState<
+    {
+      id: string;
+      direccion: string;
+      localidad: string;
+      carga: string;
+      carga_desde: CargaDesde;
+      notas: string;
+    }[]
+  >([]);
+  const inputUltimaParadaItemRef = useRef<HTMLInputElement>(null);
+
+  const agregarParadaItem = () => {
+    if (itemParadas.length === 0) {
+      const p1 = {
+        id: crypto.randomUUID(),
+        direccion: itemDestino,
+        localidad: "",
+        carga: "",
+        carga_desde: "origen" as CargaDesde,
+        notas: "",
+      };
+      const p2 = {
+        id: crypto.randomUUID(),
+        direccion: "",
+        localidad: "",
+        carga: "",
+        carga_desde: "origen" as CargaDesde,
+        notas: "",
+      };
+      setItemParadas([p1, p2]);
+      setTimeout(() => {
+        inputUltimaParadaItemRef.current?.focus();
+      }, 50);
+    } else {
+      const nueva = {
+        id: crypto.randomUUID(),
+        direccion: "",
+        localidad: "",
+        carga: "",
+        carga_desde: "origen" as CargaDesde,
+        notas: "",
+      };
+      setItemParadas((prev) => [...prev, nueva]);
+      setTimeout(() => {
+        inputUltimaParadaItemRef.current?.focus();
+      }, 50);
+    }
+  };
+
+  const quitarParadaItem = (index: number) => {
+    setItemParadas((prev) => {
+      const actualizadas = prev.filter((_, i) => i !== index);
+      if (actualizadas.length <= 1) {
+        setItemDestino(actualizadas[0]?.direccion || "");
+        return [];
+      }
+      return actualizadas;
+    });
+  };
+
+  const moverParadaItem = (index: number, direccion: "arriba" | "abajo") => {
+    setItemParadas((prev) => {
+      const actualizadas = [...prev];
+      const targetIndex = direccion === "arriba" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= actualizadas.length) return prev;
+      const temp = actualizadas[index];
+      actualizadas[index] = actualizadas[targetIndex];
+      actualizadas[targetIndex] = temp;
+      return actualizadas;
+    });
+  };
+
+  const actualizarParadaItem = (
+    index: number,
+    campo: "direccion" | "localidad" | "carga" | "carga_desde" | "notas",
+    valor: any,
+  ) => {
+    setItemParadas((prev) => {
+      const actualizadas = [...prev];
+      actualizadas[index] = { ...actualizadas[index], [campo]: valor };
+      return actualizadas;
+    });
+  };
 
   // Alquiler período fields
   const [alqDesde, setAlqDesde] = useState("");
@@ -205,6 +305,7 @@ export function PaginaNuevoPresupuesto() {
     setItemFechaProg("");
     setItemHoraProg("");
     setItemMaquinaId("");
+    setItemParadas([]);
     setAlqDesde("");
     setAlqHasta("");
     setAlqUnidad("dia");
@@ -233,6 +334,21 @@ export function PaginaNuevoPresupuesto() {
     setItemHoraProg(item.hora_programada || "");
     setItemMaquinaId(item.maquina_id || "");
 
+    if (item.tipo === "traslado" && item.paradas && item.paradas.length > 0) {
+      setItemParadas(
+        item.paradas.map((p) => ({
+          id: crypto.randomUUID(),
+          direccion: p.direccion || "",
+          localidad: p.localidad || "",
+          carga: p.carga || "",
+          carga_desde: (p.carga_desde as CargaDesde) || "origen",
+          notas: p.notas || "",
+        })),
+      );
+    } else {
+      setItemParadas([]);
+    }
+
     if (item.tipo === "alquiler_periodo" && item.alquiler) {
       setAlqDesde(item.alquiler.fecha_desde);
       setAlqHasta(item.alquiler.fecha_hasta);
@@ -256,6 +372,15 @@ export function PaginaNuevoPresupuesto() {
 
     let montoFinal = itemMonto;
     let alqDatos = null;
+
+    if (itemTipo === "traslado" && itemParadas.length > 0) {
+      for (let i = 0; i < itemParadas.length; i++) {
+        if (!itemParadas[i].direccion.trim()) {
+          setErrorItem("Cada parada necesita una dirección.");
+          return;
+        }
+      }
+    }
 
     if (itemTipo === "alquiler_periodo") {
       if (!alqDesde || !alqHasta) {
@@ -290,12 +415,26 @@ export function PaginaNuevoPresupuesto() {
       aplica_iva: itemAplicaIva,
       nocturno: itemNocturno,
       origen: itemOrigen.trim() || undefined,
-      destino: itemDestino.trim() || undefined,
+      destino:
+        itemTipo === "traslado" && itemParadas.length > 0
+          ? itemParadas[itemParadas.length - 1].direccion.trim()
+          : itemDestino.trim() || undefined,
       km: itemKm,
       ida_y_vuelta: itemIdaYVuelta,
       fecha_programada: itemFechaProg || undefined,
       hora_programada: itemHoraProg || undefined,
       maquina_id: itemMaquinaId || undefined,
+      paradas:
+        itemTipo === "traslado" && itemParadas.length > 0
+          ? itemParadas.map((p, idx) => ({
+              orden: idx + 1,
+              direccion: p.direccion.trim(),
+              localidad: p.localidad.trim() || undefined,
+              carga: p.carga.trim() || undefined,
+              carga_desde: p.carga_desde,
+              notas: p.notas.trim() || undefined,
+            }))
+          : undefined,
       alquiler: alqDatos,
     };
 
@@ -395,6 +534,17 @@ export function PaginaNuevoPresupuesto() {
         fecha_programada: it.fecha_programada || null,
         hora_programada: it.hora_programada || null,
         maquina_id: it.maquina_id || null,
+        paradas:
+          it.tipo === "traslado" && it.paradas && it.paradas.length > 0
+            ? it.paradas.map((p, idx) => ({
+                orden: idx + 1,
+                direccion: p.direccion.trim(),
+                localidad: p.localidad?.trim() || null,
+                carga: p.carga?.trim() || null,
+                carga_desde: p.carga_desde || "origen",
+                notas: p.notas?.trim() || null,
+              }))
+            : null,
         alquiler:
           it.tipo === "alquiler_periodo" && it.alquiler
             ? {
@@ -440,7 +590,7 @@ export function PaginaNuevoPresupuesto() {
         // Consultar los servicios creados para armar el PDF completo
         const { data: servsCreados, error: servsError } = await supabase
           .from("servicios")
-          .select("*, maquinas!servicios_maquina_id_fkey(codigo_interno, tipo), alquileres!alquileres_servicio_id_fkey(*)")
+          .select("*, maquinas!servicios_maquina_id_fkey(codigo_interno, tipo), alquileres!alquileres_servicio_id_fkey(*), paradas!paradas_servicio_id_fkey(*)")
           .eq("presupuesto_id", pres.id)
           .order("created_at", { ascending: true });
 
@@ -450,6 +600,11 @@ export function PaginaNuevoPresupuesto() {
           );
         }
 
+        const servsFormateados = (servsCreados as Servicio[])?.map((s) => ({
+          ...s,
+          paradas: s.paradas ? [...s.paradas].sort((a, b) => a.orden - b.orden) : [],
+        })) ?? [];
+
         // Generar Blob PDF
         const doc = (
           <PresupuestoPDF
@@ -458,7 +613,7 @@ export function PaginaNuevoPresupuesto() {
               ...pres,
               clientes: clienteSeleccionado,
             }}
-            servicios={servsCreados || []}
+            servicios={servsFormateados}
             validezDias={validezDias}
             extra={condiciones}
           />
@@ -713,14 +868,23 @@ export function PaginaNuevoPresupuesto() {
                         ? `${it.origen} → ${it.destino}`
                         : "Servicio")}
                   </div>
-                  {it.origen && it.destino && it.descripcion && (
+                  {it.paradas && it.paradas.length > 0 ? (
+                    <div className="text-xs text-tinta-suave flex items-center gap-1.5 mt-0.5">
+                      <Route className="size-3 text-marca shrink-0" />
+                      <span>
+                        {it.origen || "—"} → {it.paradas.length}{" "}
+                        {it.paradas.length === 1 ? "parada" : "paradas"}
+                      </span>
+                      {it.km && <span>({it.km} km)</span>}
+                    </div>
+                  ) : it.origen && it.destino && it.descripcion ? (
                     <div className="text-xs text-tinta-suave flex items-center gap-1 mt-0.5">
                       <span>{it.origen}</span>
                       <ArrowRight className="size-3 text-tinta-suave shrink-0" />
                       <span>{it.destino}</span>
                       {it.km && <span>({it.km} km)</span>}
                     </div>
-                  )}
+                  ) : null}
                   {it.alquiler && (
                     <div className="text-xs text-tinta-suave mt-0.5">
                       {it.alquiler.cantidad} {it.alquiler.unidad}(s) · {it.alquiler.fecha_desde} → {it.alquiler.fecha_hasta}
@@ -805,7 +969,13 @@ export function PaginaNuevoPresupuesto() {
                   <Selector
                     id="item_tipo"
                     value={itemTipo}
-                    onChange={(e) => setItemTipo(e.target.value as TipoServicio)}
+                    onChange={(e) => {
+                      const nuevoTipo = e.target.value as TipoServicio;
+                      setItemTipo(nuevoTipo);
+                      if (nuevoTipo !== "traslado") {
+                        setItemParadas([]);
+                      }
+                    }}
                   >
                     <option value="traslado">Traslado</option>
                     <option value="alquiler_hora">Alquiler por hora</option>
@@ -845,7 +1015,7 @@ export function PaginaNuevoPresupuesto() {
                 </Campo>
               </div>
 
-              {/* Si es traslado: origen, destino, km */}
+              {/* Si es traslado: origen, destino o paradas, km */}
               {itemTipo === "traslado" && (
                 <>
                   <div>
@@ -858,16 +1028,173 @@ export function PaginaNuevoPresupuesto() {
                       />
                     </Campo>
                   </div>
-                  <div>
-                    <Campo etiqueta="Destino" id="item_dest">
-                      <Entrada
-                        id="item_dest"
-                        value={itemDestino}
-                        onChange={(e) => setItemDestino(e.target.value)}
-                        placeholder="Ej: Planta Burzaco"
-                      />
-                    </Campo>
-                  </div>
+
+                  {itemParadas.length === 0 ? (
+                    <div>
+                      <Campo etiqueta="Destino" id="item_dest">
+                        <Entrada
+                          id="item_dest"
+                          value={itemDestino}
+                          onChange={(e) => setItemDestino(e.target.value)}
+                          placeholder="Ej: Planta Burzaco"
+                        />
+                      </Campo>
+                      <div className="mt-2">
+                        <Boton
+                          type="button"
+                          variante="secundario"
+                          onClick={agregarParadaItem}
+                          className="text-xs h-8"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          + Agregar parada
+                        </Boton>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="sm:col-span-2 space-y-3 rounded-lg border border-borde bg-superficie p-3.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-tinta">
+                          Paradas del recorrido ({itemParadas.length})
+                        </span>
+                        <span className="text-xs text-tinta-suave">
+                          Reordená con flechas
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {itemParadas.map((p, idx) => {
+                          const esUltima = idx === itemParadas.length - 1;
+                          return (
+                            <div
+                              key={p.id}
+                              className="rounded-lg border border-borde bg-fondo p-3 space-y-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-semibold text-tinta">
+                                  Parada {idx + 1}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => moverParadaItem(idx, "arriba")}
+                                    disabled={idx === 0}
+                                    title="Subir parada"
+                                    aria-label={`Subir parada ${idx + 1}`}
+                                    className="p-1 rounded text-tinta-suave hover:text-tinta disabled:opacity-30 disabled:hover:text-tinta-suave cursor-pointer disabled:cursor-not-allowed"
+                                  >
+                                    <ArrowUp className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => moverParadaItem(idx, "abajo")}
+                                    disabled={idx === itemParadas.length - 1}
+                                    title="Bajar parada"
+                                    aria-label={`Bajar parada ${idx + 1}`}
+                                    className="p-1 rounded text-tinta-suave hover:text-tinta disabled:opacity-30 disabled:hover:text-tinta-suave cursor-pointer disabled:cursor-not-allowed"
+                                  >
+                                    <ArrowDown className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => quitarParadaItem(idx)}
+                                    title="Quitar parada"
+                                    aria-label={`Quitar parada ${idx + 1}`}
+                                    className="p-1 rounded text-tinta-suave hover:text-peligro cursor-pointer ml-1"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <Campo etiqueta="Dirección *" id={`item_parada_dir_${idx}`}>
+                                  <Entrada
+                                    id={`item_parada_dir_${idx}`}
+                                    ref={esUltima ? inputUltimaParadaItemRef : undefined}
+                                    value={p.direccion}
+                                    onChange={(e) =>
+                                      actualizarParadaItem(idx, "direccion", e.target.value)
+                                    }
+                                    placeholder="Ej: Av. San Martín 123"
+                                    required
+                                  />
+                                </Campo>
+
+                                <Campo etiqueta="Localidad" id={`item_parada_loc_${idx}`}>
+                                  <Entrada
+                                    id={`item_parada_loc_${idx}`}
+                                    value={p.localidad}
+                                    onChange={(e) =>
+                                      actualizarParadaItem(idx, "localidad", e.target.value)
+                                    }
+                                    placeholder="Ej: Lanús"
+                                  />
+                                </Campo>
+
+                                <Campo etiqueta="Qué se deja" id={`item_parada_carga_${idx}`}>
+                                  <Entrada
+                                    id={`item_parada_carga_${idx}`}
+                                    value={p.carga}
+                                    onChange={(e) =>
+                                      actualizarParadaItem(idx, "carga", e.target.value)
+                                    }
+                                    placeholder="Ej: Pallet 1, mercadería"
+                                  />
+                                </Campo>
+
+                                <Campo etiqueta="Se carga en" id={`item_parada_cd_${idx}`}>
+                                  <Selector
+                                    id={`item_parada_cd_${idx}`}
+                                    value={p.carga_desde}
+                                    onChange={(e) =>
+                                      actualizarParadaItem(
+                                        idx,
+                                        "carga_desde",
+                                        e.target.value as CargaDesde,
+                                      )
+                                    }
+                                  >
+                                    <option value="origen">Origen</option>
+                                    <option value="parada_anterior">
+                                      Parada anterior
+                                    </option>
+                                  </Selector>
+                                </Campo>
+
+                                <div className="sm:col-span-2">
+                                  <Campo
+                                    etiqueta="Notas de la parada"
+                                    id={`item_parada_notas_${idx}`}
+                                  >
+                                    <Entrada
+                                      id={`item_parada_notas_${idx}`}
+                                      value={p.notas}
+                                      onChange={(e) =>
+                                        actualizarParadaItem(idx, "notas", e.target.value)
+                                      }
+                                      placeholder="Indicaciones para el chofer (opcional)"
+                                    />
+                                  </Campo>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <Boton
+                        type="button"
+                        variante="secundario"
+                        onClick={agregarParadaItem}
+                        className="text-xs h-8"
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        + Agregar parada
+                      </Boton>
+                    </div>
+                  )}
+
                   <div>
                     <Campo etiqueta="Kilómetros" id="item_km">
                       <Entrada

@@ -2,6 +2,7 @@ import { Aviso } from "@/components/ui/Aviso";
 import { Boton } from "@/components/ui/Boton";
 import {
   ChipEstado,
+  ChipEstadoParada,
   ChipEstadoPresupuesto,
   ChipNocturno,
 } from "@/components/ui/Chip";
@@ -27,6 +28,7 @@ import type {
   Servicio,
 } from "@/lib/tipos";
 import { ETIQUETA_TIPO } from "@/lib/tipos";
+import { Route } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -34,6 +36,7 @@ type ClaveFiltro =
   | "todos"
   | "presupuestos"
   | "en_curso"
+  | "incompletos"
   | "alquileres_activos"
   | "cobrados"
   | "cancelados";
@@ -55,6 +58,11 @@ const PESTANAS: PestanaFiltro[] = [
     id: "en_curso",
     etiqueta: "En curso",
     estados: ["aceptado", "programado", "en_curso", "terminado"],
+  },
+  {
+    id: "incompletos",
+    etiqueta: "Recorridos incompletos",
+    estados: [],
   },
   {
     id: "alquileres_activos",
@@ -84,6 +92,7 @@ function normalizarFiltro(param: string | null): ClaveFiltro {
     p === "todos" ||
     p === "presupuestos" ||
     p === "en_curso" ||
+    p === "incompletos" ||
     p === "alquileres_activos" ||
     p === "cobrados" ||
     p === "cancelados"
@@ -104,10 +113,18 @@ export function PaginaServicios() {
     "todos" | EstadoPresupuesto
   >("todos");
 
+  const [expandidos, setExpandidos] = useState<Record<string, boolean>>({});
+
+  const toggleExpandido = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandidos((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const [conteos, setConteos] = useState<Record<ClaveFiltro, number>>({
     todos: 0,
     presupuestos: 0,
     en_curso: 0,
+    incompletos: 0,
     alquileres_activos: 0,
     cobrados: 0,
     cancelados: 0,
@@ -127,9 +144,14 @@ export function PaginaServicios() {
     const [
       { data: servData, error: servError },
       { count: presCount, error: presError },
+      { data: incompletosData, error: incError },
     ] = await Promise.all([
       supabase.from("servicios").select("tipo, estado"),
       supabase.from("presupuestos").select("id", { count: "exact", head: true }),
+      supabase
+        .from("servicios")
+        .select("id, paradas!paradas_servicio_id_fkey!inner(id, estado)")
+        .eq("paradas.estado", "no_realizada"),
     ]);
 
     if (servError) {
@@ -140,12 +162,23 @@ export function PaginaServicios() {
     if (presError) {
       console.error("Error al contar presupuestos:", presError.message);
     }
+    if (incError) {
+      console.error(
+        "Error al contar recorridos incompletos:",
+        incError.message,
+      );
+    }
     if (!servData) return;
+
+    const idsIncompletos = new Set(
+      (incompletosData || []).map((s: any) => s.id),
+    );
 
     const nuevos: Record<ClaveFiltro, number> = {
       todos: servData.length,
       presupuestos: presCount ?? 0,
       en_curso: 0,
+      incompletos: idsIncompletos.size,
       alquileres_activos: 0,
       cobrados: 0,
       cancelados: 0,
@@ -193,13 +226,34 @@ export function PaginaServicios() {
       let q = supabase
         .from("servicios")
         .select(
-          "*, clientes!servicios_cliente_id_fkey(nombre), alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta)",
+          "*, clientes!servicios_cliente_id_fkey(nombre), alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta), paradas!paradas_servicio_id_fkey(*)",
         )
         .order("fecha_programada", { ascending: false, nullsFirst: false })
         .limit(100);
 
       if (filtroActivo === "alquileres_activos") {
         q = q.eq("tipo", "alquiler_periodo").eq("estado", "en_curso");
+      } else if (filtroActivo === "incompletos") {
+        const { data: incData, error: incError } = await supabase
+          .from("servicios")
+          .select("id, paradas!paradas_servicio_id_fkey!inner(id, estado)")
+          .eq("paradas.estado", "no_realizada");
+
+        if (incError) {
+          console.error(
+            "Error al filtrar recorridos incompletos:",
+            incError.message,
+          );
+          setErrorCarga("No se pudieron cargar los recorridos incompletos");
+          return;
+        }
+
+        const ids = Array.from(new Set((incData || []).map((s: any) => s.id)));
+        if (ids.length === 0) {
+          setServicios([]);
+          return;
+        }
+        q = q.in("id", ids);
       } else {
         const pestana = PESTANAS.find((p) => p.id === filtroActivo);
         if (pestana && pestana.estados.length > 0) {
@@ -213,7 +267,15 @@ export function PaginaServicios() {
         setErrorCarga("No se pudieron cargar los servicios");
         return;
       }
-      setServicios((data as Servicio[]) || []);
+      const serviciosOrdenados = ((data as unknown as Servicio[]) || []).map(
+        (s) => ({
+          ...s,
+          paradas: Array.isArray(s.paradas)
+            ? [...s.paradas].sort((a, b) => a.orden - b.orden)
+            : s.paradas,
+        }),
+      );
+      setServicios(serviciosOrdenados);
     }
   }, [filtroActivo]);
 
@@ -225,7 +287,7 @@ export function PaginaServicios() {
     cargar();
   }, [cargar]);
 
-  useRealtime(["servicios", "presupuestos"], cargar);
+  useRealtime(["servicios", "presupuestos", "paradas"], cargar);
 
   const handleCancelar = async (s: Servicio) => {
     const confirmado = window.confirm(
@@ -521,12 +583,47 @@ export function PaginaServicios() {
                           <ChipEstado estado={s.estado} />
                         </div>
                       </div>
-                      <div className="text-[13px] text-tinta-suave truncate">
-                        {filtroActivo === "alquileres_activos" &&
-                        s.alquileres?.fecha_hasta
-                          ? `Vence ${formatearFecha(s.alquileres.fecha_hasta)} · ${ETIQUETA_TIPO[s.tipo]}`
-                          : `${formatearFecha(s.fecha_programada)} · ${ETIQUETA_TIPO[s.tipo]}`}
-                      </div>
+                      {s.paradas && s.paradas.length > 0 ? (
+                        <div className="text-[13px] text-tinta-suave">
+                          <button
+                            type="button"
+                            onClick={(e) => toggleExpandido(s.id, e)}
+                            className="inline-flex items-center gap-1.5 text-marca hover:underline font-medium"
+                          >
+                            <Route className="size-3.5 shrink-0" />
+                            <span>
+                              {s.origen || "Origen"} → {s.paradas.length}{" "}
+                              {s.paradas.length === 1 ? "parada" : "paradas"}
+                            </span>
+                          </button>
+                          {expandidos[s.id] && (
+                            <div className="mt-1.5 pl-2 border-l-2 border-marca/30 space-y-1 text-xs text-tinta">
+                              <div className="text-tinta-suave">
+                                Origen: {s.origen || "—"}
+                              </div>
+                              {s.paradas.map((p) => (
+                                <div
+                                  key={p.id ?? p.orden}
+                                  className="flex items-center justify-between gap-1"
+                                >
+                                  <span className="truncate">
+                                    {p.orden}. {p.direccion}
+                                    {p.carga ? ` (${p.carga})` : ""}
+                                  </span>
+                                  <ChipEstadoParada estado={p.estado} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-[13px] text-tinta-suave truncate">
+                          {filtroActivo === "alquileres_activos" &&
+                          s.alquileres?.fecha_hasta
+                            ? `Vence ${formatearFecha(s.alquileres.fecha_hasta)} · ${ETIQUETA_TIPO[s.tipo]}`
+                            : `${formatearFecha(s.fecha_programada)} · ${ETIQUETA_TIPO[s.tipo]}`}
+                        </div>
+                      )}
                       <div className="text-right text-sm font-medium tabular-nums text-tinta">
                         {formatearPesos(s.monto)}
                       </div>
@@ -606,10 +703,46 @@ export function PaginaServicios() {
                             <Link
                               to={`/servicios/${s.id}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="hover:underline"
+                              className="hover:underline block"
                             >
                               {s.clientes?.nombre ?? "—"}
                             </Link>
+                            {s.paradas && s.paradas.length > 0 && (
+                              <div className="mt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => toggleExpandido(s.id, e)}
+                                  className="inline-flex items-center gap-1 text-xs text-marca hover:underline font-normal"
+                                >
+                                  <Route className="size-3 shrink-0" />
+                                  <span>
+                                    {s.origen || "Origen"} → {s.paradas.length}{" "}
+                                    {s.paradas.length === 1
+                                      ? "parada"
+                                      : "paradas"}
+                                  </span>
+                                </button>
+                                {expandidos[s.id] && (
+                                  <div className="mt-1 pl-2 border-l-2 border-marca/30 space-y-0.5 text-xs text-tinta font-normal">
+                                    <div className="text-tinta-suave">
+                                      Origen: {s.origen || "—"}
+                                    </div>
+                                    {s.paradas.map((p) => (
+                                      <div
+                                        key={p.id ?? p.orden}
+                                        className="flex items-center justify-between gap-2"
+                                      >
+                                        <span className="truncate">
+                                          {p.orden}. {p.direccion}
+                                          {p.carga ? ` (${p.carga})` : ""}
+                                        </span>
+                                        <ChipEstadoParada estado={p.estado} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-tinta-suave">
                             {ETIQUETA_TIPO[s.tipo]}

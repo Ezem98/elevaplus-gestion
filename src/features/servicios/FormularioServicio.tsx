@@ -26,8 +26,10 @@ import {
   ETIQUETA_TIPO_MAQUINA,
   ETIQUETA_UNIDAD_ALQUILER,
   formatearUnidadPlural,
+  type CargaDesde,
 } from "@/lib/tipos";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 interface ClienteOpcion {
@@ -89,6 +91,90 @@ export function FormularioServicio() {
   const [km, setKm] = useState<number | string>("");
   const [idaYVuelta, setIdaYVuelta] = useState(false);
   const [vehiculoId, setVehiculoId] = useState("");
+  const [paradas, setParadas] = useState<
+    {
+      id: string;
+      direccion: string;
+      localidad: string;
+      carga: string;
+      carga_desde: CargaDesde;
+      notas: string;
+    }[]
+  >([]);
+  const inputUltimaParadaRef = useRef<HTMLInputElement>(null);
+
+  const agregarParada = () => {
+    if (paradas.length === 0) {
+      const p1 = {
+        id: crypto.randomUUID(),
+        direccion: destino,
+        localidad: "",
+        carga: "",
+        carga_desde: "origen" as CargaDesde,
+        notas: "",
+      };
+      const p2 = {
+        id: crypto.randomUUID(),
+        direccion: "",
+        localidad: "",
+        carga: "",
+        carga_desde: "origen" as CargaDesde,
+        notas: "",
+      };
+      setParadas([p1, p2]);
+      setTimeout(() => {
+        inputUltimaParadaRef.current?.focus();
+      }, 50);
+    } else {
+      const nueva = {
+        id: crypto.randomUUID(),
+        direccion: "",
+        localidad: "",
+        carga: "",
+        carga_desde: "origen" as CargaDesde,
+        notas: "",
+      };
+      setParadas((prev) => [...prev, nueva]);
+      setTimeout(() => {
+        inputUltimaParadaRef.current?.focus();
+      }, 50);
+    }
+  };
+
+  const quitarParada = (index: number) => {
+    setParadas((prev) => {
+      const actualizadas = prev.filter((_, i) => i !== index);
+      if (actualizadas.length <= 1) {
+        setDestino(actualizadas[0]?.direccion || "");
+        return [];
+      }
+      return actualizadas;
+    });
+  };
+
+  const moverParada = (index: number, direccion: "arriba" | "abajo") => {
+    setParadas((prev) => {
+      const actualizadas = [...prev];
+      const targetIndex = direccion === "arriba" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= actualizadas.length) return prev;
+      const temp = actualizadas[index];
+      actualizadas[index] = actualizadas[targetIndex];
+      actualizadas[targetIndex] = temp;
+      return actualizadas;
+    });
+  };
+
+  const actualizarParada = (
+    index: number,
+    campo: "direccion" | "localidad" | "carga" | "carga_desde" | "notas",
+    valor: any,
+  ) => {
+    setParadas((prev) => {
+      const actualizadas = [...prev];
+      actualizadas[index] = { ...actualizadas[index], [campo]: valor };
+      return actualizadas;
+    });
+  };
 
   // Alquiler por hora
   const [maquinaId, setMaquinaId] = useState("");
@@ -315,9 +401,22 @@ export function FormularioServicio() {
     }
 
     if (tipo === "traslado") {
-      if (!origen.trim() || !destino.trim()) {
-        setErrorValidacion("Origen y destino son obligatorios para traslados.");
+      if (!origen.trim()) {
+        setErrorValidacion("El origen es obligatorio para traslados.");
         return;
+      }
+      if (paradas.length > 0) {
+        for (let i = 0; i < paradas.length; i++) {
+          if (!paradas[i].direccion.trim()) {
+            setErrorValidacion(`La parada ${i + 1} necesita una dirección.`);
+            return;
+          }
+        }
+      } else {
+        if (!destino.trim()) {
+          setErrorValidacion("Origen y destino son obligatorios para traslados.");
+          return;
+        }
       }
       if (!carga.trim()) {
         setErrorValidacion("Detallá qué se traslada.");
@@ -451,7 +550,10 @@ export function FormularioServicio() {
 
       if (tipo === "traslado") {
         payloadServicio.origen = origen.trim() || null;
-        payloadServicio.destino = destino.trim() || null;
+        payloadServicio.destino =
+          paradas.length > 0
+            ? paradas[paradas.length - 1].direccion.trim()
+            : destino.trim() || null;
         payloadServicio.carga = carga.trim() || null;
         payloadServicio.km = km !== "" ? Number(km) : null;
         payloadServicio.ida_y_vuelta = idaYVuelta;
@@ -508,6 +610,37 @@ export function FormularioServicio() {
       }
 
       const nuevoId = servicioInsertado.id;
+
+      // Si es traslado y tiene paradas, guardar paradas vía RPC guardar_paradas
+      if (tipo === "traslado" && paradas.length > 0) {
+        const paradasPayload = paradas.map((p, idx) => ({
+          orden: idx + 1,
+          direccion: p.direccion.trim(),
+          localidad: p.localidad.trim() || null,
+          carga: p.carga.trim() || null,
+          carga_desde: p.carga_desde || "origen",
+          notas: p.notas.trim() || null,
+        }));
+
+        const { error: errorParadas } = await supabase.rpc("guardar_paradas", {
+          p_servicio_id: nuevoId,
+          p_paradas: paradasPayload,
+        });
+
+        if (errorParadas) {
+          console.error(
+            "[FormularioServicio] Error en guardar_paradas:",
+            errorParadas.message,
+            errorParadas,
+          );
+          navigate(
+            `/servicios/${nuevoId}?aviso=${encodeURIComponent(
+              `El servicio quedó creado pero no se pudieron guardar las paradas: ${errorParadas.message}`,
+            )}`,
+          );
+          return;
+        }
+      }
 
       // Si es alquiler por período, insertar en la tabla alquileres
       if (tipo === "alquiler_periodo") {
@@ -736,14 +869,168 @@ export function FormularioServicio() {
                   />
                 </Campo>
 
-                <Campo etiqueta="Destino" id="destino">
-                  <Entrada
-                    id="destino"
-                    value={destino}
-                    onChange={(e) => setDestino(e.target.value)}
-                    placeholder="Lugar de entrega"
-                  />
-                </Campo>
+                {paradas.length === 0 ? (
+                  <div className="space-y-2">
+                    <Campo etiqueta="Destino" id="destino">
+                      <Entrada
+                        id="destino"
+                        value={destino}
+                        onChange={(e) => setDestino(e.target.value)}
+                        placeholder="Lugar de entrega"
+                      />
+                    </Campo>
+                    <Boton
+                      type="button"
+                      variante="secundario"
+                      onClick={agregarParada}
+                      className="text-xs h-9"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      + Agregar parada
+                    </Boton>
+                  </div>
+                ) : null}
+
+                {paradas.length > 0 && (
+                  <div className="sm:col-span-2 space-y-3 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
+                        Recorrido ({paradas.length} paradas)
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {paradas.map((p, idx) => {
+                        const esUltima = idx === paradas.length - 1;
+                        return (
+                          <div
+                            key={p.id}
+                            className="rounded-lg border border-borde bg-superficie p-3.5 space-y-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-semibold text-tinta">
+                                Parada {idx + 1}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => moverParada(idx, "arriba")}
+                                  disabled={idx === 0}
+                                  title="Subir parada"
+                                  aria-label={`Subir parada ${idx + 1}`}
+                                  className="p-1 rounded text-tinta-suave hover:text-tinta disabled:opacity-30 disabled:hover:text-tinta-suave cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  <ArrowUp className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moverParada(idx, "abajo")}
+                                  disabled={idx === paradas.length - 1}
+                                  title="Bajar parada"
+                                  aria-label={`Bajar parada ${idx + 1}`}
+                                  className="p-1 rounded text-tinta-suave hover:text-tinta disabled:opacity-30 disabled:hover:text-tinta-suave cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  <ArrowDown className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => quitarParada(idx)}
+                                  title="Quitar parada"
+                                  aria-label={`Quitar parada ${idx + 1}`}
+                                  className="p-1 rounded text-tinta-suave hover:text-peligro cursor-pointer ml-1"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <Campo etiqueta="Dirección *" id={`parada_dir_${idx}`}>
+                                <Entrada
+                                  id={`parada_dir_${idx}`}
+                                  ref={esUltima ? inputUltimaParadaRef : undefined}
+                                  value={p.direccion}
+                                  onChange={(e) =>
+                                    actualizarParada(idx, "direccion", e.target.value)
+                                  }
+                                  placeholder="Ej: Av. San Martín 123"
+                                  required
+                                />
+                              </Campo>
+
+                              <Campo etiqueta="Localidad" id={`parada_loc_${idx}`}>
+                                <Entrada
+                                  id={`parada_loc_${idx}`}
+                                  value={p.localidad}
+                                  onChange={(e) =>
+                                    actualizarParada(idx, "localidad", e.target.value)
+                                  }
+                                  placeholder="Ej: Lanús"
+                                />
+                              </Campo>
+
+                              <Campo etiqueta="Qué se deja" id={`parada_carga_${idx}`}>
+                                <Entrada
+                                  id={`parada_carga_${idx}`}
+                                  value={p.carga}
+                                  onChange={(e) =>
+                                    actualizarParada(idx, "carga", e.target.value)
+                                  }
+                                  placeholder="Ej: Pallet 1, mercadería"
+                                />
+                              </Campo>
+
+                              <Campo etiqueta="Se carga en" id={`parada_cd_${idx}`}>
+                                <Selector
+                                  id={`parada_cd_${idx}`}
+                                  value={p.carga_desde}
+                                  onChange={(e) =>
+                                    actualizarParada(
+                                      idx,
+                                      "carga_desde",
+                                      e.target.value as CargaDesde,
+                                    )
+                                  }
+                                >
+                                  <option value="origen">Origen</option>
+                                  <option value="parada_anterior">
+                                    Parada anterior
+                                  </option>
+                                </Selector>
+                              </Campo>
+
+                              <div className="sm:col-span-2">
+                                <Campo
+                                  etiqueta="Notas de la parada"
+                                  id={`parada_notas_${idx}`}
+                                >
+                                  <Entrada
+                                    id={`parada_notas_${idx}`}
+                                    value={p.notas}
+                                    onChange={(e) =>
+                                      actualizarParada(idx, "notas", e.target.value)
+                                    }
+                                    placeholder="Indicaciones para el chofer (opcional)"
+                                  />
+                                </Campo>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <Boton
+                      type="button"
+                      variante="secundario"
+                      onClick={agregarParada}
+                      className="text-xs h-9"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      + Agregar parada
+                    </Boton>
+                  </div>
+                )}
 
                 <Campo etiqueta="Carga" id="carga">
                   <Entrada

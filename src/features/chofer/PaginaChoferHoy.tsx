@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from "react";
-import { Camera, X, Loader2 } from "lucide-react";
+import { Camera, X, Loader2, Route } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useRealtime } from "@/hooks/use-realtime";
@@ -8,7 +8,7 @@ import { ETIQUETA_TIPO } from "@/lib/tipos";
 import { formatearFecha } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Boton } from "@/components/ui/Boton";
-import { ChipEstado, ChipNocturno } from "@/components/ui/Chip";
+import { ChipEstado, ChipNocturno, ChipEstadoParada } from "@/components/ui/Chip";
 import { Aviso } from "@/components/ui/Aviso";
 import { PantallaCobraste } from "./PantallaCobraste";
 import { PantallaNoPlanificado } from "./PantallaNoPlanificado";
@@ -53,7 +53,7 @@ export function PaginaChoferHoy() {
     // RLS filtra: el chofer solo ve los servicios asignados a él o creados por él
     const { data: servs, error: servsError } = await supabase
       .from("servicios")
-      .select("*, clientes!servicios_cliente_id_fkey(nombre)")
+      .select("*, clientes!servicios_cliente_id_fkey(nombre), paradas!paradas_servicio_id_fkey(*)")
       .in("estado", ["programado", "en_curso", "terminado"])
       .order("fecha_programada")
       .order("hora_programada");
@@ -61,7 +61,11 @@ export function PaginaChoferHoy() {
     if (servsError) {
       console.error("Error al cargar servicios del chofer:", servsError.message);
     }
-    setServicios((servs as Servicio[]) ?? []);
+    const servsFormateados = (servs as Servicio[])?.map((s) => ({
+      ...s,
+      paradas: s.paradas ? [...s.paradas].sort((a, b) => a.orden - b.orden) : [],
+    })) ?? [];
+    setServicios(servsFormateados);
 
     // Consulta de últimos 7 días
     const d = new Date();
@@ -70,7 +74,7 @@ export function PaginaChoferHoy() {
 
     const { data: hist, error: histError } = await supabase
       .from("servicios")
-      .select("*, clientes!servicios_cliente_id_fkey(nombre)")
+      .select("*, clientes!servicios_cliente_id_fkey(nombre), paradas!paradas_servicio_id_fkey(*)")
       .in("estado", ["terminado", "cobrado", "facturado"])
       .gte("fecha_programada", hace7Dias)
       .order("fecha_programada", { ascending: false })
@@ -79,14 +83,18 @@ export function PaginaChoferHoy() {
     if (histError) {
       console.error("Error al cargar historial del chofer:", histError.message);
     }
-    setHistorial((hist as Servicio[]) ?? []);
+    const histFormateados = (hist as Servicio[])?.map((s) => ({
+      ...s,
+      paradas: s.paradas ? [...s.paradas].sort((a, b) => a.orden - b.orden) : [],
+    })) ?? [];
+    setHistorial(histFormateados);
   }, []);
 
   useEffect(() => {
     cargar();
   }, [cargar]);
 
-  useRealtime(["servicios", "servicio_choferes"], cargar);
+  useRealtime(["servicios", "servicio_choferes", "paradas"], cargar);
 
   async function cambiarEstado(id: string, nuevo: EstadoServicio) {
     setError(null);
@@ -120,7 +128,11 @@ export function PaginaChoferHoy() {
     }
   }
 
-  async function ejecutarTermine(servicio: Servicio, conFoto: boolean) {
+  async function ejecutarTermine(
+    servicio: Servicio,
+    conFoto: boolean,
+    ultimaParada: number | null = null
+  ) {
     setError(null);
     setGuardandoTerminado(true);
     const usuarioId = perfil?.id;
@@ -144,12 +156,21 @@ export function PaginaChoferHoy() {
         if (insertAdjError) throw insertAdjError;
       }
 
-      // Cambiar estado vía RPC
-      const { error: rpcError } = await supabase.rpc("cambiar_estado", {
-        p_servicio_id: servicio.id,
-        p_nuevo: "terminado",
-      });
-      if (rpcError) throw rpcError;
+      // Si tiene paradas, cerrar con cerrar_recorrido
+      if (servicio.paradas && servicio.paradas.length > 0) {
+        const { error: rpcError } = await supabase.rpc("cerrar_recorrido", {
+          p_servicio_id: servicio.id,
+          p_ultima_parada: ultimaParada,
+        });
+        if (rpcError) throw rpcError;
+      } else {
+        // Cambiar estado vía RPC cambiar_estado
+        const { error: rpcError } = await supabase.rpc("cambiar_estado", {
+          p_servicio_id: servicio.id,
+          p_nuevo: "terminado",
+        });
+        if (rpcError) throw rpcError;
+      }
 
       // Limpiar estados locales de finalización
       setFinalizandoId(null);
@@ -286,7 +307,7 @@ export function PaginaChoferHoy() {
                   }}
                   onSeleccionarFoto={seleccionarFotoRemito}
                   onQuitarFoto={cancelarFotoRemito}
-                  onTerminar={(conFoto) => ejecutarTermine(s, conFoto)}
+                  onTerminar={(conFoto, ultimaParada) => ejecutarTermine(s, conFoto, ultimaParada)}
                   onCobrar={() => setServicioCobrando(s)}
                 />
               ))}
@@ -321,7 +342,7 @@ export function PaginaChoferHoy() {
                 }}
                 onSeleccionarFoto={seleccionarFotoRemito}
                 onQuitarFoto={cancelarFotoRemito}
-                onTerminar={(conFoto) => ejecutarTermine(s, conFoto)}
+                onTerminar={(conFoto, ultimaParada) => ejecutarTermine(s, conFoto, ultimaParada)}
                 onCobrar={() => setServicioCobrando(s)}
               />
             ))}
@@ -378,7 +399,15 @@ export function PaginaChoferHoy() {
                   </div>
                 </div>
 
-                {(s.origen || s.destino) && (
+                {s.paradas && s.paradas.length > 0 ? (
+                  <div className="flex items-center gap-1.5 text-xs text-tinta-suave">
+                    <Route className="h-3.5 w-3.5 shrink-0 text-marca" />
+                    <span>
+                      {s.origen ?? "—"} → {s.paradas.length}{" "}
+                      {s.paradas.length === 1 ? "parada" : "paradas"}
+                    </span>
+                  </div>
+                ) : (s.origen || s.destino) && (
                   <div className="text-xs text-tinta-suave">
                     {s.origen ?? "—"} → {s.destino ?? "—"}
                   </div>
@@ -405,7 +434,7 @@ interface TarjetaServicioItemProps {
   onCancelarTerminar: () => void;
   onSeleccionarFoto: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onQuitarFoto: () => void;
-  onTerminar: (conFoto: boolean) => void;
+  onTerminar: (conFoto: boolean, ultimaParada?: number | null) => void;
   onCobrar: () => void;
 }
 
@@ -425,6 +454,16 @@ function TarjetaServicioItem({
   onCobrar,
 }: TarjetaServicioItemProps) {
   const estaFinalizando = finalizandoId === s.id;
+  const tieneParadas = Boolean(s.paradas && s.paradas.length > 0);
+  const [pasoRecorrido, setPasoRecorrido] = useState<"pregunta" | "seleccion" | "foto">("pregunta");
+  const [ultimaParadaElegida, setUltimaParadaElegida] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!estaFinalizando) {
+      setPasoRecorrido("pregunta");
+      setUltimaParadaElegida(null);
+    }
+  }, [estaFinalizando]);
 
   return (
     <Tarjeta className="flex flex-col gap-3 p-4 shadow-sm">
@@ -444,8 +483,55 @@ function TarjetaServicioItem({
         </div>
       </div>
 
-      {/* Bloque Desde / Hasta en dos líneas */}
-      {(s.origen || s.destino) && (
+      {/* Recorrido con paradas o Bloque Desde / Hasta */}
+      {tieneParadas ? (
+        <div className="flex flex-col gap-2 rounded-lg bg-fondo p-3 text-sm">
+          <div>
+            <span className="block text-xs font-medium text-tinta-suave">
+              Origen
+            </span>
+            <span className="font-medium text-tinta">{s.origen ?? "—"}</span>
+          </div>
+          <div className="mt-1 border-t border-borde/60 pt-2 flex flex-col gap-2.5">
+            <span className="block text-xs font-medium text-tinta-suave">
+              Recorrido ({s.paradas!.length} {s.paradas!.length === 1 ? "parada" : "paradas"})
+            </span>
+            {s.paradas!.map((p) => (
+              <div key={p.id ?? p.orden} className="flex items-start gap-2 text-xs">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-marca-suave text-[11px] font-bold text-marca">
+                  {p.orden}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-tinta">
+                    {p.direccion}
+                    {p.localidad && (
+                      <span className="font-normal text-tinta-suave">, {p.localidad}</span>
+                    )}
+                  </div>
+                  {p.carga && (
+                    <div className="mt-0.5 text-tinta-suave">
+                      <span className="font-medium text-tinta">Carga:</span> {p.carga}
+                      {p.carga_desde === "parada_anterior" && (
+                        <span className="italic ml-1 text-marca font-normal">
+                          (se carga en parada anterior)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {p.notas && (
+                    <div className="mt-0.5 text-tinta-suave italic">{p.notas}</div>
+                  )}
+                  {p.estado && p.estado !== "pendiente" && (
+                    <div className="mt-1">
+                      <ChipEstadoParada estado={p.estado} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (s.origen || s.destino) && (
         <div className="flex flex-col gap-2 rounded-lg bg-fondo p-3 text-sm">
           <div>
             <span className="block text-xs font-medium text-tinta-suave">
@@ -462,8 +548,8 @@ function TarjetaServicioItem({
         </div>
       )}
 
-      {/* Carga si existe */}
-      {s.carga && (
+      {/* Carga si existe (solo si no tiene paradas, ya que las paradas detallan la carga) */}
+      {!tieneParadas && s.carga && (
         <div className="flex items-center gap-2 rounded-lg bg-marca-suave/40 px-3 py-2">
           <div className="min-w-0">
             <span className="block text-xs text-tinta-suave">Carga</span>
@@ -498,96 +584,203 @@ function TarjetaServicioItem({
 
         {s.estado === "en_curso" && estaFinalizando && (
           <div className="flex flex-col gap-3 rounded-lg border border-borde bg-fondo p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-tinta">
-                Sacá una foto del remito (opcional)
-              </span>
-              <button
-                type="button"
-                onClick={onCancelarTerminar}
-                className="text-xs text-tinta-suave hover:text-peligro"
-              >
-                Cancelar
-              </button>
-            </div>
-
-            <input
-              ref={inputRemitoRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={onSeleccionarFoto}
-            />
-
-            {!fotoRemito ? (
-              <Boton
-                type="button"
-                variante="secundario"
-                className="w-full h-12"
-                onClick={() => inputRemitoRef.current?.click()}
-              >
-                <Camera className="h-5 w-5 text-marca" />
-                <span>Sacar foto</span>
-              </Boton>
-            ) : (
-              <div className="flex items-center gap-2 rounded-md border border-borde bg-superficie p-2">
-                {fotoRemitoUrl && (
-                  <img
-                    src={fotoRemitoUrl}
-                    alt="Miniatura remito"
-                    className="h-10 w-10 rounded object-cover border border-borde"
-                  />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-mono font-medium text-tinta">
-                    {fotoRemito.name}
-                  </p>
-                  <p className="text-[10px] text-ok font-semibold">Listo para subir</p>
+            {tieneParadas && pasoRecorrido === "pregunta" ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-tinta">
+                    ¿Hiciste todo el recorrido?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onCancelarTerminar}
+                    className="text-xs text-tinta-suave hover:text-peligro"
+                  >
+                    Cancelar
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={onQuitarFoto}
-                  className="p-1 text-tinta-suave hover:text-peligro"
-                  aria-label="Quitar foto"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Boton
-                type="button"
-                variante="secundario"
-                tamano="lg"
-                className="flex-1 text-xs"
-                disabled={guardandoTerminado}
-                onClick={() => onTerminar(false)}
-              >
-                Terminé sin foto
-              </Boton>
-              <Boton
-                type="button"
-                tamano="lg"
-                className="flex-1"
-                disabled={guardandoTerminado || !fotoRemito}
-                onClick={() => onTerminar(true)}
-              >
-                {guardandoTerminado ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <span>Terminé</span>
+                <p className="text-xs text-tinta-suave">
+                  El recorrido tiene {s.paradas!.length} {s.paradas!.length === 1 ? "parada" : "paradas"}.
+                </p>
+                <div className="flex flex-col gap-2 pt-1">
+                  <Boton
+                    type="button"
+                    tamano="lg"
+                    className="w-full"
+                    onClick={() => {
+                      setUltimaParadaElegida(null);
+                      setPasoRecorrido("foto");
+                    }}
+                  >
+                    Sí, recorrido completo
+                  </Boton>
+                  <Boton
+                    type="button"
+                    variante="secundario"
+                    tamano="lg"
+                    className="w-full"
+                    onClick={() => setPasoRecorrido("seleccion")}
+                  >
+                    No, llegué hasta…
+                  </Boton>
+                </div>
+              </>
+            ) : tieneParadas && pasoRecorrido === "seleccion" ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-tinta">
+                    ¿Hasta qué parada llegaste?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPasoRecorrido("pregunta")}
+                    className="text-xs text-tinta-suave hover:text-tinta"
+                  >
+                    Volver
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
+                  {s.paradas!.map((p) => (
+                    <button
+                      key={p.id ?? p.orden}
+                      type="button"
+                      onClick={() => {
+                        setUltimaParadaElegida(p.orden);
+                        setPasoRecorrido("foto");
+                      }}
+                      className="flex items-center gap-2 rounded-lg border border-borde bg-superficie p-2.5 text-left text-xs font-medium text-tinta hover:border-marca transition-colors"
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-marca-suave text-[11px] font-bold text-marca">
+                        {p.orden}
+                      </span>
+                      <span className="truncate flex-1">
+                        {p.direccion} {p.localidad ? `(${p.localidad})` : ""}
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUltimaParadaElegida(0);
+                      setPasoRecorrido("foto");
+                    }}
+                    className="mt-1 flex items-center justify-center rounded-lg border border-peligro/30 bg-peligro-suave p-2.5 text-center text-xs font-semibold text-peligro hover:bg-peligro/20 transition-colors"
+                  >
+                    No llegué a ninguna
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {tieneParadas && (
+                  <div className="flex items-center justify-between rounded-md bg-superficie px-2.5 py-1.5 border border-borde text-xs">
+                    <span className="text-tinta font-medium">
+                      {ultimaParadaElegida === null
+                        ? `Recorrido completo (${s.paradas!.length} paradas)`
+                        : ultimaParadaElegida === 0
+                        ? "No llegué a ninguna parada"
+                        : `Llegué hasta parada ${ultimaParadaElegida} de ${s.paradas!.length}`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPasoRecorrido("pregunta")}
+                      className="text-marca text-xs font-medium hover:underline"
+                    >
+                      Cambiar
+                    </button>
+                  </div>
                 )}
-              </Boton>
-            </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-tinta">
+                    Sacá una foto del remito (opcional)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onCancelarTerminar}
+                    className="text-xs text-tinta-suave hover:text-peligro"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+
+                <input
+                  ref={inputRemitoRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={onSeleccionarFoto}
+                />
+
+                {!fotoRemito ? (
+                  <Boton
+                    type="button"
+                    variante="secundario"
+                    className="w-full h-12"
+                    onClick={() => inputRemitoRef.current?.click()}
+                  >
+                    <Camera className="h-5 w-5 text-marca" />
+                    <span>Sacar foto</span>
+                  </Boton>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-md border border-borde bg-superficie p-2">
+                    {fotoRemitoUrl && (
+                      <img
+                        src={fotoRemitoUrl}
+                        alt="Miniatura remito"
+                        className="h-10 w-10 rounded object-cover border border-borde"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-mono font-medium text-tinta">
+                        {fotoRemito.name}
+                      </p>
+                      <p className="text-[10px] text-ok font-semibold">Listo para subir</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onQuitarFoto}
+                      className="p-1 text-tinta-suave hover:text-peligro"
+                      aria-label="Quitar foto"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Boton
+                    type="button"
+                    variante="secundario"
+                    tamano="lg"
+                    className="flex-1 text-xs"
+                    disabled={guardandoTerminado}
+                    onClick={() => onTerminar(false, ultimaParadaElegida)}
+                  >
+                    Terminé sin foto
+                  </Boton>
+                  <Boton
+                    type="button"
+                    tamano="lg"
+                    className="flex-1"
+                    disabled={guardandoTerminado || !fotoRemito}
+                    onClick={() => onTerminar(true, ultimaParadaElegida)}
+                  >
+                    {guardandoTerminado ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <span>Terminé</span>
+                    )}
+                  </Boton>
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {s.estado === "terminado" && (
           <div className="flex flex-col gap-2">
             <p className="text-center text-xs text-tinta-suave">
-              Completado · Cobro pendiente
+              {s.notas ? s.notas : "Completado"} · Cobro pendiente
             </p>
             <Boton
               type="button"

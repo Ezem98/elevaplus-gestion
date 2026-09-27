@@ -225,6 +225,21 @@ describe("presupuesto", () => {
 
       expect(items[0].descripcion).toBe("Traslado de autoelevador 2,5 t");
     });
+
+    it("arma el detalle del ítem listando el recorrido con paradas (§4.5)", () => {
+      const items = armarItems({
+        tipo: "traslado",
+        origen: "Burzaco",
+        monto: 300000,
+        paradas: [
+          { orden: 2, direccion: "Quilmes", carga_desde: "origen", estado: "pendiente" },
+          { orden: 1, direccion: "Lanús", carga_desde: "origen", estado: "pendiente" },
+          { orden: 3, direccion: "Avellaneda", carga_desde: "origen", estado: "pendiente" },
+        ],
+      });
+
+      expect(items[0].detalle).toBe("Burzaco → Lanús → Quilmes → Avellaneda");
+    });
   });
 
   describe("calcularTotalesPresupuesto", () => {

@@ -117,9 +117,23 @@ export function armarItems(servicio: Partial<Servicio> & {
     descripcion = `${descripcion} (servicio nocturno)`;
   }
 
-  // Detalle: origen → destino, km e ida y vuelta, vehículo, según lo que exista
+  // Detalle: recorrido con paradas u origen → destino, km e ida y vuelta, vehículo, según lo que exista
   const partesTrayecto: string[] = [];
-  if (servicio.origen && servicio.destino) {
+  if (servicio.paradas && servicio.paradas.length > 0) {
+    const puntos: string[] = [];
+    if (servicio.origen && servicio.origen.trim()) {
+      puntos.push(servicio.origen.trim());
+    }
+    const paradasOrdenadas = [...servicio.paradas].sort((a, b) => a.orden - b.orden);
+    for (const p of paradasOrdenadas) {
+      if (p.direccion && p.direccion.trim()) {
+        puntos.push(p.direccion.trim());
+      }
+    }
+    if (puntos.length > 0) {
+      partesTrayecto.push(puntos.join(" → "));
+    }
+  } else if (servicio.origen && servicio.destino) {
     partesTrayecto.push(`${servicio.origen} → ${servicio.destino}`);
   } else if (servicio.origen) {
     partesTrayecto.push(`Origen: ${servicio.origen}`);
