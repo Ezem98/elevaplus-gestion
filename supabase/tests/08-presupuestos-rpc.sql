@@ -1,6 +1,12 @@
 -- 08-presupuestos-rpc.sql: Pruebas pgTAP de las RPCs transaccionales de presupuestos
 begin;
-select plan(17);
+select plan(22);
+
+create temp table _test_rpc_counts (
+  count_antes int,
+  count_despues int
+);
+grant all on _test_rpc_counts to authenticated;
 
 do $$
 declare
@@ -14,11 +20,15 @@ declare
   v_pres_enviar record;
   v_pres_add_borrador record;
   v_pres_add_enviado record;
+  v_pres_desde record;
   v_s1 uuid;
   v_s2 uuid;
   v_s3 uuid;
   v_s_cancelado uuid;
   v_s_enviar uuid;
+  v_s_desde uuid;
+  v_count_antes int;
+  v_count_despues int;
 begin
   perform public.como_oficina();
 
@@ -172,6 +182,35 @@ begin
     )
   );
 
+  -- =========================================================================
+  -- 8. crear_presupuesto_desde_servicio: vincula servicio sin duplicarlo
+  -- =========================================================================
+  insert into servicios (
+    cliente_id,
+    tipo,
+    estado,
+    descripcion,
+    monto,
+    fecha_programada,
+    creado_por
+  ) values (
+    v_cliente_deza,
+    'traslado',
+    'presupuestado',
+    'TEST-PGTAP-Servicio-Desde',
+    75000,
+    current_date,
+    v_oficina_id
+  ) returning id into v_s_desde;
+
+  select count(*)::int into v_count_antes from servicios;
+
+  select * into v_pres_desde from public.crear_presupuesto_desde_servicio(v_s_desde);
+
+  select count(*)::int into v_count_despues from servicios;
+
+  insert into _test_rpc_counts values (v_count_antes, v_count_despues);
+
   perform public.como_postgres();
 end $$;
 
@@ -310,6 +349,49 @@ select throws_ok(
   ),
   'No se pueden agregar ítems porque el presupuesto está aceptado',
   'agregar_items_presupuesto en presupuesto aceptado es rechazado'
+);
+
+select public.como_postgres();
+
+-- 8. crear_presupuesto_desde_servicio
+select is(
+  (select count_despues from _test_rpc_counts),
+  (select count_antes from _test_rpc_counts),
+  'crear_presupuesto_desde_servicio no cambia la cantidad de servicios'
+);
+
+select is(
+  (select p.estado from presupuestos p
+   join servicios s on s.presupuesto_id = p.id
+   where s.descripcion = 'TEST-PGTAP-Servicio-Desde'),
+  'enviado'::estado_presupuesto,
+  'crear_presupuesto_desde_servicio genera presupuesto en enviado para servicio presupuestado'
+);
+
+select is(
+  (select s.presupuesto_id is not null from servicios s
+   where s.descripcion = 'TEST-PGTAP-Servicio-Desde'),
+  true,
+  'crear_presupuesto_desde_servicio asigna presupuesto_id al servicio existente'
+);
+
+select public.como_oficina();
+
+select throws_ok(
+  format(
+    $$select public.crear_presupuesto_desde_servicio('%s'::uuid)$$,
+    (select id from servicios where descripcion = 'TEST-PGTAP-Servicio-Desde')
+  ),
+  'El servicio ya tiene un presupuesto asociado',
+  'crear_presupuesto_desde_servicio falla si el servicio ya tiene un presupuesto asociado'
+);
+
+select public.como_chofer1();
+
+select throws_ok(
+  $$select public.crear_presupuesto_desde_servicio('00000000-0000-0000-0000-000000000001'::uuid)$$,
+  'No autorizado',
+  'crear_presupuesto_desde_servicio rechazado para chofer con No autorizado'
 );
 
 select public.como_postgres();

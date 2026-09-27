@@ -12,7 +12,6 @@ import {
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { FormularioCobro } from "@/features/cobros/FormularioCobro";
-import { TarjetaPresupuesto } from "@/features/presupuestos/TarjetaPresupuesto";
 import { useRealtime } from "@/hooks/use-realtime";
 import {
   calcularCantidadAlquiler,
@@ -28,7 +27,6 @@ import {
 import { supabase } from "@/lib/supabase";
 import type {
   Alquiler,
-  Empresa,
   EstadoCobro,
   EstadoServicio,
   MedioPago,
@@ -122,7 +120,6 @@ export function PaginaServicio() {
     [],
   );
   const [alquiler, setAlquiler] = useState<Alquiler | null>(null);
-  const [empresa, setEmpresa] = useState<Empresa | null>(null);
 
   // Estados de renovación
   const [servicioRenovado, setServicioRenovado] = useState<{
@@ -142,6 +139,9 @@ export function PaginaServicio() {
   const [renvMonto, setRenvMonto] = useState<number | null>(null);
   const [guardandoRenovacion, setGuardandoRenovacion] = useState(false);
   const [errorRenovacion, setErrorRenovacion] = useState<string | null>(null);
+
+  const [creandoPresupuesto, setCreandoPresupuesto] = useState(false);
+  const [errorPresupuesto, setErrorPresupuesto] = useState<string | null>(null);
 
   const [fechaProg, setFechaProg] = useState("");
   const [horaProg, setHoraProg] = useState("");
@@ -217,7 +217,6 @@ export function PaginaServicio() {
         { data: scData },
         { data: caData },
         { data: alqData },
-        { data: empData, error: empError },
         adjuntosLista,
         { data: renvData },
       ] = await Promise.all([
@@ -246,7 +245,6 @@ export function PaginaServicio() {
           .select("*")
           .eq("servicio_id", id)
           .maybeSingle(),
-        supabase.from("empresa").select("*").eq("id", 1).maybeSingle(),
         cargarAdjuntos(id),
         supabase
           .from("alquileres")
@@ -276,16 +274,7 @@ export function PaginaServicio() {
         return;
       }
 
-      if (empError) {
-        console.error(
-          "[PaginaServicio] Error al consultar tabla empresa (select):",
-          empError.message,
-          empError,
-        );
-      }
-
       setServicio(sData as Servicio);
-      setEmpresa((empData as Empresa) ?? null);
       const alqObj = (alqData as Alquiler) ?? null;
       setAlquiler(alqObj);
 
@@ -595,6 +584,30 @@ export function PaginaServicio() {
       abrirRenovar();
     }
   }, [searchParams, alquiler, puedeRenovar, servicioRenovado, abrirRenovar]);
+
+  const handleCrearPresupuestoParaServicio = async () => {
+    if (!servicio) return;
+    try {
+      setCreandoPresupuesto(true);
+      setErrorPresupuesto(null);
+
+      const { data: presCreado, error: errRpc } = await supabase.rpc(
+        "crear_presupuesto_desde_servicio",
+        {
+          p_servicio_id: servicio.id,
+        },
+      );
+
+      if (errRpc || !presCreado?.id) {
+        throw new Error(errRpc?.message || "No se pudo crear el presupuesto.");
+      }
+
+      navigate(`/presupuestos/${presCreado.id}`);
+    } catch (err: any) {
+      setErrorPresupuesto(err.message || "Error al crear presupuesto");
+      setCreandoPresupuesto(false);
+    }
+  };
 
   if (cargando) {
     return (
@@ -1739,19 +1752,49 @@ export function PaginaServicio() {
             </div>
           </Tarjeta>
 
-          {/* Tarjeta Presupuesto debajo de Datos solo si no tiene presupuesto_id (retrocompatibilidad) */}
-          {!servicio.presupuesto_id &&
-            ["consulta", "presupuestado", "aceptado"].includes(
-              servicio.estado,
-            ) && (
-              <TarjetaPresupuesto
-                servicio={servicio}
-                empresa={empresa}
-                alquiler={alquiler}
-                onActualizado={cargarDatos}
-                ocultarAcciones={mostrarProgramar || mostrarCobro}
-              />
-            )}
+          {/* Presupuesto asociado o botón para crear presupuesto */}
+          {servicio.presupuesto_id ? (
+            <Tarjeta className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-tinta">Presupuesto</h2>
+                  <p className="text-sm text-tinta-suave">
+                    Este servicio forma parte del Presupuesto #{(servicio as any).presupuestos?.numero ?? ""}
+                  </p>
+                </div>
+                <Link to={`/presupuestos/${servicio.presupuesto_id}`}>
+                  <Boton variante="secundario" className="text-xs">
+                    Ver presupuesto
+                  </Boton>
+                </Link>
+              </div>
+            </Tarjeta>
+          ) : ["consulta", "presupuestado", "aceptado"].includes(servicio.estado) ? (
+            <Tarjeta className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-tinta">Presupuesto</h2>
+                  <p className="text-sm text-tinta-suave">
+                    Este servicio no está asociado a ningún presupuesto formal.
+                  </p>
+                </div>
+                <Boton
+                  variante="primario"
+                  className="text-xs"
+                  disabled={creandoPresupuesto || (!servicio.monto && servicio.tipo !== "alquiler_periodo")}
+                  onClick={handleCrearPresupuestoParaServicio}
+                >
+                  Crear presupuesto para este servicio
+                </Boton>
+              </div>
+              {!servicio.monto && servicio.tipo !== "alquiler_periodo" && (
+                <Aviso variante="alerta">
+                  Cargá el monto para generar el presupuesto.
+                </Aviso>
+              )}
+              {errorPresupuesto && <Aviso variante="peligro">{errorPresupuesto}</Aviso>}
+            </Tarjeta>
+          ) : null}
 
           {/* Tarjeta Notas si tiene contenido */}
           {servicio.notas?.trim() && (

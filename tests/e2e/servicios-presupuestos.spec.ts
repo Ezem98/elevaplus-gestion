@@ -42,20 +42,59 @@ test.describe("Servicios y Presupuestos (E2E)", () => {
     // 2. Navegar al detalle del servicio como oficina
     await page.goto(`/servicios/${serv!.id}`);
 
-    // 3. Verificar que aparece la tarjeta de Presupuesto
+    // 3. Verificar que aparece la tarjeta de Presupuesto con botón para crear presupuesto
     const tarjetaPresupuesto = page
       .locator("div")
       .filter({ hasText: /^Presupuesto/ })
       .first();
     await expect(tarjetaPresupuesto).toBeVisible();
 
-    // 4. Verificar validez por defecto (15 días)
-    const inputValidez = page.locator("#validez_dias");
+    const botonCrear = page.getByRole("button", {
+      name: /Crear presupuesto para este servicio/i,
+    });
+    await expect(botonCrear).toBeEnabled();
+
+    // 4. Contar servicios antes de crear presupuesto
+    const { count: countAntes } = await admin
+      .from("servicios")
+      .select("*", { count: "exact", head: true });
+
+    // 5. Click en crear presupuesto y verificar redirección a /presupuestos/:id
+    await botonCrear.click();
+    await page.waitForURL(/\/presupuestos\/[a-f0-9-]+$/);
+
+    // 6. Verificar que NO se duplicó el servicio (la cantidad total es la misma)
+    const { count: countDespues } = await admin
+      .from("servicios")
+      .select("*", { count: "exact", head: true });
+    expect(countDespues).toBe(countAntes);
+
+    // 7. Verificar que el servicio existente quedó vinculado al nuevo presupuesto
+    const presIdMatch = page.url().match(/\/presupuestos\/([a-f0-9-]+)$/);
+    const presId = presIdMatch ? presIdMatch[1] : null;
+    expect(presId).not.toBeNull();
+
+    const { data: servVerif } = await admin
+      .from("servicios")
+      .select("id, presupuesto_id")
+      .eq("id", serv!.id)
+      .single();
+    expect(servVerif?.presupuesto_id).toBe(presId);
+
+    // 8. Verificar que el ítem figura en la pantalla del presupuesto
+    await expect(
+      page.getByText(`${PREFIJO}Servicio con presupuesto listo`),
+    ).toBeVisible();
+
+    // 9. Verificar validez por defecto (15 días) en el presupuesto creado
+    const inputValidez = page.locator("#cond_validez");
     await expect(inputValidez).toHaveValue("15");
 
-    // 5. Verificar que el botón Descargar PDF está activo
-    const botonPdf = page.getByRole("button", { name: /Descargar/i });
-    await expect(botonPdf).toBeEnabled();
+    // 10. Verificar que la acción de generar PDF está disponible
+    const botonPdf = page.getByRole("button", {
+      name: /Generar PDF|Descargar PDF/i,
+    });
+    await expect(botonPdf).toBeVisible();
   });
 
   test("Caso 31 (§A.3): Servicio sin monto -> los tres botones deshabilitados con aviso", async ({
@@ -89,14 +128,11 @@ test.describe("Servicios y Presupuestos (E2E)", () => {
       page.getByText("Cargá el monto para generar el presupuesto."),
     ).toBeVisible();
 
-    // 4. Verificar que los tres botones están deshabilitados
-    const botonMail = page.getByRole("button", { name: /Mail/i });
-    const botonWhatsApp = page.getByRole("button", { name: /WhatsApp/i });
-    const botonPdf = page.getByRole("button", { name: /Descargar/i });
-
-    await expect(botonMail).toBeDisabled();
-    await expect(botonWhatsApp).toBeDisabled();
-    await expect(botonPdf).toBeDisabled();
+    // 4. Verificar que el botón 'Crear presupuesto para este servicio' está deshabilitado
+    const botonCrear = page.getByRole("button", {
+      name: /Crear presupuesto para este servicio/i,
+    });
+    await expect(botonCrear).toBeDisabled();
   });
 
   test("Caso Retroactivo: Cargar servicio con fecha de hace 10 días como ya realizado y cobrado -> aparece en Todos, en Cobrados y en la semana correcta de Caja", async ({
