@@ -2,13 +2,15 @@ import { formatearPesos } from "@/lib/formato";
 import {
   armarCondiciones,
   armarItems,
-  calcularTotalesPresupuesto,
+  calcularTotalesAgrupadosPorMoneda,
   formatearFechaLarga,
   formatearNumeroPresupuesto,
 } from "@/lib/presupuesto";
 import {
   ETIQUETA_CONDICION_IVA,
+  type Cliente,
   type Empresa,
+  type Presupuesto,
   type Servicio,
 } from "@/lib/tipos";
 import fontRegular from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff?url";
@@ -299,7 +301,20 @@ const estilos = StyleSheet.create({
 
 export interface PresupuestoPDFProps {
   empresa: Empresa;
-  servicio: Servicio;
+  presupuesto?: (Partial<Presupuesto> & {
+    clientes?: Partial<Cliente> | null;
+    servicios?: Servicio[];
+  }) | null;
+  servicio?: Servicio;
+  servicios?: Servicio[];
+  cliente?: Partial<Cliente> | null;
+  prospecto?: {
+    nombre?: string | null;
+    cuit?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+  } | null;
+  numero?: number | string | null;
   validezDias?: number;
   extra?: string | null;
   fecha?: string | Date | null;
@@ -307,56 +322,97 @@ export interface PresupuestoPDFProps {
 
 export function PresupuestoPDF({
   empresa,
+  presupuesto,
   servicio,
+  servicios,
+  cliente,
+  prospecto,
+  numero,
   validezDias,
   extra,
   fecha,
 }: PresupuestoPDFProps) {
+  const listaServicios: Servicio[] =
+    servicios ??
+    presupuesto?.servicios ??
+    (servicio ? [servicio] : []);
+
   const diasValidez =
     validezDias ??
-    servicio.presupuesto_validez_dias ??
+    presupuesto?.validez_dias ??
+    servicio?.presupuesto_validez_dias ??
     empresa.presupuesto_validez_dias ??
     15;
+
   const condicionesExtra =
     extra !== undefined
       ? extra
-      : (servicio.presupuesto_condiciones ??
+      : (presupuesto?.condiciones ??
+        servicio?.presupuesto_condiciones ??
         empresa.presupuesto_condiciones_extra);
 
   const condiciones = armarCondiciones({
     empresa,
-    servicio,
+    servicios: listaServicios,
+    servicio: listaServicios[0],
     validezDias: diasValidez,
     extra: condicionesExtra,
   });
 
-  const items = armarItems(servicio);
-  const totales = calcularTotalesPresupuesto(servicio);
-  const numeroTexto = formatearNumeroPresupuesto(servicio.numero);
-  const fechaTexto = formatearFechaLarga(
-    fecha ?? servicio.presupuesto_generado_at ?? new Date(),
-  );
+  const items = listaServicios.flatMap((s) => armarItems(s));
+  const totalesPorMoneda = calcularTotalesAgrupadosPorMoneda(listaServicios);
+
+  const numeroDoc =
+    numero ?? presupuesto?.numero ?? servicio?.numero ?? 0;
+  const numeroTexto = formatearNumeroPresupuesto(numeroDoc);
+
+  const fechaDoc =
+    fecha ??
+    presupuesto?.generado_at ??
+    presupuesto?.fecha ??
+    servicio?.presupuesto_generado_at ??
+    new Date();
+  const fechaTexto = formatearFechaLarga(fechaDoc);
 
   const logoUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/icono-192.png`
       : resolverRutaEstatica("/icono-192.png");
 
-  const cliente = servicio.clientes;
-  const clienteCondicion = cliente?.condicion_iva
-    ? (ETIQUETA_CONDICION_IVA[cliente.condicion_iva] ?? cliente.condicion_iva)
+  const clienteData = cliente ?? presupuesto?.clientes ?? servicio?.clientes;
+  const prospectoData =
+    prospecto ??
+    (presupuesto?.prospecto_nombre
+      ? {
+          nombre: presupuesto.prospecto_nombre,
+          cuit: presupuesto.prospecto_cuit,
+          telefono: presupuesto.prospecto_telefono,
+          email: presupuesto.prospecto_email,
+        }
+      : null);
+
+  const nombreDestinatario =
+    clienteData?.nombre || prospectoData?.nombre || "Cliente";
+
+  const clienteCondicion = clienteData?.condicion_iva
+    ? (ETIQUETA_CONDICION_IVA[clienteData.condicion_iva] ??
+      clienteData.condicion_iva)
     : null;
 
-  const lineaCuitCondicionCliente = [
-    cliente?.cuit ? `CUIT ${cliente.cuit}` : null,
-    clienteCondicion,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const lineaCuitCondicion = clienteData
+    ? [
+        clienteData.cuit ? `CUIT ${clienteData.cuit}` : null,
+        clienteCondicion,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : prospectoData?.cuit
+      ? `CUIT ${prospectoData.cuit}`
+      : null;
 
-  const lineaDireccionCliente = [cliente?.direccion, cliente?.localidad]
-    .filter(Boolean)
-    .join(", ");
+  const lineaContacto = clienteData
+    ? [clienteData.direccion, clienteData.localidad].filter(Boolean).join(", ")
+    : [prospectoData?.telefono, prospectoData?.email].filter(Boolean).join(" · ");
 
   const contactoEmisor = [empresa.telefono, empresa.instagram, empresa.email]
     .filter(Boolean)
@@ -380,7 +436,7 @@ export function PresupuestoPDF({
           </View>
         </View>
 
-        {/* Grilla Emisor / Cliente */}
+        {/* Grilla Emisor / Cliente o Prospecto */}
         <View style={estilos.grillaInfo}>
           {/* Emisor */}
           <View style={estilos.columnaInfo}>
@@ -394,16 +450,16 @@ export function PresupuestoPDF({
             {contactoEmisor && <Text>{contactoEmisor}</Text>}
           </View>
 
-          {/* Cliente */}
+          {/* Cliente o Prospecto */}
           <View style={estilos.columnaInfo}>
             <Text style={estilos.etiquetaPara}>Para:</Text>
             <Text style={estilos.clienteRazonSocial}>
-              {cliente?.nombre || "Cliente"}
+              {nombreDestinatario}
             </Text>
-            {lineaCuitCondicionCliente && (
-              <Text>{lineaCuitCondicionCliente}</Text>
-            )}
-            {lineaDireccionCliente && <Text>{lineaDireccionCliente}</Text>}
+            {lineaCuitCondicion ? (
+              <Text>{lineaCuitCondicion}</Text>
+            ) : null}
+            {lineaContacto ? <Text>{lineaContacto}</Text> : null}
           </View>
         </View>
 
@@ -441,32 +497,64 @@ export function PresupuestoPDF({
           ))}
         </View>
 
-        {/* Totales */}
+        {/* Totales agrupados por moneda */}
         <View style={estilos.envolturaTotales}>
           <View style={estilos.cajaTotales}>
-            {servicio.aplica_iva ? (
-              <>
-                <View style={estilos.filaTotal}>
-                  <Text style={estilos.etiquetaTotal}>Subtotal neto</Text>
-                  <Text style={estilos.valorTotal}>
-                    {formatearPesos(totales.neto)}
-                  </Text>
-                </View>
-                <View style={estilos.filaTotal}>
-                  <Text style={estilos.etiquetaTotal}>IVA (21 %)</Text>
-                  <Text style={estilos.valorTotal}>
-                    {formatearPesos(totales.iva)}
-                  </Text>
-                </View>
-              </>
-            ) : null}
+            {totalesPorMoneda.ARS && (
+              <View style={{ marginBottom: totalesPorMoneda.USD ? 10 : 0 }}>
+                {totalesPorMoneda.ARS.tieneIva ? (
+                  <>
+                    <View style={estilos.filaTotal}>
+                      <Text style={estilos.etiquetaTotal}>Subtotal neto</Text>
+                      <Text style={estilos.valorTotal}>
+                        {formatearPesos(totalesPorMoneda.ARS.neto)}
+                      </Text>
+                    </View>
+                    <View style={estilos.filaTotal}>
+                      <Text style={estilos.etiquetaTotal}>IVA (21 %)</Text>
+                      <Text style={estilos.valorTotal}>
+                        {formatearPesos(totalesPorMoneda.ARS.iva)}
+                      </Text>
+                    </View>
+                  </>
+                ) : null}
 
-            <View style={estilos.filaGranTotal}>
-              <Text style={estilos.etiquetaGranTotal}>Total</Text>
-              <Text style={estilos.valorGranTotal}>
-                {formatearPesos(totales.total)}
-              </Text>
-            </View>
+                <View style={estilos.filaGranTotal}>
+                  <Text style={estilos.etiquetaGranTotal}>Total</Text>
+                  <Text style={estilos.valorGranTotal}>
+                    {formatearPesos(totalesPorMoneda.ARS.total)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {totalesPorMoneda.USD && (
+              <View>
+                {totalesPorMoneda.USD.tieneIva ? (
+                  <>
+                    <View style={estilos.filaTotal}>
+                      <Text style={estilos.etiquetaTotal}>Subtotal neto (U$S)</Text>
+                      <Text style={estilos.valorTotal}>
+                        U$S {totalesPorMoneda.USD.neto.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                    <View style={estilos.filaTotal}>
+                      <Text style={estilos.etiquetaTotal}>IVA (21 %)</Text>
+                      <Text style={estilos.valorTotal}>
+                        U$S {totalesPorMoneda.USD.iva.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  </>
+                ) : null}
+
+                <View style={estilos.filaGranTotal}>
+                  <Text style={estilos.etiquetaGranTotal}>Total U$S</Text>
+                  <Text style={estilos.valorGranTotal}>
+                    U$S {totalesPorMoneda.USD.total.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
         </View>
 

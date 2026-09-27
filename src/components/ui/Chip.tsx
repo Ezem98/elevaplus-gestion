@@ -3,6 +3,7 @@ import type {
   EstadoCheque,
   EstadoCobro,
   EstadoMovimiento,
+  EstadoPresupuesto,
   EstadoServicio,
 } from "@/lib/tipos";
 import {
@@ -10,6 +11,32 @@ import {
   ETIQUETA_ESTADO_CHEQUE,
   ETIQUETA_ESTADO_COBRO,
 } from "@/lib/tipos";
+
+export const ETIQUETA_ESTADO_PRESUPUESTO: Record<EstadoPresupuesto, string> = {
+  borrador: "Borrador",
+  enviado: "Enviado",
+  aceptado: "Aceptado",
+  rechazado: "Rechazado",
+  vencido: "Vencido",
+};
+
+const colorPresupuesto: Record<EstadoPresupuesto, string> = {
+  borrador: "bg-fondo text-tinta-suave border-borde",
+  enviado: "bg-marca-suave text-marca border-marca/20",
+  aceptado: "bg-ok-suave text-ok border-ok/20",
+  rechazado: "bg-peligro-suave text-peligro border-peligro/20",
+  vencido: "bg-alerta-suave text-alerta border-alerta/20",
+};
+
+export function ChipEstadoPresupuesto({ estado }: { estado: EstadoPresupuesto }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${colorPresupuesto[estado] ?? colorPresupuesto.borrador}`}
+    >
+      {ETIQUETA_ESTADO_PRESUPUESTO[estado] ?? estado}
+    </span>
+  );
+}
 
 const color: Record<EstadoServicio, string> = {
   consulta: "bg-fondo text-tinta-suave border-borde",

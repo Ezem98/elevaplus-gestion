@@ -17,6 +17,8 @@ import { PaginaFlota } from "@/features/flota/PaginaFlota";
 import { FormularioServicio } from "@/features/servicios/FormularioServicio";
 import { PaginaServicio } from "@/features/servicios/PaginaServicio";
 import { PaginaServicios } from "@/features/servicios/PaginaServicios";
+import { PaginaNuevoPresupuesto } from "@/features/presupuestos/PaginaNuevoPresupuesto";
+import { PaginaPresupuesto } from "@/features/presupuestos/PaginaPresupuesto";
 import { createBrowserRouter } from "react-router-dom";
 import { LayoutChofer } from "./LayoutChofer";
 import { LayoutOficina } from "./LayoutOficina";
@@ -50,6 +52,8 @@ export const router = createBrowserRouter([
           { path: "/servicios", element: <PaginaServicios /> },
           { path: "/servicios/nuevo", element: <FormularioServicio /> },
           { path: "/servicios/:id", element: <PaginaServicio /> },
+          { path: "/presupuestos/nuevo", element: <PaginaNuevoPresupuesto /> },
+          { path: "/presupuestos/:id", element: <PaginaPresupuesto /> },
           { path: "/cotizador", element: <PaginaCotizador /> },
           { path: "/clientes", element: <PaginaClientes /> },
           { path: "/clientes/nuevo", element: <FormularioCliente /> },

@@ -63,10 +63,23 @@ export function LayoutOficina() {
   const navigate = useNavigate();
   const rutasConFab = ["/", "/servicios", "/clientes"];
   const mostrarFab = rutasConFab.includes(location.pathname);
+  const searchParams = new URLSearchParams(location.search);
+  const esPestanaPresupuestos =
+    location.pathname === "/servicios" &&
+    searchParams.get("filtro") === "presupuestos";
+
   const destinoFab =
-    location.pathname === "/clientes" ? "/clientes/nuevo" : "/servicios/nuevo";
+    location.pathname === "/clientes"
+      ? "/clientes/nuevo"
+      : esPestanaPresupuestos
+        ? "/presupuestos/nuevo"
+        : "/servicios/nuevo";
   const etiquetaFab =
-    location.pathname === "/clientes" ? "Nuevo cliente" : "Nuevo servicio";
+    location.pathname === "/clientes"
+      ? "Nuevo cliente"
+      : esPestanaPresupuestos
+        ? "Nuevo presupuesto"
+        : "Nuevo servicio";
 
   const accionesMas: AccionMenu[] = [
     { texto: "Clientes", onClick: () => navigate("/clientes") },

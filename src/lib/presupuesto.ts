@@ -1,6 +1,6 @@
 import { calcularTotales, type TotalesFactura } from "./facturacion";
 import { formatearPesos } from "./formato";
-import type { Empresa, Servicio, TipoServicio } from "./tipos";
+import type { Empresa, EstadoPresupuesto, Servicio, TipoServicio } from "./tipos";
 import { ETIQUETA_TIPO, formatearUnidadPlural } from "./tipos";
 
 export interface ArmarCondicionesParams {
@@ -13,7 +13,8 @@ export interface ArmarCondicionesParams {
         | "precio_hora_espera_autoelevador"
       >
     | Partial<Empresa>;
-  servicio: Pick<Servicio, "tipo" | "aplica_iva"> | Partial<Servicio>;
+  servicio?: Pick<Servicio, "tipo" | "aplica_iva"> | Partial<Servicio>;
+  servicios?: Array<Pick<Servicio, "tipo" | "aplica_iva"> | Partial<Servicio>>;
   validezDias: number;
   extra?: string | null;
 }
@@ -34,36 +35,45 @@ export function formatearNumeroPresupuesto(numero: number | string | null | unde
 export function armarCondiciones({
   empresa,
   servicio,
+  servicios,
   validezDias,
   extra,
 }: ArmarCondicionesParams): string[] {
+  const listaServicios = servicios ?? (servicio ? [servicio] : []);
   const lineas: string[] = [];
 
   // Validez
   lineas.push(`Validez: ${validezDias} días corridos.`);
 
   // Moneda e IVA
-  if (servicio.aplica_iva) {
+  const algunoConIva = listaServicios.some((s) => s.aplica_iva);
+  if (algunoConIva) {
     lineas.push("Precios en pesos argentinos, sin IVA.");
   } else {
     lineas.push("Precios en pesos argentinos.");
   }
 
   // Forma de pago
-  if (servicio.tipo === "alquiler_periodo") {
+  const tieneAlquilerPeriodo = listaServicios.some((s) => s.tipo === "alquiler_periodo");
+  if (tieneAlquilerPeriodo) {
     lineas.push("Forma de pago: según plazo acordado.");
   } else {
     lineas.push("Forma de pago: al finalizar el servicio.");
   }
 
   // Cláusula de espera según tipo
-  if (servicio.tipo === "alquiler_hora") {
+  const tieneAlquilerHora = listaServicios.some((s) => s.tipo === "alquiler_hora");
+  const tieneTraslado = listaServicios.some((s) => s.tipo === "traslado");
+
+  if (tieneAlquilerHora) {
     if (empresa.precio_hora_espera_autoelevador != null) {
       lineas.push(`La hora de espera se cobra ${formatearPesos(empresa.precio_hora_espera_autoelevador)}.`);
     } else if (empresa.presupuesto_espera_autoelevador && empresa.presupuesto_espera_autoelevador.trim()) {
       lineas.push(empresa.presupuesto_espera_autoelevador.trim());
     }
-  } else if (servicio.tipo === "traslado") {
+  }
+
+  if (tieneTraslado) {
     if (empresa.precio_hora_espera_camion != null) {
       lineas.push(`La hora de espera del camión se cobra ${formatearPesos(empresa.precio_hora_espera_camion)}.`);
     }
@@ -194,4 +204,166 @@ export function normalizarTelefonoWhatsApp(telefono: string | null | undefined):
     local = local.slice(1);
   }
   return `549${local}`;
+}
+
+export function normalizarTelefonoComparacion(telefono: string | null | undefined): string {
+  if (!telefono) return "";
+  let d = telefono.replace(/\D/g, "");
+  if (d.startsWith("549")) d = d.slice(3);
+  else if (d.startsWith("54")) d = d.slice(2);
+  if (d.startsWith("0")) d = d.slice(1);
+  if (d.startsWith("15")) d = d.slice(2);
+  d = d.replace(/^(\d{2,4})15(\d{6,8})$/, "$1$2");
+  return d;
+}
+
+export function calcularEstadoPresupuesto(
+  presupuestoOEstado:
+    | EstadoPresupuesto
+    | { estado: EstadoPresupuesto; fecha?: string | null; validez_dias?: number | null },
+  fecha?: string,
+  validezDias?: number
+): EstadoPresupuesto {
+  if (typeof presupuestoOEstado === "object" && presupuestoOEstado !== null) {
+    return calcularEstadoPresupuesto(
+      presupuestoOEstado.estado,
+      presupuestoOEstado.fecha || new Date().toISOString().slice(0, 10),
+      presupuestoOEstado.validez_dias ?? 15
+    );
+  }
+  const estado = presupuestoOEstado;
+  if (estado !== "enviado") return estado;
+  const hoyLocal = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const f = new Date(`${fecha || hoyLocal}T00:00:00`);
+  f.setDate(f.getDate() + (validezDias || 15));
+  const vence = f.toISOString().slice(0, 10);
+  if (vence < hoyLocal) {
+    return "vencido";
+  }
+  return estado;
+}
+
+export function calcularFechaVencimiento(fecha: string, validezDias: number): string {
+  const f = new Date(`${fecha}T00:00:00`);
+  f.setDate(f.getDate() + (validezDias || 15));
+  return f.toISOString().slice(0, 10);
+}
+
+export interface CoincidenciaCliente {
+  cliente: {
+    id: string;
+    nombre: string;
+    cuit?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+    direccion?: string | null;
+    localidad?: string | null;
+  };
+  criterios: string[];
+}
+
+export function detectarCoincidenciasCliente(
+  prospecto: {
+    nombre?: string | null;
+    cuit?: string | null;
+    telefono?: string | null;
+  },
+  clientes: Array<{
+    id: string;
+    nombre: string;
+    cuit?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+    direccion?: string | null;
+    localidad?: string | null;
+  }>
+): CoincidenciaCliente[] {
+  const resultados: CoincidenciaCliente[] = [];
+  const cuitLimpio = prospecto.cuit?.replace(/\D/g, "") || "";
+  const telLimpio = normalizarTelefonoComparacion(prospecto.telefono);
+  const palabras = (prospecto.nombre || "")
+    .toLowerCase()
+    .split(/[\s,.-]+/)
+    .filter((p) => p.length >= 3);
+
+  for (const c of clientes) {
+    const criterios: string[] = [];
+
+    // 1. CUIT exacto
+    const cCuit = c.cuit?.replace(/\D/g, "") || "";
+    if (cuitLimpio && cCuit && cuitLimpio === cCuit) {
+      criterios.push("Mismo CUIT");
+    }
+
+    // 2. Teléfono normalizado
+    const cTel = normalizarTelefonoComparacion(c.telefono);
+    if (telLimpio && cTel && telLimpio.length >= 6 && cTel.length >= 6 && telLimpio === cTel) {
+      criterios.push("Mismo teléfono");
+    }
+
+    // 3. Nombre por palabras
+    const cNombre = (c.nombre || "").toLowerCase();
+    const coincidenPalabras = palabras.filter((p) => cNombre.includes(p));
+    if (coincidenPalabras.length > 0) {
+      criterios.push(`Nombre similar ("${coincidenPalabras.join('", "')}")`);
+    }
+
+    if (criterios.length > 0) {
+      resultados.push({ cliente: c, criterios });
+    }
+  }
+
+  return resultados;
+}
+
+export interface TotalesMonedaGrupo {
+  moneda: "ARS" | "USD";
+  neto: number;
+  iva: number;
+  total: number;
+  tieneIva: boolean;
+}
+
+export function calcularTotalesAgrupadosPorMoneda(
+  servicios: Array<{
+    monto: number | null;
+    aplica_iva: boolean;
+    moneda?: string | null;
+    monto_moneda?: number | null;
+  }>
+): Record<"ARS" | "USD", TotalesMonedaGrupo | null> {
+  const arsItems = servicios.filter((s) => (s.moneda || "ARS") === "ARS");
+  const usdItems = servicios.filter((s) => s.moneda === "USD");
+
+  const procesarGrupo = (
+    items: typeof servicios,
+    moneda: "ARS" | "USD"
+  ): TotalesMonedaGrupo | null => {
+    if (items.length === 0) return null;
+    let neto = 0;
+    let iva = 0;
+    let tieneIva = false;
+
+    for (const item of items) {
+      const val =
+        moneda === "USD"
+          ? Number(item.monto_moneda) || Number(item.monto) || 0
+          : Number(item.monto) || 0;
+      if (item.aplica_iva) {
+        tieneIva = true;
+        neto += val;
+        iva += Math.round(val * 0.21 * 100) / 100;
+      } else {
+        neto += val;
+      }
+    }
+
+    const total = Math.round((neto + iva) * 100) / 100;
+    return { moneda, neto, iva, total, tieneIva };
+  };
+
+  return {
+    ARS: procesarGrupo(arsItems, "ARS"),
+    USD: procesarGrupo(usdItems, "USD"),
+  };
 }

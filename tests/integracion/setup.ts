@@ -138,11 +138,25 @@ export {
 export async function limpiarRegistrosTest(prefijo: string) {
   const admin = await comoAdmin();
 
-  // 1. Obtener servicios del test
-  const { data: servs } = await admin
-    .from("servicios")
+  // Presupuestos creados por el test
+  const { data: presList } = await admin
+    .from("presupuestos")
     .select("id")
-    .ilike("descripcion", `%${prefijo}%`);
+    .or(
+      `prospecto_nombre.ilike.%${prefijo}%,condiciones.ilike.%${prefijo}%,notas.ilike.%${prefijo}%`,
+    );
+  const presIds = (presList || []).map((p) => p.id);
+
+  // 1. Obtener servicios del test (por descripción o vinculados a presupuestos del test)
+  let sQuery = admin.from("servicios").select("id");
+  if (presIds.length > 0) {
+    sQuery = sQuery.or(
+      `descripcion.ilike.%${prefijo}%,presupuesto_id.in.(${presIds.join(",")})`,
+    );
+  } else {
+    sQuery = sQuery.ilike("descripcion", `%${prefijo}%`);
+  }
+  const { data: servs } = await sQuery;
 
   const sIds = (servs || []).map((s) => s.id);
   if (sIds.length > 0) {
@@ -171,6 +185,14 @@ export async function limpiarRegistrosTest(prefijo: string) {
     // Borrar los servicios
     await admin.from("servicios").delete().in("id", sIds);
   }
+
+  // Borrar presupuestos del test
+  if (presIds.length > 0) {
+    await admin.from("presupuestos").delete().in("id", presIds);
+  }
+
+  // Borrar clientes creados por el test
+  await admin.from("clientes").delete().ilike("nombre", `%${prefijo}%`);
 
   // 2. Borrar facturas creadas por el test (notas contienen prefijo)
   await admin.from("facturas").delete().ilike("notas", `%${prefijo}%`);

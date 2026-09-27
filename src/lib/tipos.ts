@@ -276,12 +276,18 @@ export interface Servicio {
   tercerizado_id?: string | null;
   tercero_nombre?: string | null;
   costo_tercero?: number | null;
+  presupuesto_id?: string | null;
+  moneda?: string;
+  monto_moneda?: number | null;
+  cotizacion?: number | null;
+  continuacion_de?: string | null;
   presupuesto_validez_dias?: number | null;
   presupuesto_condiciones?: string | null;
   presupuesto_pdf_path?: string | null;
   presupuesto_generado_at?: string | null;
   created_at: string;
   clientes?: {
+    id?: string;
     nombre: string;
     cuit?: string | null;
     condicion_iva?: CondicionIva | null;
@@ -301,6 +307,50 @@ export interface Servicio {
     fecha?: string;
   } | null;
   alquileres?: Alquiler | null;
+  presupuestos?: {
+    id: string;
+    numero: number;
+    estado: EstadoPresupuesto;
+  } | null;
+}
+
+export type EstadoPresupuesto =
+  | "borrador"
+  | "enviado"
+  | "aceptado"
+  | "rechazado"
+  | "vencido";
+
+export interface Presupuesto {
+  id: string;
+  numero: number;
+  fecha: string;
+  estado: EstadoPresupuesto;
+  cliente_id: string | null;
+  prospecto_nombre: string | null;
+  prospecto_telefono: string | null;
+  prospecto_email: string | null;
+  prospecto_cuit: string | null;
+  validez_dias: number;
+  condiciones: string | null;
+  pdf_path: string | null;
+  generado_at: string | null;
+  enviado_at: string | null;
+  respondido_at: string | null;
+  notas: string | null;
+  creado_por: string | null;
+  created_at: string;
+  clientes?: {
+    id?: string;
+    nombre: string;
+    cuit?: string | null;
+    condicion_iva?: CondicionIva | null;
+    telefono?: string | null;
+    email?: string | null;
+    direccion?: string | null;
+    localidad?: string | null;
+  } | null;
+  servicios?: Servicio[];
 }
 
 export interface Empresa {

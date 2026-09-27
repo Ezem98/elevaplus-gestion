@@ -112,7 +112,7 @@ export function PaginaCliente() {
         acciones={
           <div className="flex flex-wrap items-center gap-2">
             <Boton onClick={() => setMostrarCobro((prev) => !prev)}>Registrar cobro</Boton>
-            <Link to={`/cotizador?cliente=${id}`}>
+            <Link to={`/presupuestos/nuevo?cliente=${id}`}>
               <Boton variante="secundario">Nuevo presupuesto</Boton>
             </Link>
             <Link to={`/servicios/nuevo?cliente=${id}`}>

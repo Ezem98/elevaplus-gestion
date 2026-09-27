@@ -36,7 +36,6 @@ interface ClienteOpcion {
 }
 
 type EstadoInicialOpcion =
-  | "presupuesto"
   | "aceptado"
   | "programado"
   | "realizado"
@@ -533,17 +532,7 @@ export function FormularioServicio() {
       }
 
       // Transiciones de estado encadenadas con cambiar_estado RPC
-      if (estadoInicial === "presupuesto") {
-        const { error: errorRpc } = await supabase.rpc("cambiar_estado", {
-          p_servicio_id: nuevoId,
-          p_nuevo: "presupuestado",
-        });
-        if (errorRpc) {
-          setErrorGuardar("No se pudo guardar el servicio. Probá de nuevo.");
-          setGuardando(false);
-          return;
-        }
-      } else if (estadoInicial === "aceptado") {
+      if (estadoInicial === "aceptado") {
         // consulta → presupuestado → aceptado
         const { error: errorRpc1 } = await supabase.rpc("cambiar_estado", {
           p_servicio_id: nuevoId,
@@ -1362,27 +1351,7 @@ export function FormularioServicio() {
             {avisoFechaPasada && (
               <Aviso variante="info">{avisoFechaPasada}</Aviso>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              <button
-                type="button"
-                onClick={() => setEstadoInicial("presupuesto")}
-                aria-pressed={estadoInicial === "presupuesto"}
-                className={`p-3 rounded-md border text-left transition-colors ${
-                  estadoInicial === "presupuesto"
-                    ? "border-marca bg-marca-suave text-marca"
-                    : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
-                }`}
-              >
-                <div
-                  className={`text-sm font-semibold ${estadoInicial === "presupuesto" ? "text-marca" : "text-tinta"}`}
-                >
-                  Presupuesto
-                </div>
-                <div className="text-xs text-tinta-suave mt-0.5">
-                  El cliente todavía no confirmó
-                </div>
-              </button>
-
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <button
                 type="button"
                 onClick={() => setEstadoInicial("aceptado")}

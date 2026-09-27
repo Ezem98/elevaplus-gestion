@@ -10,6 +10,7 @@ delete from servicio_choferes;
 delete from servicio_eventos;
 delete from alquileres;
 delete from servicios;
+delete from presupuestos;
 delete from facturas;
 delete from cobros;
 delete from cheques;

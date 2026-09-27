@@ -224,7 +224,7 @@ export function PaginaServicio() {
         supabase
           .from("servicios")
           .select(
-            "*, clientes!servicios_cliente_id_fkey(nombre, cuit, condicion_iva, telefono, email, direccion, localidad), vehiculos!servicios_vehiculo_id_fkey(nombre), maquinas!servicios_maquina_id_fkey(codigo_interno, tipo), facturas!servicios_factura_id_fkey(id, tipo, punto_venta, numero, fecha)",
+            "*, clientes!servicios_cliente_id_fkey(nombre, cuit, condicion_iva, telefono, email, direccion, localidad), vehiculos!servicios_vehiculo_id_fkey(nombre), maquinas!servicios_maquina_id_fkey(codigo_interno, tipo), facturas!servicios_factura_id_fkey(id, tipo, punto_venta, numero, fecha), presupuestos!servicios_presupuesto_id_fkey(id, numero)",
           )
           .eq("id", id)
           .single(),
@@ -858,6 +858,17 @@ export function PaginaServicio() {
             )}
             {" · "}
             {ETIQUETA_TIPO[servicio.tipo] ?? servicio.tipo}
+            {servicio.presupuesto_id && (
+              <>
+                {" · "}
+                <Link
+                  to={`/presupuestos/${servicio.presupuesto_id}`}
+                  className="hover:underline text-marca font-medium"
+                >
+                  Presupuesto #{(servicio as any).presupuestos?.numero ?? ""}
+                </Link>
+              </>
+            )}
           </>
         }
       />
@@ -1728,18 +1739,19 @@ export function PaginaServicio() {
             </div>
           </Tarjeta>
 
-          {/* Tarjeta Presupuesto debajo de Datos para consulta, presupuestado y aceptado */}
-          {["consulta", "presupuestado", "aceptado"].includes(
-            servicio.estado,
-          ) && (
-            <TarjetaPresupuesto
-              servicio={servicio}
-              empresa={empresa}
-              alquiler={alquiler}
-              onActualizado={cargarDatos}
-              ocultarAcciones={mostrarProgramar || mostrarCobro}
-            />
-          )}
+          {/* Tarjeta Presupuesto debajo de Datos solo si no tiene presupuesto_id (retrocompatibilidad) */}
+          {!servicio.presupuesto_id &&
+            ["consulta", "presupuestado", "aceptado"].includes(
+              servicio.estado,
+            ) && (
+              <TarjetaPresupuesto
+                servicio={servicio}
+                empresa={empresa}
+                alquiler={alquiler}
+                onActualizado={cargarDatos}
+                ocultarAcciones={mostrarProgramar || mostrarCobro}
+              />
+            )}
 
           {/* Tarjeta Notas si tiene contenido */}
           {servicio.notas?.trim() && (

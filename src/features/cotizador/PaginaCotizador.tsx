@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/features/auth/AuthProvider";
 import type { Vehiculo, ParametrosCotizador } from "@/lib/tipos";
 import { cotizar } from "@/lib/cotizador";
 import { formatearPesos } from "@/lib/formato";
@@ -20,11 +19,18 @@ export function PaginaCotizador() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const clienteParam = searchParams.get("cliente");
-  const { session } = useAuth();
+  const presupuestoParam = searchParams.get("presupuesto");
+  const modoParam = searchParams.get("modo");
 
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [params, setParams] = useState<ParametrosCotizador | null>(null);
   const [clientes, setClientes] = useState<ClienteOpcion[]>([]);
+  const [presupuestoAsociado, setPresupuestoAsociado] = useState<{
+    id: string;
+    numero: number;
+    cliente_id: string | null;
+    prospecto_nombre: string | null;
+  } | null>(null);
 
   const [km, setKm] = useState<string>("30");
   const [vehiculoId, setVehiculoId] = useState("");
@@ -32,6 +38,7 @@ export function PaginaCotizador() {
   const [idaYVuelta, setIdaYVuelta] = useState(true);
   const [nocturno, setNocturno] = useState(false);
   const [clienteId, setClienteId] = useState("");
+  const [prospectoNombre, setProspectoNombre] = useState("");
   const [importeManual, setImporteManual] = useState<number | null>(null);
 
   const [guardando, setGuardando] = useState(false);
@@ -67,6 +74,22 @@ export function PaginaCotizador() {
           setClienteId(clienteParam);
         }
       });
+
+    if (presupuestoParam) {
+      supabase
+        .from("presupuestos")
+        .select("id, numero, cliente_id, prospecto_nombre")
+        .eq("id", presupuestoParam)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setPresupuestoAsociado(data);
+            if (data.cliente_id) {
+              setClienteId(data.cliente_id);
+            }
+          }
+        });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -98,43 +121,88 @@ export function PaginaCotizador() {
     try {
       const descripcion = `Traslado cotizado — ${vehiculo?.nombre ?? ""}, ${km} km ${idaYVuelta ? "ida y vuelta" : "solo ida"}, carga ${cargaMayor50 ? "más" : "menos"} del 50 %${nocturno ? ", servicio nocturno" : ""}`;
 
-      const { data, error: errorInsert } = await supabase
-        .from("servicios")
-        .insert({
+      if (modoParam === "nuevo") {
+        const itemCotizado = {
+          id: crypto.randomUUID(),
           tipo: "traslado",
-          cliente_id: clienteId ? clienteId : null,
+          descripcion,
+          monto: importeFinal,
+          moneda: "ARS",
+          aplica_iva: false,
           km: Number(km) || 0,
           ida_y_vuelta: idaYVuelta,
           nocturno,
           vehiculo_id: vehiculoId || null,
-          monto: importeFinal,
-          descripcion,
-          creado_por: session?.user?.id,
-        })
-        .select("id")
-        .single();
-
-      if (errorInsert || !data?.id) {
-        setError("No se pudo crear el presupuesto. Probá de nuevo.");
-        setGuardando(false);
+        };
+        navigate("/presupuestos/nuevo", { state: { itemCotizado } });
         return;
       }
 
-      const { error: errorRpc } = await supabase.rpc("cambiar_estado", {
-        p_servicio_id: data.id,
-        p_nuevo: "presupuestado",
-        p_nota: "Presupuesto generado desde el cotizador",
+      if (presupuestoParam) {
+        const item = {
+          tipo: "traslado",
+          descripcion,
+          monto: importeFinal,
+          moneda: "ARS",
+          aplica_iva: false,
+          nocturno,
+          km: Number(km) || 0,
+          ida_y_vuelta: idaYVuelta,
+          vehiculo_id: vehiculoId || null,
+        };
+
+        const { error: errRpc } = await supabase.rpc("agregar_items_presupuesto", {
+          p_presupuesto_id: presupuestoParam,
+          p_items: [item],
+        });
+
+        if (errRpc) {
+          setError(`No se pudo agregar el traslado al presupuesto: ${errRpc.message}`);
+          setGuardando(false);
+          return;
+        }
+
+        navigate(`/presupuestos/${presupuestoParam}`);
+        return;
+      }
+
+      const hoyLocal = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+      const nomProspecto = !clienteId ? (prospectoNombre.trim() || "Prospecto cotizador") : null;
+
+      const p_datos = {
+        fecha: hoyLocal,
+        estado: "borrador",
+        cliente_id: clienteId ? clienteId : null,
+        prospecto_nombre: nomProspecto,
+        validez_dias: 15,
+      };
+
+      const item = {
+        tipo: "traslado",
+        descripcion,
+        monto: importeFinal,
+        moneda: "ARS",
+        aplica_iva: false,
+        nocturno,
+        km: Number(km) || 0,
+        ida_y_vuelta: idaYVuelta,
+        vehiculo_id: vehiculoId || null,
+      };
+
+      const { data: presCreado, error: errPres } = await supabase.rpc("crear_presupuesto", {
+        p_datos,
+        p_items: [item],
       });
 
-      if (errorRpc) {
-        setError("No se pudo crear el presupuesto. Probá de nuevo.");
+      if (errPres || !presCreado?.id) {
+        setError(`No se pudo crear el presupuesto: ${errPres?.message ?? "Error desconocido"}`);
         setGuardando(false);
         return;
       }
 
-      navigate(`/servicios/${data.id}`);
-    } catch {
-      setError("No se pudo crear el presupuesto. Probá de nuevo.");
+      navigate(`/presupuestos/${presCreado.id}`);
+    } catch (err: any) {
+      setError(`No se pudo procesar el presupuesto: ${err?.message ?? "Error desconocido"}`);
       setGuardando(false);
     }
   };
@@ -149,9 +217,11 @@ export function PaginaCotizador() {
       <EncabezadoPagina
         titulo="Cotizador"
         subtitulo={
-          clientePreseleccionado
-            ? `Presupuesto para ${clientePreseleccionado.nombre}`
-            : "Cálculo de tarifas de traslado según kilómetros y vehículo"
+          presupuestoAsociado
+            ? `Agregar traslado al Presupuesto #${presupuestoAsociado.numero}`
+            : clientePreseleccionado
+              ? `Presupuesto para ${clientePreseleccionado.nombre}`
+              : "Cálculo de tarifas de traslado según kilómetros y vehículo"
         }
       />
 
@@ -203,12 +273,22 @@ export function PaginaCotizador() {
           </fieldset>
           <Campo etiqueta="Cliente" id="cliente">
             <Selector id="cliente" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-              <option value="">Sin cliente</option>
+              <option value="">Sin cliente (prospecto)</option>
               {clientes.map((c) => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
             </Selector>
           </Campo>
+          {!clienteId && !presupuestoParam && (
+            <Campo etiqueta="Nombre del prospecto" id="prospecto">
+              <Entrada
+                id="prospecto"
+                placeholder="Ej: Juan Pérez o Empresa SRL"
+                value={prospectoNombre}
+                onChange={(e) => setProspectoNombre(e.target.value)}
+              />
+            </Campo>
+          )}
         </Tarjeta>
 
         <Tarjeta className="flex flex-col p-5">
@@ -272,7 +352,9 @@ export function PaginaCotizador() {
               disabled={importeFinal == null || guardando}
               onClick={handleCrearPresupuesto}
             >
-              Crear presupuesto por {formatearPesos(importeFinal)}
+              {modoParam === "nuevo" || presupuestoParam
+                ? `Agregar al presupuesto por ${formatearPesos(importeFinal)}`
+                : `Crear presupuesto por ${formatearPesos(importeFinal)}`}
             </Boton>
             {error && (
               <p className="mt-2 text-sm text-peligro">{error}</p>

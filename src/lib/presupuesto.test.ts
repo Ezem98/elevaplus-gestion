@@ -3,9 +3,14 @@ import { formatearPesos } from "./formato";
 import {
   armarCondiciones,
   armarItems,
+  calcularEstadoPresupuesto,
+  calcularFechaVencimiento,
+  calcularTotalesAgrupadosPorMoneda,
   calcularTotalesPresupuesto,
+  detectarCoincidenciasCliente,
   formatearFechaLarga,
   formatearNumeroPresupuesto,
+  normalizarTelefonoComparacion,
   normalizarTelefonoWhatsApp,
 } from "./presupuesto";
 import type { Empresa } from "./tipos";
@@ -260,6 +265,109 @@ describe("presupuesto", () => {
   describe("formatearFechaLarga", () => {
     it("formatea fecha en formato largo en español", () => {
       expect(formatearFechaLarga("2026-09-08")).toBe("8 de septiembre de 2026");
+    });
+  });
+
+  describe("normalizarTelefonoComparacion", () => {
+    it("remueve prefijo 549, 54, 0 y 15 y caracteres no numéricos", () => {
+      expect(normalizarTelefonoComparacion("+54 9 11 3276-5635")).toBe("1132765635");
+      expect(normalizarTelefonoComparacion("011 15 3276-5635")).toBe("1132765635");
+      expect(normalizarTelefonoComparacion("11 3276-5635")).toBe("1132765635");
+      expect(normalizarTelefonoComparacion("15-3276-5635")).toBe("32765635");
+      expect(normalizarTelefonoComparacion("0221 15 456-7890")).toBe("2214567890");
+      expect(normalizarTelefonoComparacion("221 456-7890")).toBe("2214567890");
+      expect(normalizarTelefonoComparacion(null)).toBe("");
+      expect(normalizarTelefonoComparacion("")).toBe("");
+    });
+  });
+
+  describe("calcularEstadoPresupuesto", () => {
+    it("retorna vencido solo si el estado es enviado y la fecha de vencimiento ya pasó", () => {
+      // Fecha en el pasado lejano
+      expect(calcularEstadoPresupuesto("enviado", "2026-01-01", 15)).toBe("vencido");
+      // Fecha en el futuro
+      expect(calcularEstadoPresupuesto("enviado", "2099-01-01", 15)).toBe("enviado");
+      // Otros estados no cambian aunque la fecha haya pasado
+      expect(calcularEstadoPresupuesto("borrador", "2026-01-01", 15)).toBe("borrador");
+      expect(calcularEstadoPresupuesto("aceptado", "2026-01-01", 15)).toBe("aceptado");
+      expect(calcularEstadoPresupuesto("rechazado", "2026-01-01", 15)).toBe("rechazado");
+    });
+  });
+
+  describe("calcularFechaVencimiento", () => {
+    it("suma los días de validez a la fecha", () => {
+      expect(calcularFechaVencimiento("2026-09-10", 15)).toBe("2026-09-25");
+      expect(calcularFechaVencimiento("2026-09-10", 7)).toBe("2026-09-17");
+    });
+  });
+
+  describe("detectarCoincidenciasCliente", () => {
+    const clientesBase = [
+      {
+        id: "c-1",
+        nombre: "Transportes Deza S.A.",
+        cuit: "30-71234567-8",
+        telefono: "011 4242-1234",
+        email: "contacto@deza.com",
+      },
+      {
+        id: "c-2",
+        nombre: "Juan Perez Logística",
+        cuit: "20-33445566-9",
+        telefono: "+54 9 11 5566-7788",
+        email: "juan@perez.com",
+      },
+    ];
+
+    it("detecta coincidencia por CUIT exacto", () => {
+      const matches = detectarCoincidenciasCliente(
+        { nombre: "Otra Empresa", cuit: "30712345678" },
+        clientesBase,
+      );
+      expect(matches).toHaveLength(1);
+      expect(matches[0].cliente.id).toBe("c-1");
+      expect(matches[0].criterios).toContain("Mismo CUIT");
+    });
+
+    it("detecta coincidencia por teléfono normalizado", () => {
+      const matches = detectarCoincidenciasCliente(
+        { nombre: "Nuevo", telefono: "111555667788" },
+        clientesBase,
+      );
+      expect(matches).toHaveLength(1);
+      expect(matches[0].cliente.id).toBe("c-2");
+      expect(matches[0].criterios).toContain("Mismo teléfono");
+    });
+
+    it("detecta coincidencia por palabras en el nombre", () => {
+      const matches = detectarCoincidenciasCliente(
+        { nombre: "Deza Construcciones" },
+        clientesBase,
+      );
+      expect(matches).toHaveLength(1);
+      expect(matches[0].cliente.id).toBe("c-1");
+      expect(matches[0].criterios[0]).toContain("Nombre similar");
+    });
+  });
+
+  describe("calcularTotalesAgrupadosPorMoneda", () => {
+    it("agrupa totales de ítems en pesos y dólares sin sumarlos", () => {
+      const servicios = [
+        { monto: 50000, aplica_iva: true, moneda: "ARS" },
+        { monto: 30000, aplica_iva: false, moneda: "ARS" },
+        { monto: 1200000, monto_moneda: 1000, aplica_iva: true, moneda: "USD" },
+      ];
+
+      const res = calcularTotalesAgrupadosPorMoneda(servicios);
+      expect(res.ARS).toBeDefined();
+      expect(res.ARS?.neto).toBe(80000);
+      expect(res.ARS?.iva).toBe(10500); // 21% de 50000
+      expect(res.ARS?.total).toBe(90500);
+
+      expect(res.USD).toBeDefined();
+      expect(res.USD?.neto).toBe(1000);
+      expect(res.USD?.iva).toBe(210); // 21% de 1000
+      expect(res.USD?.total).toBe(1210);
     });
   });
 });
