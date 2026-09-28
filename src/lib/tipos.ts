@@ -288,6 +288,8 @@ export interface Servicio {
   vehiculo_id: string | null;
   maquina_id: string | null;
   monto: number | null;
+  seguro_importe?: number | null;
+  monto_seguro?: number | null;
   aplica_iva: boolean;
   monto_cobrado: number;
   remito: string | null;

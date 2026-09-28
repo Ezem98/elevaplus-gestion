@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { PUNTO_VENTA_DEFAULT } from "@/lib/config";
-import { formatearPesos } from "@/lib/formato";
+import { formatearMontoEntrada, formatearPesos } from "@/lib/formato";
 import { sugerirTipoFactura, calcularTotales } from "@/lib/facturacion";
 import type { CondicionIva, Servicio, TipoFactura } from "@/lib/tipos";
 import { ETIQUETA_CONDICION_IVA, ETIQUETA_TIPO } from "@/lib/tipos";
@@ -109,9 +109,26 @@ export function FormularioFactura({
   const faltaCuitParaA = tipo === "A" && (!cliente.cuit || !cliente.cuit.trim());
 
   const handleCopiarArca = async () => {
-    const lineasServicios = serviciosEfectivos.map((s) => {
-      const desc = s.descripcion?.trim() || `${ETIQUETA_TIPO[s.tipo]} #${s.numero}`;
-      return `${desc} — ${formatearPesos(s.monto)}`;
+    const lineasServicios = serviciosEfectivos.flatMap((s) => {
+      const totalMonto = Number(s.monto) || 0;
+      const montoSeguro = Number(s.monto_seguro) || 0;
+      const tieneSeguro = s.tipo === "traslado" && montoSeguro > 0;
+
+      if (tieneSeguro) {
+        const montoBase = Math.round((totalMonto - montoSeguro) * 100) / 100;
+        const seguroImp =
+          s.seguro_importe != null ? s.seguro_importe : montoSeguro;
+        const descBase =
+          s.descripcion?.trim() || `${ETIQUETA_TIPO[s.tipo]} #${s.numero}`;
+        return [
+          `${descBase} — ${formatearPesos(montoBase)}`,
+          `Seguro de carga (IVA incluido: $ ${formatearMontoEntrada(seguroImp)}) — ${formatearPesos(montoSeguro)}`,
+        ];
+      }
+
+      const desc =
+        s.descripcion?.trim() || `${ETIQUETA_TIPO[s.tipo]} #${s.numero}`;
+      return [`${desc} — ${formatearPesos(s.monto)}`];
     });
 
     const texto = [
@@ -230,9 +247,16 @@ export function FormularioFactura({
                 key={s.id}
                 className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
               >
-                <span className="truncate text-tinta font-medium">
-                  #{s.numero} · {s.descripcion || ETIQUETA_TIPO[s.tipo]}
-                </span>
+                <div>
+                  <span className="truncate text-tinta font-medium block">
+                    #{s.numero} · {s.descripcion || ETIQUETA_TIPO[s.tipo]}
+                  </span>
+                  {s.seguro_importe && (
+                    <span className="text-xs text-tinta-suave block">
+                      incluye seguro $ {formatearMontoEntrada(s.seguro_importe)}
+                    </span>
+                  )}
+                </div>
                 {esUsd ? (
                   <div className="flex flex-wrap items-center gap-2 text-sm shrink-0">
                     <span className="tabular-nums font-semibold text-tinta">

@@ -1,5 +1,5 @@
 import { calcularTotales, type TotalesFactura } from "./facturacion";
-import { formatearPesos } from "./formato";
+import { formatearMontoEntrada, formatearPesos } from "./formato";
 import type { Empresa, EstadoPresupuesto, Servicio, TipoServicio } from "./tipos";
 import { ETIQUETA_TIPO, formatearUnidadPlural } from "./tipos";
 
@@ -195,16 +195,41 @@ export function armarItems(servicio: Partial<Servicio> & {
     detalle = servicio.descripcion.trim();
   }
 
-  return [
-    {
-      descripcion,
-      detalle,
-      cantidad,
-      precioUnitario,
-      importe,
+  const itemPrincipal: ItemPresupuesto = {
+    descripcion,
+    detalle,
+    cantidad,
+    precioUnitario,
+    importe,
+    ...(servicio.moneda ? { moneda: servicio.moneda } : {}),
+  };
+
+  if (
+    servicio.tipo === "traslado" &&
+    servicio.monto_seguro != null &&
+    Number(servicio.monto_seguro) > 0
+  ) {
+    const montoSeguro = Number(servicio.monto_seguro);
+    const montoServicio = Math.round((importe - montoSeguro) * 100) / 100;
+    const itemServicio: ItemPresupuesto = {
+      ...itemPrincipal,
+      precioUnitario: montoServicio,
+      importe: montoServicio,
+    };
+    const seguroImporteValor =
+      servicio.seguro_importe != null ? servicio.seguro_importe : montoSeguro;
+    const itemSeguro: ItemPresupuesto = {
+      descripcion: `Seguro de carga (IVA incluido: $ ${formatearMontoEntrada(seguroImporteValor)})`,
+      detalle: "",
+      cantidad: "1",
+      precioUnitario: montoSeguro,
+      importe: montoSeguro,
       ...(servicio.moneda ? { moneda: servicio.moneda } : {}),
-    },
-  ];
+    };
+    return [itemServicio, itemSeguro];
+  }
+
+  return [itemPrincipal];
 }
 
 export function calcularTotalesPresupuesto(

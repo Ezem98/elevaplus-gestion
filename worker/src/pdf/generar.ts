@@ -27,6 +27,18 @@ export async function renderizarPdfFactura(
   return await streamToBuffer(stream as any);
 }
 
+function formatearMontoSimple(numero: number | null | undefined): string {
+  if (numero == null || isNaN(numero)) return "";
+  const partes = numero.toString().split(".");
+  const enteroStr = partes[0];
+  const decimalStr = partes[1] ? partes[1].slice(0, 2) : "";
+  const enteroFormateado = enteroStr.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  if (decimalStr.length > 0) {
+    return `${enteroFormateado},${decimalStr}`;
+  }
+  return enteroFormateado;
+}
+
 /**
  * Genera el PDF completo con QR, lo sube a Supabase Storage y actualiza facturas.pdf_path.
  */
@@ -54,7 +66,7 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
   const { data: servicios } = await supabaseAdmin
     .from("servicios")
     .select(
-      "id, numero, descripcion, monto, aplica_iva, fecha_programada, fecha_fin",
+      "id, numero, tipo, descripcion, monto, seguro_importe, monto_seguro, aplica_iva, fecha_programada, fecha_fin",
     )
     .eq("factura_id", facturaId);
 
@@ -93,13 +105,41 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
   });
 
   // 5. Mapear items
-  const items: ItemFacturaPDF[] = (servicios || []).map((s) => ({
-    numeroServicio: s.numero,
-    fecha: s.fecha_fin || s.fecha_programada,
-    descripcion: s.descripcion || `Servicio #${s.numero}`,
-    monto: Number(s.monto) || 0,
-    aplicaIva: s.aplica_iva !== false,
-  }));
+  const items: ItemFacturaPDF[] = [];
+  for (const s of servicios || []) {
+    const totalMonto = Number(s.monto) || 0;
+    const montoSeguro = Number(s.monto_seguro) || 0;
+    const tieneSeguro = s.tipo === "traslado" && montoSeguro > 0;
+
+    if (tieneSeguro) {
+      const montoBase = Math.round((totalMonto - montoSeguro) * 100) / 100;
+      const seguroImp =
+        s.seguro_importe != null ? s.seguro_importe : montoSeguro;
+      const seguroImpStr = formatearMontoSimple(seguroImp);
+      items.push({
+        numeroServicio: s.numero,
+        fecha: s.fecha_fin || s.fecha_programada,
+        descripcion: s.descripcion || `Servicio #${s.numero}`,
+        monto: montoBase,
+        aplicaIva: s.aplica_iva !== false,
+      });
+      items.push({
+        numeroServicio: s.numero,
+        fecha: s.fecha_fin || s.fecha_programada,
+        descripcion: `Seguro de carga (IVA incluido: $ ${seguroImpStr})`,
+        monto: montoSeguro,
+        aplicaIva: s.aplica_iva !== false,
+      });
+    } else {
+      items.push({
+        numeroServicio: s.numero,
+        fecha: s.fecha_fin || s.fecha_programada,
+        descripcion: s.descripcion || `Servicio #${s.numero}`,
+        monto: totalMonto,
+        aplicaIva: s.aplica_iva !== false,
+      });
+    }
+  }
 
   const props: FacturaPDFProps = {
     tipo: factura.tipo,

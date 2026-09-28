@@ -45,7 +45,8 @@ import {
   normalizarTelefonoWhatsApp,
   type CoincidenciaCliente,
 } from "@/lib/presupuesto";
-import { formatearFecha, formatearPesos } from "@/lib/formato";
+import { formatearFecha, formatearMontoEntrada, formatearPesos } from "@/lib/formato";
+import { netoSeguro } from "@/lib/seguro";
 import { PresupuestoPDF } from "./PresupuestoPDF";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { Tarjeta } from "@/components/ui/Tarjeta";
@@ -86,6 +87,9 @@ export function PaginaPresupuesto() {
   const [itemTipo, setItemTipo] = useState<TipoServicio>("traslado");
   const [itemDescripcion, setItemDescripcion] = useState("");
   const [itemMonto, setItemMonto] = useState<number | null>(null);
+  const [itemCargaAsegurada, setItemCargaAsegurada] = useState(false);
+  const [itemSeguroImporte, setItemSeguroImporte] = useState<number | null>(null);
+  const [itemPrecioServicio, setItemPrecioServicio] = useState<number | null>(null);
   const [itemAplicaIva, setItemAplicaIva] = useState(true);
   const [itemNocturno, setItemNocturno] = useState(false);
   const [itemOrigen, setItemOrigen] = useState("");
@@ -551,6 +555,8 @@ export function PaginaPresupuesto() {
 
     let montoFinal = itemMonto;
     let alqDatos = null;
+    let seguroImporteFinal: number | null = null;
+    let montoSeguroFinal: number | null = null;
 
     if (itemTipo === "traslado" && itemParadas.length > 0) {
       for (let i = 0; i < itemParadas.length; i++) {
@@ -578,6 +584,19 @@ export function PaginaPresupuesto() {
         cantidad: alqCantidad,
         precio_unidad: alqPrecioUnidad,
       };
+    } else if (itemTipo === "traslado" && itemCargaAsegurada) {
+      const precio = itemPrecioServicio ?? itemMonto ?? 0;
+      if (precio <= 0) {
+        setErrorItem("Ingresá un precio de servicio mayor a cero.");
+        return;
+      }
+      if (!itemSeguroImporte || itemSeguroImporte <= 0) {
+        setErrorItem("Ingresá el importe del seguro mayor a cero.");
+        return;
+      }
+      seguroImporteFinal = itemSeguroImporte;
+      montoSeguroFinal = netoSeguro(itemSeguroImporte, itemAplicaIva);
+      montoFinal = Math.round((precio + montoSeguroFinal) * 100) / 100;
     } else {
       if (montoFinal == null || montoFinal <= 0) {
         setErrorItem("Ingresá un monto mayor a cero.");
@@ -605,6 +624,8 @@ export function PaginaPresupuesto() {
         fecha_programada: itemFechaProg || null,
         hora_programada: itemHoraProg || null,
         maquina_id: itemMaquinaId || null,
+        seguro_importe: seguroImporteFinal,
+        monto_seguro: montoSeguroFinal,
         paradas:
           itemTipo === "traslado" && itemParadas.length > 0
             ? itemParadas.map((p, idx) => ({
@@ -629,6 +650,9 @@ export function PaginaPresupuesto() {
       setMostrarAgregarItem(false);
       setItemDescripcion("");
       setItemMonto(null);
+      setItemCargaAsegurada(false);
+      setItemSeguroImporte(null);
+      setItemPrecioServicio(null);
       setItemOrigen("");
       setItemDestino("");
       setItemKm(null);
@@ -1017,6 +1041,11 @@ export function PaginaPresupuesto() {
                         ? `U$S ${s.monto_moneda ?? s.monto}`
                         : formatearPesos(s.monto)}
                     </div>
+                    {s.seguro_importe && (
+                      <div className="text-xs text-tinta-suave">
+                        incluye seguro $ {formatearMontoEntrada(s.seguro_importe)}
+                      </div>
+                    )}
                     {s.aplica_iva && (
                       <div className="text-[10px] text-tinta-suave">+ IVA</div>
                     )}
@@ -1065,6 +1094,9 @@ export function PaginaPresupuesto() {
                       setItemTipo(nuevoTipo);
                       if (nuevoTipo !== "traslado") {
                         setItemParadas([]);
+                        setItemCargaAsegurada(false);
+                        setItemSeguroImporte(null);
+                        setItemPrecioServicio(null);
                       }
                     }}
                   >
@@ -1389,15 +1421,75 @@ export function PaginaPresupuesto() {
                     </Campo>
                   </div>
                   <div>
-                    <Campo etiqueta="Monto ($)" id="ni_monto">
+                    <Campo
+                      etiqueta={
+                        itemTipo === "traslado" && itemCargaAsegurada
+                          ? "Precio del servicio"
+                          : "Monto ($)"
+                      }
+                      id="ni_monto"
+                    >
                       <EntradaMonto
                         id="ni_monto"
-                        valor={itemMonto}
-                        onChange={setItemMonto}
+                        valor={
+                          itemTipo === "traslado"
+                            ? (itemPrecioServicio ?? itemMonto)
+                            : itemMonto
+                        }
+                        onChange={(val) => {
+                          if (itemTipo === "traslado") {
+                            setItemPrecioServicio(val);
+                          }
+                          setItemMonto(val);
+                        }}
                       />
                     </Campo>
                   </div>
                 </>
+              )}
+
+              {itemTipo === "traslado" && (
+                <div className="sm:col-span-2 space-y-3">
+                  <div className="flex items-center min-h-[44px]">
+                    <label
+                      htmlFor="ni_carga_asegurada"
+                      className="min-h-[44px] flex items-center gap-2.5 text-sm font-medium text-tinta cursor-pointer select-none"
+                    >
+                      <input
+                        id="ni_carga_asegurada"
+                        type="checkbox"
+                        checked={itemCargaAsegurada}
+                        onChange={(e) => {
+                          const act = e.target.checked;
+                          setItemCargaAsegurada(act);
+                          if (!act) setItemSeguroImporte(null);
+                        }}
+                        className="size-4 rounded border-borde text-marca focus:ring-marca cursor-pointer"
+                      />
+                      Carga asegurada
+                    </label>
+                  </div>
+
+                  {itemCargaAsegurada && (
+                    <Campo
+                      etiqueta="Importe del seguro (el que pasa la aseguradora) *"
+                      id="ni_seguro_importe"
+                    >
+                      <EntradaMonto
+                        id="ni_seguro_importe"
+                        valor={itemSeguroImporte}
+                        onChange={setItemSeguroImporte}
+                        placeholder="0"
+                      />
+                    </Campo>
+                  )}
+
+                  {itemCargaAsegurada && (
+                    <div className="rounded-md bg-fondo p-3 text-sm text-tinta border border-borde">
+                      Total: servicio $ {formatearMontoEntrada(itemPrecioServicio || 0)} + seguro $ {formatearMontoEntrada(itemSeguroImporte || 0)}
+                    </div>
+                  )}
+                </div>
               )}
 
               <div className="sm:col-span-2 flex flex-wrap gap-6 pt-2">
@@ -1427,7 +1519,12 @@ export function PaginaPresupuesto() {
               <Boton
                 type="button"
                 variante="secundario"
-                onClick={() => setMostrarAgregarItem(false)}
+                onClick={() => {
+                  setMostrarAgregarItem(false);
+                  setItemCargaAsegurada(false);
+                  setItemSeguroImporte(null);
+                  setItemPrecioServicio(null);
+                }}
                 disabled={guardandoItem}
               >
                 Cancelar

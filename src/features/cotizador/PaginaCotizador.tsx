@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import type { Vehiculo, ParametrosCotizador } from "@/lib/tipos";
 import { cotizar } from "@/lib/cotizador";
-import { formatearPesos } from "@/lib/formato";
+import { formatearMontoEntrada, formatearPesos } from "@/lib/formato";
+import { netoSeguro } from "@/lib/seguro";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Campo, Entrada, Selector } from "@/components/ui/Campo";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
@@ -40,6 +41,8 @@ export function PaginaCotizador() {
   const [clienteId, setClienteId] = useState("");
   const [prospectoNombre, setProspectoNombre] = useState("");
   const [importeManual, setImporteManual] = useState<number | null>(null);
+  const [cargaAsegurada, setCargaAsegurada] = useState(false);
+  const [seguroImporte, setSeguroImporte] = useState<number | null>(null);
 
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,10 +114,23 @@ export function PaginaCotizador() {
     );
   }, [km, vehiculo, cargaMayor50, idaYVuelta, nocturno, params]);
 
-  const importeFinal = importeManual != null ? importeManual : desglose?.importe ?? null;
+  const precioServicio =
+    importeManual != null ? importeManual : desglose?.importe ?? null;
+  const montoSeguroCalc =
+    cargaAsegurada && seguroImporte && seguroImporte > 0
+      ? netoSeguro(seguroImporte, false)
+      : 0;
+  const importeFinal =
+    precioServicio != null ? precioServicio + montoSeguroCalc : null;
 
   const handleCrearPresupuesto = async () => {
     if (importeFinal == null) return;
+    if (cargaAsegurada && (!seguroImporte || seguroImporte <= 0)) {
+      setError(
+        "Ingresá el importe del seguro o desactivá la carga asegurada.",
+      );
+      return;
+    }
     setGuardando(true);
     setError(null);
 
@@ -133,6 +149,10 @@ export function PaginaCotizador() {
           ida_y_vuelta: idaYVuelta,
           nocturno,
           vehiculo_id: vehiculoId || null,
+          seguro_importe:
+            cargaAsegurada && seguroImporte ? seguroImporte : null,
+          monto_seguro:
+            cargaAsegurada && seguroImporte ? montoSeguroCalc : null,
         };
         navigate("/presupuestos/nuevo", { state: { itemCotizado } });
         return;
@@ -149,6 +169,10 @@ export function PaginaCotizador() {
           km: Number(km) || 0,
           ida_y_vuelta: idaYVuelta,
           vehiculo_id: vehiculoId || null,
+          seguro_importe:
+            cargaAsegurada && seguroImporte ? seguroImporte : null,
+          monto_seguro:
+            cargaAsegurada && seguroImporte ? montoSeguroCalc : null,
         };
 
         const { error: errRpc } = await supabase.rpc("agregar_items_presupuesto", {
@@ -187,6 +211,10 @@ export function PaginaCotizador() {
         km: Number(km) || 0,
         ida_y_vuelta: idaYVuelta,
         vehiculo_id: vehiculoId || null,
+        seguro_importe:
+          cargaAsegurada && seguroImporte ? seguroImporte : null,
+        monto_seguro:
+          cargaAsegurada && seguroImporte ? montoSeguroCalc : null,
       };
 
       const { data: presCreado, error: errPres } = await supabase.rpc("crear_presupuesto", {
@@ -337,16 +365,69 @@ export function PaginaCotizador() {
             </div>
           )}
 
-          <div className="mt-auto pt-5">
-            <Campo etiqueta="Ajustar a mano (opcional)" id="manual">
-              <EntradaMonto
+          <div className="mt-auto pt-5 space-y-3">
+            <div className="flex items-center min-h-[44px]">
+              <label
+                htmlFor="cotizador_carga_asegurada"
+                className="min-h-[44px] flex items-center gap-2.5 text-sm font-medium text-tinta cursor-pointer select-none"
+              >
+                <input
+                  id="cotizador_carga_asegurada"
+                  type="checkbox"
+                  checked={cargaAsegurada}
+                  onChange={(e) => {
+                    const act = e.target.checked;
+                    setCargaAsegurada(act);
+                    if (!act) setSeguroImporte(null);
+                  }}
+                  className="size-4 rounded border-borde text-marca focus:ring-marca cursor-pointer"
+                />
+                Carga asegurada
+              </label>
+            </div>
+
+            {cargaAsegurada && (
+              <Campo
+                etiqueta="Importe del seguro (el que pasa la aseguradora) *"
+                id="seguro_importe"
+              >
+                <EntradaMonto
+                  id="seguro_importe"
+                  valor={seguroImporte}
+                  onChange={setSeguroImporte}
+                  placeholder="0"
+                />
+              </Campo>
+            )}
+
+            <div>
+              <Campo
+                etiqueta={
+                  cargaAsegurada
+                    ? "Precio del servicio"
+                    : "Ajustar a mano (opcional)"
+                }
                 id="manual"
-                placeholder={desglose ? String(desglose.importe) : ""}
-                valor={importeManual}
-                onChange={setImporteManual}
-              />
-            </Campo>
-            <p className="mt-1 text-xs text-tinta-suave">Podés redondear o ingresar un valor acordado</p>
+              >
+                <EntradaMonto
+                  id="manual"
+                  placeholder={desglose ? String(desglose.importe) : ""}
+                  valor={importeManual}
+                  onChange={setImporteManual}
+                />
+              </Campo>
+              {!cargaAsegurada && (
+                <p className="mt-1 text-xs text-tinta-suave">
+                  Podés redondear o ingresar un valor acordado
+                </p>
+              )}
+            </div>
+
+            {cargaAsegurada && (
+              <div className="rounded-md bg-fondo p-3 text-sm text-tinta border border-borde">
+                Total: servicio $ {formatearMontoEntrada(precioServicio || 0)} + seguro $ {formatearMontoEntrada(seguroImporte || 0)}
+              </div>
+            )}
             <Boton
               className="mt-3 w-full"
               disabled={importeFinal == null || guardando}

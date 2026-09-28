@@ -24,6 +24,7 @@ import type {
   EstadoMovimiento,
   MovimientoCaja,
   SaldoCuenta,
+  TipoComprobanteCompra,
   TipoMovimiento,
 } from "@/lib/tipos";
 import {
@@ -96,6 +97,11 @@ export function PaginaCaja() {
   const pestanaActiva = normalizarPestana(searchParams.get("tab"));
   const ambitoFiltro = normalizarAmbito(searchParams.get("ambito"));
 
+  const nuevoParam = searchParams.get("nuevo");
+  const categoriaParam = searchParams.get("categoria");
+  const comprobanteParam = searchParams.get("comprobante");
+  const montoParam = searchParams.get("monto");
+
   // Período de Resumen (Semana · Mes)
   const periodoModo = normalizarPeriodo(searchParams.get("periodo"));
   const desdeParam = searchParams.get("desde");
@@ -136,10 +142,17 @@ export function PaginaCaja() {
 
   // Formulario inline
   const [tipoFormulario, setTipoFormulario] = useState<TipoMovimiento | null>(
-    null,
+    () => (nuevoParam as TipoMovimiento) || (categoriaParam ? "egreso" : null),
   );
   const [movimientoAEditar, setMovimientoAEditar] =
     useState<MovimientoCaja | null>(null);
+
+  useEffect(() => {
+    if (nuevoParam || categoriaParam) {
+      setTipoFormulario((nuevoParam as TipoMovimiento) || "egreso");
+      setMovimientoAEditar(null);
+    }
+  }, [nuevoParam, categoriaParam]);
 
   // Edición inline de saldo inicial en Cuentas
   const [editandoCuentaId, setEditandoCuentaId] = useState<string | null>(null);
@@ -890,21 +903,45 @@ export function PaginaCaja() {
           ambitoInicial={
             movimientoAEditar
               ? movimientoAEditar.ambito
-              : ambitoFiltro === "empresa"
+              : categoriaParam
                 ? "empresa"
-                : ambitoFiltro === "personal"
-                  ? "personal"
-                  : null
+                : ambitoFiltro === "empresa"
+                  ? "empresa"
+                  : ambitoFiltro === "personal"
+                    ? "personal"
+                    : null
           }
+          categoriaNombreInicial={categoriaParam || undefined}
+          tieneFacturaInicial={comprobanteParam ? true : undefined}
+          comprobanteTipoInicial={
+            (comprobanteParam as TipoComprobanteCompra) || undefined
+          }
+          montoInicial={montoParam ? Number(montoParam) : undefined}
           movimientoAEditar={movimientoAEditar}
           onGuardado={() => {
             setTipoFormulario(null);
             setMovimientoAEditar(null);
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete("nuevo");
+              next.delete("categoria");
+              next.delete("comprobante");
+              next.delete("monto");
+              return next;
+            });
             cargarDatos();
           }}
           onCancelar={() => {
             setTipoFormulario(null);
             setMovimientoAEditar(null);
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete("nuevo");
+              next.delete("categoria");
+              next.delete("comprobante");
+              next.delete("monto");
+              return next;
+            });
           }}
         />
       )}

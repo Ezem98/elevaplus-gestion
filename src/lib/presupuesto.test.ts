@@ -240,6 +240,34 @@ describe("presupuesto", () => {
 
       expect(items[0].detalle).toBe("Burzaco → Lanús → Quilmes → Avellaneda");
     });
+
+    it("parte un traslado con seguro en dos renglones: servicio y seguro de carga", () => {
+      const items = armarItems({
+        tipo: "traslado",
+        carga: "autoelevador 2,5 t",
+        monto: 224793.39,
+        seguro_importe: 30000,
+        monto_seguro: 24793.39,
+        origen: "Burzaco",
+        destino: "Avellaneda",
+      });
+
+      expect(items).toHaveLength(2);
+      expect(items[0]).toEqual({
+        descripcion: "Traslado de autoelevador 2,5 t",
+        detalle: "Burzaco → Avellaneda",
+        cantidad: "1",
+        precioUnitario: 200000,
+        importe: 200000,
+      });
+      expect(items[1]).toEqual({
+        descripcion: "Seguro de carga (IVA incluido: $ 30.000)",
+        detalle: "",
+        cantidad: "1",
+        precioUnitario: 24793.39,
+        importe: 24793.39,
+      });
+    });
   });
 
   describe("calcularTotalesPresupuesto", () => {

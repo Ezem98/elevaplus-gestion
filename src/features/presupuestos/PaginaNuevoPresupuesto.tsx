@@ -31,7 +31,8 @@ import {
   armarCondiciones,
   calcularTotalesAgrupadosPorMoneda,
 } from "@/lib/presupuesto";
-import { formatearPesos } from "@/lib/formato";
+import { formatearMontoEntrada, formatearPesos } from "@/lib/formato";
+import { netoSeguro } from "@/lib/seguro";
 import { PresupuestoPDF } from "./PresupuestoPDF";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { Tarjeta } from "@/components/ui/Tarjeta";
@@ -66,6 +67,8 @@ interface ItemBorrador {
     carga_desde?: CargaDesde;
     notas?: string;
   }[];
+  seguro_importe?: number | null;
+  monto_seguro?: number | null;
   alquiler?: {
     fecha_desde: string;
     fecha_hasta: string;
@@ -106,6 +109,9 @@ export function PaginaNuevoPresupuesto() {
   const [itemTipo, setItemTipo] = useState<TipoServicio>("traslado");
   const [itemDescripcion, setItemDescripcion] = useState("");
   const [itemMonto, setItemMonto] = useState<number | null>(null);
+  const [itemCargaAsegurada, setItemCargaAsegurada] = useState(false);
+  const [itemSeguroImporte, setItemSeguroImporte] = useState<number | null>(null);
+  const [itemPrecioServicio, setItemPrecioServicio] = useState<number | null>(null);
   const [itemAplicaIva, setItemAplicaIva] = useState(true);
   const [itemNocturno, setItemNocturno] = useState(false);
   const [itemOrigen, setItemOrigen] = useState("");
@@ -283,6 +289,8 @@ export function PaginaNuevoPresupuesto() {
         destino: cot.destino || "",
         km: cot.km != null ? Number(cot.km) : null,
         ida_y_vuelta: cot.ida_y_vuelta ?? false,
+        seguro_importe: cot.seguro_importe ?? null,
+        monto_seguro: cot.monto_seguro ?? null,
       };
 
       setItems((prev) => [...prev, nuevo]);
@@ -296,6 +304,9 @@ export function PaginaNuevoPresupuesto() {
     setItemTipo("traslado");
     setItemDescripcion("");
     setItemMonto(null);
+    setItemCargaAsegurada(false);
+    setItemSeguroImporte(null);
+    setItemPrecioServicio(null);
     setItemAplicaIva(true);
     setItemNocturno(false);
     setItemOrigen("");
@@ -324,6 +335,16 @@ export function PaginaNuevoPresupuesto() {
     setItemTipo(item.tipo);
     setItemDescripcion(item.descripcion);
     setItemMonto(item.monto);
+    const tieneSeg = Boolean(item.seguro_importe && item.seguro_importe > 0);
+    setItemCargaAsegurada(tieneSeg);
+    setItemSeguroImporte(item.seguro_importe ?? null);
+    if (tieneSeg && item.monto_seguro) {
+      setItemPrecioServicio(
+        Math.round((item.monto - item.monto_seguro) * 100) / 100,
+      );
+    } else {
+      setItemPrecioServicio(item.monto);
+    }
     setItemAplicaIva(item.aplica_iva);
     setItemNocturno(item.nocturno);
     setItemOrigen(item.origen || "");
@@ -372,6 +393,8 @@ export function PaginaNuevoPresupuesto() {
 
     let montoFinal = itemMonto;
     let alqDatos = null;
+    let seguroImporteItem: number | null = null;
+    let montoSeguroItem: number | null = null;
 
     if (itemTipo === "traslado" && itemParadas.length > 0) {
       for (let i = 0; i < itemParadas.length; i++) {
@@ -400,6 +423,25 @@ export function PaginaNuevoPresupuesto() {
         precio_unidad: alqPrecioUnidad,
       };
     } else {
+      if (itemTipo === "traslado" && itemCargaAsegurada) {
+        if (!itemSeguroImporte || itemSeguroImporte <= 0) {
+          setErrorItem(
+            "Ingresá el importe del seguro o desactivá la carga asegurada.",
+          );
+          return;
+        }
+        const precio = itemPrecioServicio ?? itemMonto ?? 0;
+        if (precio <= 0) {
+          setErrorItem("Ingresá el precio del servicio mayor a cero.");
+          return;
+        }
+        seguroImporteItem = itemSeguroImporte;
+        montoSeguroItem = netoSeguro(itemSeguroImporte, itemAplicaIva);
+        montoFinal = precio + montoSeguroItem;
+      } else if (itemTipo === "traslado") {
+        montoFinal = itemPrecioServicio ?? itemMonto;
+      }
+
       if (montoFinal == null || montoFinal <= 0) {
         setErrorItem("Ingresá un monto mayor a cero.");
         return;
@@ -414,6 +456,8 @@ export function PaginaNuevoPresupuesto() {
       moneda: "ARS",
       aplica_iva: itemAplicaIva,
       nocturno: itemNocturno,
+      seguro_importe: itemTipo === "traslado" ? seguroImporteItem : null,
+      monto_seguro: itemTipo === "traslado" ? montoSeguroItem : null,
       origen: itemOrigen.trim() || undefined,
       destino:
         itemTipo === "traslado" && itemParadas.length > 0
@@ -534,6 +578,8 @@ export function PaginaNuevoPresupuesto() {
         fecha_programada: it.fecha_programada || null,
         hora_programada: it.hora_programada || null,
         maquina_id: it.maquina_id || null,
+        seguro_importe: it.seguro_importe || null,
+        monto_seguro: it.monto_seguro || null,
         paradas:
           it.tipo === "traslado" && it.paradas && it.paradas.length > 0
             ? it.paradas.map((p, idx) => ({
@@ -1300,15 +1346,75 @@ export function PaginaNuevoPresupuesto() {
                     </Campo>
                   </div>
                   <div>
-                    <Campo etiqueta="Monto ($)" id="item_monto">
+                    <Campo
+                      etiqueta={
+                        itemTipo === "traslado" && itemCargaAsegurada
+                          ? "Precio del servicio"
+                          : "Monto ($)"
+                      }
+                      id="item_monto"
+                    >
                       <EntradaMonto
                         id="item_monto"
-                        valor={itemMonto}
-                        onChange={setItemMonto}
+                        valor={
+                          itemTipo === "traslado"
+                            ? (itemPrecioServicio ?? itemMonto)
+                            : itemMonto
+                        }
+                        onChange={(val) => {
+                          if (itemTipo === "traslado") {
+                            setItemPrecioServicio(val);
+                          }
+                          setItemMonto(val);
+                        }}
                       />
                     </Campo>
                   </div>
                 </>
+              )}
+
+              {itemTipo === "traslado" && (
+                <div className="sm:col-span-2 space-y-3">
+                  <div className="flex items-center min-h-[44px]">
+                    <label
+                      htmlFor="item_carga_asegurada"
+                      className="min-h-[44px] flex items-center gap-2.5 text-sm font-medium text-tinta cursor-pointer select-none"
+                    >
+                      <input
+                        id="item_carga_asegurada"
+                        type="checkbox"
+                        checked={itemCargaAsegurada}
+                        onChange={(e) => {
+                          const act = e.target.checked;
+                          setItemCargaAsegurada(act);
+                          if (!act) setItemSeguroImporte(null);
+                        }}
+                        className="size-4 rounded border-borde text-marca focus:ring-marca cursor-pointer"
+                      />
+                      Carga asegurada
+                    </label>
+                  </div>
+
+                  {itemCargaAsegurada && (
+                    <Campo
+                      etiqueta="Importe del seguro (el que pasa la aseguradora) *"
+                      id="item_seguro_importe"
+                    >
+                      <EntradaMonto
+                        id="item_seguro_importe"
+                        valor={itemSeguroImporte}
+                        onChange={setItemSeguroImporte}
+                        placeholder="0"
+                      />
+                    </Campo>
+                  )}
+
+                  {itemCargaAsegurada && (
+                    <div className="rounded-md bg-fondo p-3 text-sm text-tinta border border-borde">
+                      Total: servicio $ {formatearMontoEntrada(itemPrecioServicio || 0)} + seguro $ {formatearMontoEntrada(itemSeguroImporte || 0)}
+                    </div>
+                  )}
+                </div>
               )}
 
               <div className="sm:col-span-2 flex flex-wrap gap-6 pt-2">

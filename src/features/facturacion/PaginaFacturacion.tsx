@@ -229,7 +229,7 @@ export function PaginaFacturacion() {
     const { data, error } = await supabase
       .from("servicios")
       .select(
-        "id, numero, tipo, estado, descripcion, fecha_programada, monto, aplica_iva, cliente_id, no_facturable, factura_id, moneda, monto_moneda, cotizacion, clientes!servicios_cliente_id_fkey(id, nombre, cuit, condicion_iva)",
+        "id, numero, tipo, estado, descripcion, fecha_programada, monto, aplica_iva, cliente_id, no_facturable, factura_id, moneda, monto_moneda, cotizacion, seguro_importe, monto_seguro, clientes!servicios_cliente_id_fkey(id, nombre, cuit, condicion_iva)",
       )
       .in("estado", ["terminado", "cobrado"])
       .is("factura_id", null)
@@ -263,7 +263,7 @@ export function PaginaFacturacion() {
       if (fIds.length > 0) {
         const { data: sData, error: sError } = await supabase
           .from("servicios")
-          .select("id, numero, tipo, descripcion, monto, factura_id, moneda, monto_moneda, cotizacion")
+          .select("id, numero, tipo, descripcion, monto, factura_id, moneda, monto_moneda, cotizacion, seguro_importe, monto_seguro")
           .in("factura_id", fIds);
 
         if (sError) {

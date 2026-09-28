@@ -10,7 +10,7 @@ import {
   ETIQUETA_CONDICION_PAGO,
   ETIQUETA_MODO_FACTURACION,
 } from "@/lib/tipos";
-import { formatearPesos, formatearDolares, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
+import { formatearPesos, formatearDolares, formatearFecha, formatearNumeroFactura, formatearMontoEntrada } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado, ChipNocturno } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
@@ -208,7 +208,14 @@ export function PaginaCliente() {
                           </div>
                         </div>
                       ) : (
-                        formatearPesos(s.monto)
+                        <div>
+                          <div>{formatearPesos(s.monto)}</div>
+                          {s.tipo === "traslado" && s.seguro_importe != null && (
+                            <div className="text-xs text-tinta-suave font-normal">
+                              incluye seguro $ {formatearMontoEntrada(s.seguro_importe)}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                     {Number(s.monto_cobrado) > 0 && (

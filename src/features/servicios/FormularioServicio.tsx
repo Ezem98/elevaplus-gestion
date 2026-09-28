@@ -12,7 +12,8 @@ import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { formatearDiaMes, formatearPesos } from "@/lib/formato";
+import { formatearDiaMes, formatearMontoEntrada, formatearPesos } from "@/lib/formato";
+import { netoSeguro } from "@/lib/seguro";
 import { supabase } from "@/lib/supabase";
 import type {
   Maquina,
@@ -216,6 +217,9 @@ export function FormularioServicio() {
   });
   const [monto, setMonto] = useState<number | null>(null);
   const [montoEditadoManualmente, setMontoEditadoManualmente] = useState(false);
+  const [cargaAsegurada, setCargaAsegurada] = useState(false);
+  const [seguroImporte, setSeguroImporte] = useState<number | null>(null);
+  const [precioServicio, setPrecioServicio] = useState<number | null>(null);
   const [aplicaIva, setAplicaIva] = useState(true);
   const [remito, setRemito] = useState("");
   const [ordenCompra, setOrdenCompra] = useState("");
@@ -458,6 +462,12 @@ export function FormularioServicio() {
         setErrorValidacion("Detallá qué se traslada.");
         return;
       }
+      if (cargaAsegurada && (!seguroImporte || seguroImporte <= 0)) {
+        setErrorValidacion(
+          "Ingresá el importe del seguro o desactivá la carga asegurada.",
+        );
+        return;
+      }
     }
 
     if (tipo === "alquiler_hora") {
@@ -577,6 +587,26 @@ export function FormularioServicio() {
         }
       }
 
+      let montoFinal =
+        tipo === "alquiler_periodo" && moneda === "USD"
+          ? Math.round(((montoMoneda ?? 0) * (cotizacion ?? 1)) * 100) / 100
+          : (monto ?? 0);
+      let seguroImporteFinal: number | null = null;
+      let montoSeguroFinal: number | null = null;
+
+      if (
+        tipo === "traslado" &&
+        cargaAsegurada &&
+        seguroImporte &&
+        seguroImporte > 0
+      ) {
+        seguroImporteFinal = seguroImporte;
+        montoSeguroFinal = netoSeguro(seguroImporte, aplicaIva);
+        montoFinal = (precioServicio ?? monto ?? 0) + montoSeguroFinal;
+      } else if (tipo === "traslado") {
+        montoFinal = precioServicio ?? monto ?? 0;
+      }
+
       // 1. Armar payload de servicios (campos de otros tipos van en null)
       const payloadServicio: Record<string, any> = {
         tipo,
@@ -585,10 +615,9 @@ export function FormularioServicio() {
         moneda: tipo === "alquiler_periodo" && moneda === "USD" ? "USD" : "ARS",
         monto_moneda: tipo === "alquiler_periodo" && moneda === "USD" ? montoMoneda : null,
         cotizacion: tipo === "alquiler_periodo" && moneda === "USD" ? cotizacion : null,
-        monto:
-          tipo === "alquiler_periodo" && moneda === "USD"
-            ? Math.round(((montoMoneda ?? 0) * (cotizacion ?? 1)) * 100) / 100
-            : (monto ?? 0),
+        monto: montoFinal,
+        seguro_importe: tipo === "traslado" ? seguroImporteFinal : null,
+        monto_seguro: tipo === "traslado" ? montoSeguroFinal : null,
         aplica_iva: aplicaIva,
         fecha_programada: fechaProgramada || fechaDesde || null,
         hora_programada: horaProgramada
@@ -818,13 +847,19 @@ export function FormularioServicio() {
         }
       }
 
+      const querySeguro =
+        tipo === "traslado" && seguroImporteFinal ? "seguro=1" : "";
+      const baseNav = `/servicios/${nuevoId}`;
+
       if (
         (estadoInicial === "realizado" || estadoInicial === "en_curso") &&
         yaSeCobro
       ) {
-        navigate(`/servicios/${nuevoId}?cobrar=1`);
+        navigate(
+          `${baseNav}?cobrar=1${querySeguro ? `&${querySeguro}` : ""}`,
+        );
       } else {
-        navigate(`/servicios/${nuevoId}`);
+        navigate(`${baseNav}${querySeguro ? `?${querySeguro}` : ""}`);
       }
     } catch {
       setErrorGuardar("No se pudo guardar el servicio. Probá de nuevo.");
@@ -1717,34 +1752,92 @@ export function FormularioServicio() {
                 )}
               </div>
             ) : (
-              <div>
-                <Campo etiqueta="Monto *" id="monto">
-                  <EntradaMonto
-                    id="monto"
-                    valor={monto}
-                    onChange={(val) => {
-                      setMonto(val);
-                      setMontoEditadoManualmente(true);
-                    }}
-                  />
-                </Campo>
-
+              <div className="space-y-4">
                 {tipo === "traslado" && (
-                  <p className="mt-1 text-xs text-tinta-suave">
-                    Para calcular el precio con la fórmula, usá el{" "}
-                    <Link
-                      to={
-                        clienteId
-                          ? `/cotizador?cliente=${clienteId}`
-                          : "/cotizador"
-                      }
-                      className="text-marca underline hover:text-marca-oscuro"
-                    >
-                      Cotizador
-                    </Link>
-                    .
-                  </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center min-h-[44px]">
+                      <label
+                        htmlFor="carga_asegurada"
+                        className="min-h-[44px] flex items-center gap-2.5 text-sm font-medium text-tinta cursor-pointer select-none"
+                      >
+                        <input
+                          id="carga_asegurada"
+                          type="checkbox"
+                          checked={cargaAsegurada}
+                          onChange={(e) => {
+                            const act = e.target.checked;
+                            setCargaAsegurada(act);
+                            if (!act) setSeguroImporte(null);
+                          }}
+                          className="size-4 rounded border-borde text-marca focus:ring-marca cursor-pointer"
+                        />
+                        Carga asegurada
+                      </label>
+                    </div>
+
+                    {cargaAsegurada && (
+                      <Campo
+                        etiqueta="Importe del seguro (el que pasa la aseguradora) *"
+                        id="seguro_importe"
+                      >
+                        <EntradaMonto
+                          id="seguro_importe"
+                          valor={seguroImporte}
+                          onChange={setSeguroImporte}
+                          placeholder="0"
+                        />
+                      </Campo>
+                    )}
+                  </div>
                 )}
+
+                <div>
+                  <Campo
+                    etiqueta={
+                      tipo === "traslado" && cargaAsegurada
+                        ? "Precio del servicio *"
+                        : "Monto *"
+                    }
+                    id="monto"
+                  >
+                    <EntradaMonto
+                      id="monto"
+                      valor={
+                        tipo === "traslado" ? (precioServicio ?? monto) : monto
+                      }
+                      onChange={(val) => {
+                        if (tipo === "traslado") {
+                          setPrecioServicio(val);
+                        }
+                        setMonto(val);
+                        setMontoEditadoManualmente(true);
+                      }}
+                    />
+                  </Campo>
+
+                  {tipo === "traslado" && cargaAsegurada && (
+                    <div className="mt-2 rounded-md bg-fondo p-3 text-sm text-tinta border border-borde">
+                      Total: servicio $ {formatearMontoEntrada(precioServicio || 0)} + seguro $ {formatearMontoEntrada(seguroImporte || 0)}
+                    </div>
+                  )}
+
+                  {tipo === "traslado" && !cargaAsegurada && (
+                    <p className="mt-1 text-xs text-tinta-suave">
+                      Para calcular el precio con la fórmula, usá el{" "}
+                      <Link
+                        to={
+                          clienteId
+                            ? `/cotizador?cliente=${clienteId}`
+                            : "/cotizador"
+                        }
+                        className="text-marca underline hover:text-marca-oscuro"
+                      >
+                        Cotizador
+                      </Link>
+                      .
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 

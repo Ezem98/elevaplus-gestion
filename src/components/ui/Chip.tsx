@@ -142,3 +142,14 @@ export function ChipEstadoParada({ estado }: { estado: EstadoParada }) {
   );
 }
 
+export function ChipCargaAsegurada({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border border-marca/20 bg-marca-suave px-2.5 py-0.5 text-xs font-medium text-marca ${className}`}
+    >
+      Carga asegurada
+    </span>
+  );
+}
+
+

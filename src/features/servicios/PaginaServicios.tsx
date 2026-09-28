@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/MenuAcciones";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useRealtime } from "@/hooks/use-realtime";
-import { formatearDolares, formatearFecha, formatearPesos } from "@/lib/formato";
+import { formatearDolares, formatearFecha, formatearMontoEntrada, formatearPesos } from "@/lib/formato";
 import {
   calcularEstadoPresupuesto,
   calcularFechaVencimiento,
@@ -633,7 +633,14 @@ export function PaginaServicios() {
                             </div>
                           </div>
                         ) : (
-                          formatearPesos(s.monto)
+                          <div>
+                            <div>{formatearPesos(s.monto)}</div>
+                            {s.tipo === "traslado" && s.seguro_importe != null && (
+                              <div className="text-xs text-tinta-suave font-normal">
+                                incluye seguro $ {formatearMontoEntrada(s.seguro_importe)}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -767,7 +774,14 @@ export function PaginaServicios() {
                                 </div>
                               </div>
                             ) : (
-                              <span className="tabular-nums">{formatearPesos(s.monto)}</span>
+                              <div>
+                                <span className="tabular-nums">{formatearPesos(s.monto)}</span>
+                                {s.tipo === "traslado" && s.seguro_importe != null && (
+                                  <div className="text-xs text-tinta-suave tabular-nums font-normal">
+                                    incluye seguro $ {formatearMontoEntrada(s.seguro_importe)}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">

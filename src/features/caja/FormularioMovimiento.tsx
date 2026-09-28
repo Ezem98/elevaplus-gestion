@@ -31,6 +31,9 @@ interface PropsFormularioMovimiento {
   medioInicial?: MedioPago | null;
   descripcionInicial?: string | null;
   movimientoAEditar?: MovimientoCaja | null;
+  categoriaNombreInicial?: string | null;
+  tieneFacturaInicial?: boolean;
+  comprobanteTipoInicial?: TipoComprobanteCompra | null;
   chequeTerceroInicial?: Cheque | null;
   endosadoAInicial?: string;
   onGuardadoConId?: (movimientoId: string) => void;
@@ -112,6 +115,9 @@ export function FormularioMovimiento({
   medioInicial,
   descripcionInicial,
   movimientoAEditar,
+  categoriaNombreInicial,
+  tieneFacturaInicial,
+  comprobanteTipoInicial,
   chequeTerceroInicial,
   endosadoAInicial,
   onGuardadoConId,
@@ -182,10 +188,10 @@ export function FormularioMovimiento({
 
   // Comprobante
   const [tieneFactura, setTieneFactura] = useState(
-    movimientoAEditar?.tiene_comprobante ?? false,
+    movimientoAEditar?.tiene_comprobante ?? (tieneFacturaInicial ?? false),
   );
   const [comprobanteTipo, setComprobanteTipo] = useState<TipoComprobanteCompra>(
-    movimientoAEditar?.comprobante_tipo ?? "A",
+    movimientoAEditar?.comprobante_tipo ?? (comprobanteTipoInicial ?? "A"),
   );
   const [puntoVenta, setPuntoVenta] = useState<string>(
     movimientoAEditar?.comprobante_punto_venta != null
@@ -200,10 +206,21 @@ export function FormularioMovimiento({
   const [cuitProveedor, setCuitProveedor] = useState(
     movimientoAEditar?.proveedor_cuit ?? "",
   );
-  const [neto, setNeto] = useState<number | null>(
-    movimientoAEditar?.neto ?? null,
-  );
-  const [iva, setIva] = useState<number | null>(movimientoAEditar?.iva ?? null);
+  const [neto, setNeto] = useState<number | null>(() => {
+    if (movimientoAEditar?.neto != null) return movimientoAEditar.neto;
+    if (tieneFacturaInicial && montoInicial && (comprobanteTipoInicial ?? "A") === "A") {
+      return +(montoInicial / 1.21).toFixed(2);
+    }
+    return montoInicial ?? null;
+  });
+  const [iva, setIva] = useState<number | null>(() => {
+    if (movimientoAEditar?.iva != null) return movimientoAEditar.iva;
+    if (tieneFacturaInicial && montoInicial && (comprobanteTipoInicial ?? "A") === "A") {
+      const n = +(montoInicial / 1.21).toFixed(2);
+      return +(montoInicial - n).toFixed(2);
+    }
+    return null;
+  });
   const [archivoComprobante, setArchivoComprobante] = useState<File | null>(
     null,
   );
@@ -260,12 +277,25 @@ export function FormularioMovimiento({
       .then(({ data }) => {
         if (data) {
           setCategorias(data);
-          if (!movimientoAEditar && data.length > 0 && !categoriaId) {
-            setCategoriaId(data[0].id);
+          if (!movimientoAEditar && data.length > 0) {
+            if (categoriaNombreInicial) {
+              const catEncontrada = data.find(
+                (c) =>
+                  c.nombre.toLowerCase().trim() ===
+                  categoriaNombreInicial.toLowerCase().trim(),
+              );
+              if (catEncontrada) {
+                setCategoriaId(catEncontrada.id);
+                return;
+              }
+            }
+            if (!categoriaId) {
+              setCategoriaId(data[0].id);
+            }
           }
         }
       });
-  }, [ambito, tipo, movimientoAEditar]);
+  }, [ambito, tipo, movimientoAEditar, categoriaNombreInicial]);
 
   // Cargar cheques en cartera para endoso (solo egresos)
   useEffect(() => {

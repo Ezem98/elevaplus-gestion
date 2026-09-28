@@ -2,7 +2,7 @@ import { Aviso } from "@/components/ui/Aviso";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Boton } from "@/components/ui/Boton";
 import { Entrada, Etiqueta, Selector } from "@/components/ui/Campo";
-import { ChipEstado, ChipEstadoParada, ChipNocturno } from "@/components/ui/Chip";
+import { ChipEstado, ChipEstadoParada, ChipNocturno, ChipCargaAsegurada } from "@/components/ui/Chip";
 import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import {
@@ -21,6 +21,7 @@ import {
 import {
   formatearDolares,
   formatearFecha,
+  formatearMontoEntrada,
   formatearNumeroFactura,
   formatearPesos,
   proximoCuartoDeHora,
@@ -970,6 +971,9 @@ export function PaginaServicio() {
         titulo={
           <div className="flex flex-wrap items-center gap-3">
             <span>Servicio #{servicio.numero}</span>
+            {servicio.tipo === "traslado" && servicio.seguro_importe != null && (
+              <ChipCargaAsegurada />
+            )}
             {servicio.nocturno && <ChipNocturno />}
             <ChipEstado estado={servicio.estado} />
             {servicio.no_facturable && (
@@ -1011,6 +1015,26 @@ export function PaginaServicio() {
       {searchParams.get("aviso") && (
         <Aviso variante="alerta">{searchParams.get("aviso")}</Aviso>
       )}
+
+      {searchParams.get("seguro") === "1" &&
+        servicio.tipo === "traslado" &&
+        servicio.seguro_importe != null && (
+          <Aviso
+            variante="info"
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
+            <span>
+              Carga asegurada guardada. Para no olvidar el crédito fiscal del
+              seguro:
+            </span>
+            <Link
+              to={`/caja?nuevo=egreso&categoria=Seguros&comprobante=A&monto=${servicio.seguro_importe}`}
+              className="font-bold underline hover:opacity-80"
+            >
+              Registrar la factura de la aseguradora
+            </Link>
+          </Aviso>
+        )}
 
       {servicioRenovado && (
         <Aviso
@@ -1852,7 +1876,24 @@ export function PaginaServicio() {
                   ) : (
                     formatearPesos(servicio.monto)
                   )}
+                  {servicio.tipo === "traslado" && servicio.seguro_importe != null && (
+                    <div className="text-xs text-tinta-suave font-normal mt-0.5">
+                      incluye seguro $ {formatearMontoEntrada(servicio.seguro_importe)}
+                    </div>
+                  )}
                 </div>
+                {servicio.tipo === "traslado" &&
+                  servicio.seguro_importe != null &&
+                  perfil?.rol !== "chofer" && (
+                    <div className="mt-2">
+                      <Link
+                        to={`/caja?nuevo=egreso&categoria=Seguros&comprobante=A&monto=${servicio.seguro_importe}`}
+                        className="text-xs font-medium text-marca hover:underline"
+                      >
+                        Registrar la factura de la aseguradora
+                      </Link>
+                    </div>
+                  )}
               </div>
 
               <div className="pt-3 border-t border-borde">
