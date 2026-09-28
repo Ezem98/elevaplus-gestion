@@ -19,6 +19,7 @@ export interface ServicioSeleccion {
   cliente_id: string | null;
   descripcion: string | null;
   monto: number | null;
+  moneda?: "ARS" | "USD" | string | null;
   aplica_iva?: boolean | null;
   fecha_programada?: string | null;
   fecha_fin?: string | null;
@@ -37,7 +38,7 @@ export interface FacturaAEmitir {
 export interface DescartadoItem {
   cliente_id: string;
   cliente: string;
-  motivo: "sin_cuit" | "sin_condicion_iva" | "requiere_dni" | "sin_monto" | "sin_iva_en_a";
+  motivo: "sin_cuit" | "sin_condicion_iva" | "requiere_dni" | "sin_monto" | "sin_iva_en_a" | "Requiere cotización del día";
   servicios: Array<{
     id: string;
     numero: number;
@@ -185,6 +186,18 @@ export function seleccionarFacturasHoy(
         numero: s.numero,
         descripcion: s.descripcion,
       }));
+
+      // Validar servicios en USD (requieren cotización del día)
+      const tieneUSD = grupo.some((s) => s.moneda === "USD");
+      if (tieneUSD) {
+        descartados.push({
+          cliente_id: cliente.id,
+          cliente: cliente.nombre,
+          motivo: "Requiere cotización del día",
+          servicios: resumenServicios,
+        });
+        continue;
+      }
 
       // Validar servicios sin monto
       const tieneServicioSinMonto = grupo.some(

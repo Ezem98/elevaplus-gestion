@@ -187,4 +187,24 @@ describe("seleccionarFacturasHoy", () => {
     expect(res.aEmitir).toHaveLength(0);
     expect(res.descartados[0].motivo).toBe("requiere_dni");
   });
+
+  it("descarta con motivo Requiere cotización del día si el servicio tiene moneda USD", () => {
+    const servicios: ServicioSeleccion[] = [
+      {
+        id: "s-usd-1",
+        numero: 10,
+        cliente_id: "c-1",
+        descripcion: "Alquiler mensual USD",
+        monto: 1875000,
+        moneda: "USD",
+        fecha_programada: "2026-09-10",
+      },
+    ];
+
+    const res = seleccionarFacturasHoy("2026-09-11", [clienteRIConCuit], servicios);
+    expect(res.aEmitir).toHaveLength(0);
+    expect(res.descartados).toHaveLength(1);
+    expect(res.descartados[0].motivo).toBe("Requiere cotización del día");
+    expect(res.descartados[0].servicios[0].id).toBe("s-usd-1");
+  });
 });

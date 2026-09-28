@@ -485,12 +485,16 @@ export function PresupuestoPDF({
               </View>
               <View style={estilos.colPrecio}>
                 <Text style={estilos.itemTexto}>
-                  {formatearPesos(item.precioUnitario)}
+                  {item.moneda === "USD"
+                    ? `U$S ${item.precioUnitario.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`
+                    : formatearPesos(item.precioUnitario)}
                 </Text>
               </View>
               <View style={estilos.colImporte}>
                 <Text style={estilos.itemTexto}>
-                  {formatearPesos(item.importe)}
+                  {item.moneda === "USD"
+                    ? `U$S ${item.importe.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`
+                    : formatearPesos(item.importe)}
                 </Text>
               </View>
             </View>

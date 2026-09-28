@@ -9,6 +9,15 @@ export function formatearPesos(valor: number | null | undefined): string {
   return pesos.format(valor);
 }
 
+const dolares = new Intl.NumberFormat("es-AR", {
+  maximumFractionDigits: 2,
+});
+
+export function formatearDolares(valor: number | null | undefined): string {
+  if (valor == null) return "—";
+  return `U$S ${dolares.format(valor)}`;
+}
+
 export function formatearFecha(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);

@@ -145,7 +145,7 @@ export async function correrLote(
       const { data: servicios, error: errServicios } = await supabaseAdmin
         .from("servicios")
         .select(
-          "id, numero, cliente_id, descripcion, monto, aplica_iva, fecha_programada, fecha_fin, fecha_inicio, estado, no_facturable, factura_id",
+          "id, numero, cliente_id, descripcion, monto, moneda, aplica_iva, fecha_programada, fecha_fin, fecha_inicio, estado, no_facturable, factura_id",
         )
         .in("estado", ["terminado", "cobrado"])
         .is("factura_id", null)

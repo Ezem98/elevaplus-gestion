@@ -12,7 +12,7 @@ import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { formatearDiaMes } from "@/lib/formato";
+import { formatearDiaMes, formatearPesos } from "@/lib/formato";
 import { supabase } from "@/lib/supabase";
 import type {
   Maquina,
@@ -77,7 +77,18 @@ export function FormularioServicio() {
   const [costoTercero, setCostoTercero] = useState<number | null>(null);
 
   // 1. Tipo
-  const [tipo, setTipo] = useState<TipoServicio>("traslado");
+  const tipoParam = searchParams.get("tipo") as TipoServicio | null;
+  const [tipo, setTipo] = useState<TipoServicio>(() =>
+    tipoParam && TIPOS.includes(tipoParam) ? tipoParam : "traslado",
+  );
+
+  // Moneda y cotización (USD solo para alquiler_periodo)
+  const [moneda, setMoneda] = useState<"ARS" | "USD">(() =>
+    tipoParam === "alquiler_periodo" ? "USD" : "ARS",
+  );
+  const [montoMoneda, setMontoMoneda] = useState<number | null>(null);
+  const [cotizacion, setCotizacion] = useState<number | null>(null);
+  const [avisoMoneda, setAvisoMoneda] = useState<string | null>(null);
 
   // 2. Cliente
   const [clienteId, setClienteId] = useState("");
@@ -314,6 +325,22 @@ export function FormularioServicio() {
       });
 
     supabase
+      .from("servicios")
+      .select("cotizacion")
+      .eq("moneda", "USD")
+      .not("cotizacion", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.cotizacion) {
+          setCotizacion(Number(data.cotizacion));
+        } else {
+          setCotizacion(1250);
+        }
+      });
+
+    supabase
       .from("perfiles")
       .select("id, nombre")
       .eq("rol", "chofer")
@@ -368,12 +395,21 @@ export function FormularioServicio() {
     nuevaHasta: string,
     nuevaUnidad: UnidadAlquiler,
     nuevoPrecio: number | null,
+    monedaActual = moneda,
+    cotizActual = cotizacion,
   ) => {
     if (montoEditadoManualmente) return;
     const dias = calcularDiasAlquiler(nuevaDesde, nuevaHasta);
     const cant = calcularCantidadAlquiler(dias, nuevaUnidad);
     if (cant > 0 && nuevoPrecio != null) {
-      setMonto(nuevoPrecio * cant);
+      if (monedaActual === "USD") {
+        setMontoMoneda(nuevoPrecio * cant);
+        if (cotizActual != null && cotizActual > 0) {
+          setMonto(Math.round(nuevoPrecio * cant * cotizActual * 100) / 100);
+        }
+      } else {
+        setMonto(nuevoPrecio * cant);
+      }
     }
   };
 
@@ -424,6 +460,20 @@ export function FormularioServicio() {
       }
     }
 
+    if (tipo === "alquiler_hora") {
+      if (!maquinaId) {
+        setErrorValidacion("Seleccioná una máquina para el alquiler.");
+        return;
+      }
+      const maq = maquinas.find((m) => m.id === maquinaId);
+      if (maq && maq.permite_alquiler_hora === false) {
+        setErrorValidacion(
+          "La tijera se alquila mínimo por día: cargalo como alquiler por período.",
+        );
+        return;
+      }
+    }
+
     if (tipo === "alquiler_periodo") {
       if (!fechaDesde || !fechaHasta) {
         setErrorValidacion("Las fechas de inicio y fin son obligatorias.");
@@ -435,9 +485,20 @@ export function FormularioServicio() {
         );
         return;
       }
-      if (!precioUnidad || precioUnidad <= 0) {
-        setErrorValidacion("Ingresá un precio por unidad válido.");
-        return;
+      if (moneda === "USD") {
+        if (!montoMoneda || montoMoneda <= 0) {
+          setErrorValidacion("Ingresá un monto en dólares válido.");
+          return;
+        }
+        if (!cotizacion || cotizacion <= 0) {
+          setErrorValidacion("Ingresá una cotización válida.");
+          return;
+        }
+      } else {
+        if ((!precioUnidad || precioUnidad <= 0) && (!monto || monto <= 0)) {
+          setErrorValidacion("Ingresá un precio por unidad o monto válido.");
+          return;
+        }
       }
     }
 
@@ -521,7 +582,13 @@ export function FormularioServicio() {
         tipo,
         cliente_id: clienteSinDefinir ? null : clienteId || null,
         creado_por: session?.user?.id ?? null,
-        monto: monto ?? 0,
+        moneda: tipo === "alquiler_periodo" && moneda === "USD" ? "USD" : "ARS",
+        monto_moneda: tipo === "alquiler_periodo" && moneda === "USD" ? montoMoneda : null,
+        cotizacion: tipo === "alquiler_periodo" && moneda === "USD" ? cotizacion : null,
+        monto:
+          tipo === "alquiler_periodo" && moneda === "USD"
+            ? Math.round(((montoMoneda ?? 0) * (cotizacion ?? 1)) * 100) / 100
+            : (monto ?? 0),
         aplica_iva: aplicaIva,
         fecha_programada: fechaProgramada || fechaDesde || null,
         hora_programada: horaProgramada
@@ -652,7 +719,8 @@ export function FormularioServicio() {
             fecha_hasta: fechaHasta,
             unidad,
             cantidad: cantidadCalculada || 1,
-            precio_unidad: precioUnidad ?? 0,
+            precio_unidad:
+              precioUnidad ?? (moneda === "USD" ? montoMoneda : monto) ?? 0,
             renovacion_automatica: renovacionAutomatica,
             alertar_dias_antes: Number(alertarDiasAntes) || 5,
           });
@@ -787,6 +855,21 @@ export function FormularioServicio() {
                     key={t}
                     type="button"
                     onClick={() => {
+                      if (t !== "alquiler_periodo" && moneda === "USD") {
+                        const equiv =
+                          montoMoneda != null && cotizacion != null && cotizacion > 0
+                            ? Math.round(montoMoneda * cotizacion * 100) / 100
+                            : (monto ?? 0);
+                        setMoneda("ARS");
+                        setMonto(equiv);
+                        setMontoMoneda(null);
+                        setAvisoMoneda(
+                          "El servicio se pasó a pesos porque solo el alquiler por período puede cotizarse en dólares.",
+                        );
+                      } else if (t === "alquiler_periodo" && tipo !== "alquiler_periodo") {
+                        setMoneda("USD");
+                        setAvisoMoneda(null);
+                      }
                       setTipo(t);
                       verificarFechasPasadas(
                         t,
@@ -807,6 +890,11 @@ export function FormularioServicio() {
                 );
               })}
             </div>
+            {avisoMoneda && (
+              <Aviso variante="info" className="mt-3">
+                {avisoMoneda}
+              </Aviso>
+            )}
           </fieldset>
 
           {/* 2. Cliente */}
@@ -1124,14 +1212,30 @@ export function FormularioServicio() {
                     onChange={(e) => setMaquinaId(e.target.value)}
                   >
                     <option value="">Seleccionar máquina...</option>
-                    {maquinas.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.codigo_interno ? `${m.codigo_interno} · ` : ""}
-                        {ETIQUETA_TIPO_MAQUINA[m.tipo] ?? m.tipo}
-                      </option>
-                    ))}
+                    {maquinas
+                      .filter((m) => m.permite_alquiler_hora !== false)
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.codigo_interno ? `${m.codigo_interno} · ` : ""}
+                          {ETIQUETA_TIPO_MAQUINA[m.tipo] ?? m.tipo}
+                        </option>
+                      ))}
                   </Selector>
                 </Campo>
+
+                {(() => {
+                  const maq = maquinas.find((m) => m.id === maquinaId);
+                  if (maq && maq.permite_alquiler_hora === false) {
+                    return (
+                      <div className="sm:col-span-2">
+                        <Aviso variante="alerta">
+                          La tijera se alquila mínimo por día: cargalo como alquiler por período.
+                        </Aviso>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 <Campo etiqueta="Horas estimadas" id="horas_estimadas">
                   <div className="relative flex items-center">
@@ -1174,9 +1278,58 @@ export function FormularioServicio() {
 
           {tipo === "alquiler_periodo" && (
             <div className="space-y-4 rounded-lg border border-borde bg-fondo/50 p-4">
-              <h3 className="text-sm font-semibold text-tinta">
-                Detalles del alquiler por período
-              </h3>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-tinta">
+                  Detalles del alquiler por período
+                </h3>
+                <div className="flex items-center gap-1.5 bg-superficie p-1 rounded-md border border-borde">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoneda("USD");
+                      if (precioUnidad != null && cotizacion != null && cotizacion > 0) {
+                        recalcularMonto(
+                          fechaDesde,
+                          fechaHasta,
+                          unidad,
+                          precioUnidad,
+                          "USD",
+                          cotizacion,
+                        );
+                      }
+                    }}
+                    aria-pressed={moneda === "USD"}
+                    className={`h-7 px-2.5 rounded text-xs font-semibold transition-colors ${
+                      moneda === "USD"
+                        ? "bg-marca text-white"
+                        : "text-tinta-suave hover:text-tinta"
+                    }`}
+                  >
+                    Dólares (U$S)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoneda("ARS");
+                      if (montoMoneda != null && cotizacion != null) {
+                        const equiv =
+                          Math.round(montoMoneda * cotizacion * 100) / 100;
+                        setMonto(equiv);
+                      }
+                      setMontoMoneda(null);
+                    }}
+                    aria-pressed={moneda === "ARS"}
+                    className={`h-7 px-2.5 rounded text-xs font-semibold transition-colors ${
+                      moneda === "ARS"
+                        ? "bg-marca text-white"
+                        : "text-tinta-suave hover:text-tinta"
+                    }`}
+                  >
+                    Pesos ($)
+                  </button>
+                </div>
+              </div>
+
               <Campo etiqueta="Máquina *" id="maquina_periodo">
                 <Selector
                   id="maquina_periodo"
@@ -1289,13 +1442,27 @@ export function FormularioServicio() {
                   </div>
                 </Campo>
 
-                <Campo etiqueta="Precio por unidad *" id="precio_unidad">
+                <Campo
+                  etiqueta={
+                    moneda === "USD"
+                      ? "Precio por unidad (U$S) *"
+                      : "Precio por unidad *"
+                  }
+                  id="precio_unidad"
+                >
                   <EntradaMonto
                     id="precio_unidad"
                     valor={precioUnidad}
                     onChange={(val) => {
                       setPrecioUnidad(val);
-                      recalcularMonto(fechaDesde, fechaHasta, unidad, val);
+                      recalcularMonto(
+                        fechaDesde,
+                        fechaHasta,
+                        unidad,
+                        val,
+                        moneda,
+                        cotizacion,
+                      );
                     }}
                   />
                 </Campo>
@@ -1500,39 +1667,91 @@ export function FormularioServicio() {
               </div>
             )}
 
-            <div>
-              <Campo etiqueta="Monto *" id="monto">
-                <EntradaMonto
-                  id="monto"
-                  valor={monto}
-                  onChange={(val) => {
-                    setMonto(val);
-                    setMontoEditadoManualmente(true);
-                  }}
-                />
-              </Campo>
+            {tipo === "alquiler_periodo" && moneda === "USD" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Campo etiqueta="Monto en U$S *" id="monto_moneda">
+                    <EntradaMonto
+                      id="monto_moneda"
+                      valor={montoMoneda}
+                      onChange={(val) => {
+                        setMontoMoneda(val);
+                        setMontoEditadoManualmente(true);
+                        if (val != null && cotizacion != null && cotizacion > 0) {
+                          setMonto(Math.round(val * cotizacion * 100) / 100);
+                        }
+                      }}
+                    />
+                  </Campo>
 
-              {tipo === "traslado" && (
-                <p className="mt-1 text-xs text-tinta-suave">
-                  Para calcular el precio con la fórmula, usá el{" "}
-                  <Link
-                    to={
-                      clienteId
-                        ? `/cotizador?cliente=${clienteId}`
-                        : "/cotizador"
-                    }
-                    className="text-marca underline hover:text-marca-oscuro"
-                  >
-                    Cotizador
-                  </Link>
-                  .
-                </p>
-              )}
-            </div>
+                  <Campo etiqueta="Cotización *" id="cotizacion">
+                    <Entrada
+                      id="cotizacion"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={cotizacion ?? ""}
+                      onChange={(e) => {
+                        const val =
+                          e.target.value === "" ? null : Number(e.target.value);
+                        setCotizacion(val);
+                        if (montoMoneda != null && val != null && val > 0) {
+                          setMonto(Math.round(montoMoneda * val * 100) / 100);
+                        }
+                      }}
+                      placeholder="Ej: 1250"
+                    />
+                  </Campo>
+                </div>
+
+                {montoMoneda != null && cotizacion != null && cotizacion > 0 && (
+                  <div className="rounded-md bg-fondo p-3 text-xs text-tinta-suave border border-borde">
+                    Equivalente en pesos:{" "}
+                    <strong className="text-tinta text-sm font-semibold">
+                      {formatearPesos(
+                        Math.round(montoMoneda * cotizacion * 100) / 100,
+                      )}
+                    </strong>{" "}
+                    a ${cotizacion.toLocaleString("es-AR")}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <Campo etiqueta="Monto *" id="monto">
+                  <EntradaMonto
+                    id="monto"
+                    valor={monto}
+                    onChange={(val) => {
+                      setMonto(val);
+                      setMontoEditadoManualmente(true);
+                    }}
+                  />
+                </Campo>
+
+                {tipo === "traslado" && (
+                  <p className="mt-1 text-xs text-tinta-suave">
+                    Para calcular el precio con la fórmula, usá el{" "}
+                    <Link
+                      to={
+                        clienteId
+                          ? `/cotizador?cliente=${clienteId}`
+                          : "/cotizador"
+                      }
+                      className="text-marca underline hover:text-marca-oscuro"
+                    >
+                      Cotizador
+                    </Link>
+                    .
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
-              <label className="flex items-center gap-2 text-sm text-tinta cursor-pointer select-none">
+              <label className="flex items-center gap-2 text-sm text-tinta cursor-pointer select-none" htmlFor="aplica_iva">
                 <input
+                  id="aplica_iva"
                   type="checkbox"
                   checked={aplicaIva}
                   onChange={(e) => setAplicaIva(e.target.checked)}

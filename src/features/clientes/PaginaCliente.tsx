@@ -10,7 +10,7 @@ import {
   ETIQUETA_CONDICION_PAGO,
   ETIQUETA_MODO_FACTURACION,
 } from "@/lib/tipos";
-import { formatearPesos, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
+import { formatearPesos, formatearDolares, formatearFecha, formatearNumeroFactura } from "@/lib/formato";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { ChipEstado, ChipNocturno } from "@/components/ui/Chip";
 import { Boton } from "@/components/ui/Boton";
@@ -200,7 +200,16 @@ export function PaginaCliente() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="text-sm font-semibold tabular-nums text-tinta">
-                      {formatearPesos(s.monto)}
+                      {s.moneda === "USD" ? (
+                        <div>
+                          <div>{formatearDolares(s.monto_moneda)}</div>
+                          <div className="text-xs text-tinta-suave font-normal">
+                            {formatearPesos(s.monto)} a {formatearPesos(s.cotizacion)}
+                          </div>
+                        </div>
+                      ) : (
+                        formatearPesos(s.monto)
+                      )}
                     </div>
                     {Number(s.monto_cobrado) > 0 && (
                       <div className="text-xs text-tinta-suave tabular-nums">

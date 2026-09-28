@@ -28,14 +28,35 @@ enrutador.get("/health", (_req, res) => {
 
 // Emisión a demanda de un conjunto específico de servicios
 enrutador.post("/emitir", requerirAdminUOficina, async (req, res) => {
-  const { cliente_id, servicio_ids } = req.body;
+  const { cliente_id, servicio_ids, servicios, cotizaciones } = req.body;
 
   if (!cliente_id || typeof cliente_id !== "string") {
     res.status(400).json({ error: "Falta el campo cliente_id." });
     return;
   }
 
-  if (!Array.isArray(servicio_ids) || servicio_ids.length === 0) {
+  let listaServicios: Array<{ id: string; cotizacion?: number }> = [];
+  if (Array.isArray(servicios) && servicios.length > 0) {
+    listaServicios = servicios.map((s: any) => ({
+      id: typeof s === "string" ? s : s.id,
+      cotizacion:
+        typeof s === "object" && s.cotizacion != null
+          ? Number(s.cotizacion)
+          : cotizaciones && cotizaciones[s.id || s] != null
+            ? Number(cotizaciones[s.id || s])
+            : undefined,
+    }));
+  } else if (Array.isArray(servicio_ids) && servicio_ids.length > 0) {
+    listaServicios = servicio_ids.map((id: string) => ({
+      id,
+      cotizacion:
+        cotizaciones && cotizaciones[id] != null
+          ? Number(cotizaciones[id])
+          : undefined,
+    }));
+  }
+
+  if (listaServicios.length === 0) {
     res
       .status(400)
       .json({ error: "Debe enviar una lista servicio_ids no vacía." });
@@ -45,7 +66,9 @@ enrutador.post("/emitir", requerirAdminUOficina, async (req, res) => {
   try {
     const resultado = await emitirFactura({
       clienteId: cliente_id,
-      servicioIds: servicio_ids,
+      servicios: listaServicios,
+      servicioIds: listaServicios.map((s) => s.id),
+      cotizaciones,
     });
 
     res.status(200).json({

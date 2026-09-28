@@ -199,4 +199,25 @@ describe("RPC Firmas e Integridad", () => {
     expect(typeof data).toBe("boolean");
     expect(data).toBe(false); // No conectado en entorno de test
   });
+
+  it("crear_factura_borrador: un usuario de oficina llamándola directo recibe error de permisos", async () => {
+    const oficina = await comoOficina();
+
+    const { data, error } = await oficina.rpc(
+      "crear_factura_borrador" as any,
+      {
+        p_datos: {
+          tipo: "A",
+          punto_venta: 3,
+          cliente_id: CLIENTES.deza.id,
+        },
+        p_servicios: [{ id: crypto.randomUUID() }],
+      },
+    );
+
+    expect(error).not.toBeNull();
+    expect(error?.message).toMatch(/permission denied|no autorizado/i);
+    expect(data).toBeNull();
+  });
 });
+

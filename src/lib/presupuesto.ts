@@ -13,8 +13,12 @@ export interface ArmarCondicionesParams {
         | "precio_hora_espera_autoelevador"
       >
     | Partial<Empresa>;
-  servicio?: Pick<Servicio, "tipo" | "aplica_iva"> | Partial<Servicio>;
-  servicios?: Array<Pick<Servicio, "tipo" | "aplica_iva"> | Partial<Servicio>>;
+  servicio?:
+    | Pick<Servicio, "tipo" | "aplica_iva" | "moneda">
+    | Partial<Servicio>;
+  servicios?: Array<
+    Pick<Servicio, "tipo" | "aplica_iva" | "moneda"> | Partial<Servicio>
+  >;
   validezDias: number;
   extra?: string | null;
 }
@@ -25,6 +29,7 @@ export interface ItemPresupuesto {
   cantidad: string;
   precioUnitario: number;
   importe: number;
+  moneda?: "ARS" | "USD";
 }
 
 export function formatearNumeroPresupuesto(numero: number | string | null | undefined): string {
@@ -47,10 +52,26 @@ export function armarCondiciones({
 
   // Moneda e IVA
   const algunoConIva = listaServicios.some((s) => s.aplica_iva);
-  if (algunoConIva) {
-    lineas.push("Precios en pesos argentinos, sin IVA.");
+  const algunoUsd = listaServicios.some((s) => s.moneda === "USD");
+  const algunoArs = listaServicios.some((s) => (s.moneda || "ARS") === "ARS");
+  if (algunoUsd && algunoArs) {
+    lineas.push(
+      algunoConIva
+        ? "Precios en pesos argentinos y dólares estadounidenses, sin IVA."
+        : "Precios en pesos argentinos y dólares estadounidenses.",
+    );
+  } else if (algunoUsd) {
+    lineas.push(
+      algunoConIva
+        ? "Precios en dólares estadounidenses, sin IVA."
+        : "Precios en dólares estadounidenses.",
+    );
   } else {
-    lineas.push("Precios en pesos argentinos.");
+    if (algunoConIva) {
+      lineas.push("Precios en pesos argentinos, sin IVA.");
+    } else {
+      lineas.push("Precios en pesos argentinos.");
+    }
   }
 
   // Forma de pago
@@ -90,11 +111,15 @@ export function armarCondiciones({
 export function armarItems(servicio: Partial<Servicio> & {
   alquiler?: Servicio["alquileres"];
 }): ItemPresupuesto[] {
+  const moneda = servicio.moneda === "USD" ? "USD" : "ARS";
+  let importe =
+    moneda === "USD" && servicio.monto_moneda != null
+      ? Number(servicio.monto_moneda)
+      : Number(servicio.monto) || 0;
   let cantidad = "1";
-  let precioUnitario = Number(servicio.monto) || 0;
-  const importe = Number(servicio.monto) || 0;
+  let precioUnitario = importe;
 
-  const datosAlquiler = servicio.alquileres ?? servicio.alquiler;
+  const datosAlquiler = servicio.alquileres ?? (servicio as any).alquiler;
 
   if (servicio.tipo === "alquiler_periodo" && datosAlquiler) {
     const unidadTexto = formatearUnidadPlural(datosAlquiler.unidad, datosAlquiler.cantidad);
@@ -177,6 +202,7 @@ export function armarItems(servicio: Partial<Servicio> & {
       cantidad,
       precioUnitario,
       importe,
+      ...(servicio.moneda ? { moneda: servicio.moneda } : {}),
     },
   ];
 }

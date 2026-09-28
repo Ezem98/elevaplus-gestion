@@ -19,7 +19,9 @@ import { formatearFechaArca } from "./recuperar";
 
 export interface ParametrosEmitirFactura {
   clienteId: string;
-  servicioIds: string[];
+  servicioIds?: string[];
+  servicios?: Array<{ id: string; cotizacion?: number }>;
+  cotizaciones?: Record<string, number>;
   loteId?: string | null;
   periodoDesde?: string;
   periodoHasta?: string;
@@ -56,7 +58,16 @@ function formatearComprobante(tipo: string, pv: number, numero: number): string 
 export async function emitirFactura(
   params: ParametrosEmitirFactura
 ): Promise<ResultadoEmisionFactura> {
-  const { clienteId, servicioIds, loteId, periodoDesde, periodoHasta } = params;
+  const { clienteId, loteId, periodoDesde, periodoHasta } = params;
+
+  const listaServicios =
+    params.servicios && params.servicios.length > 0
+      ? params.servicios
+      : (params.servicioIds || []).map((id) => ({
+          id,
+          cotizacion: params.cotizaciones ? params.cotizaciones[id] : undefined,
+        }));
+  const servicioIds = listaServicios.map((s) => s.id);
 
   if (servicioIds.length === 0) {
     throw new Error("Se requiere al menos un servicio para emitir la factura.");
@@ -83,7 +94,30 @@ export async function emitirFactura(
     throw new Error(`Cliente ${clienteId} no encontrado.`);
   }
 
-  // 3. Obtener datos de los servicios
+  const esRI = cliente.condicion_iva === "responsable_inscripto";
+  const tipo: "A" | "B" = esRI ? "A" : "B";
+  const tipoCbte = tipo === "A" ? TIPO_COMPROBANTE.FACTURA_A : TIPO_COMPROBANTE.FACTURA_B;
+
+  // Paso 1: Crear factura en estado 'borrador', vincular servicios y aplicar cotización de forma atómica
+  const { data: factura, error: errorFactura } = await supabaseAdmin
+    .rpc("crear_factura_borrador", {
+      p_datos: {
+        cliente_id: clienteId,
+        tipo,
+        punto_venta: puntoVentaWs,
+        periodo_desde: periodoDesde || null,
+        periodo_hasta: periodoHasta || null,
+        lote_id: loteId || null,
+        concepto: 2,
+      },
+      p_servicios: listaServicios,
+    });
+
+  if (errorFactura || !factura) {
+    throw new Error(errorFactura?.message || "Error al crear borrador de factura.");
+  }
+
+  // Obtener datos actualizados de los servicios vinculados para el comprobante ARCA
   const { data: servicios, error: errorServicios } = await supabaseAdmin
     .from("servicios")
     .select("id, numero, monto, aplica_iva, fecha_programada, fecha_fin, estado, factura_id")
@@ -92,67 +126,6 @@ export async function emitirFactura(
   if (errorServicios || !servicios || servicios.length === 0) {
     throw new Error("No se pudieron obtener los servicios para facturar.");
   }
-
-  // Validar que los servicios no estén ya facturados
-  for (const s of servicios) {
-    if (s.factura_id) {
-      throw new Error(`El servicio #${s.numero} ya está vinculado a otra factura.`);
-    }
-    if (s.estado === "facturado") {
-      throw new Error(`El servicio #${s.numero} ya figura en estado facturado.`);
-    }
-  }
-
-  const esRI = cliente.condicion_iva === "responsable_inscripto";
-  const tipo: "A" | "B" = esRI ? "A" : "B";
-  const tipoCbte = tipo === "A" ? TIPO_COMPROBANTE.FACTURA_A : TIPO_COMPROBANTE.FACTURA_B;
-
-  // Calcular totales
-  let neto = 0;
-  let exento = 0;
-  for (const s of servicios) {
-    const monto = Number(s.monto) || 0;
-    if (s.aplica_iva !== false) {
-      neto += monto;
-    } else {
-      exento += monto;
-    }
-  }
-  neto = redondearDosDecimales(neto);
-  exento = redondearDosDecimales(exento);
-  const iva = redondearDosDecimales(neto * 0.21);
-  const total = redondearDosDecimales(neto + exento + iva);
-
-  // Paso 1: Crear factura en estado 'borrador' y vincular servicios
-  const { data: factura, error: errorFactura } = await supabaseAdmin
-    .from("facturas")
-    .insert({
-      cliente_id: clienteId,
-      tipo,
-      punto_venta: puntoVentaWs,
-      numero: null,
-      fecha: new Date().toISOString().slice(0, 10),
-      neto,
-      iva,
-      total,
-      periodo_desde: periodoDesde || null,
-      periodo_hasta: periodoHasta || null,
-      lote_id: loteId || null,
-      estado_emision: "borrador",
-      concepto: 2,
-    })
-    .select()
-    .single();
-
-  if (errorFactura || !factura) {
-    throw new Error(`Error al crear borrador de factura: ${errorFactura?.message}`);
-  }
-
-  // Vincular servicios a la factura inmediatamente para bloquearlos
-  await supabaseAdmin
-    .from("servicios")
-    .update({ factura_id: factura.id })
-    .in("id", servicioIds);
 
   try {
     // Paso 2: Pasar a 'emitiendo'

@@ -12,6 +12,7 @@ import {
   prepararContenidoCsvConBom,
 } from "@/lib/csv";
 import {
+  formatearDolares,
   formatearFecha,
   formatearMes,
   formatearNumeroFactura,
@@ -161,6 +162,9 @@ export function PaginaFacturacion() {
     Record<string, string[]>
   >({});
   const [grupoFacturando, setGrupoFacturando] = useState<string | null>(null);
+  const [cotizacionesPendientes, setCotizacionesPendientes] = useState<
+    Record<string, number>
+  >({});
 
   // --- Estado pestaña Facturas ---
   const [facturas, setFacturas] = useState<Factura[]>([]);
@@ -225,7 +229,7 @@ export function PaginaFacturacion() {
     const { data, error } = await supabase
       .from("servicios")
       .select(
-        "id, numero, tipo, estado, descripcion, fecha_programada, monto, aplica_iva, cliente_id, no_facturable, factura_id, clientes!servicios_cliente_id_fkey(id, nombre, cuit, condicion_iva)",
+        "id, numero, tipo, estado, descripcion, fecha_programada, monto, aplica_iva, cliente_id, no_facturable, factura_id, moneda, monto_moneda, cotizacion, clientes!servicios_cliente_id_fkey(id, nombre, cuit, condicion_iva)",
       )
       .in("estado", ["terminado", "cobrado"])
       .is("factura_id", null)
@@ -246,7 +250,7 @@ export function PaginaFacturacion() {
     const { data: facs, error } = await supabase
       .from("facturas")
       .select(
-        "id, tipo, punto_venta, numero, fecha, cliente_id, neto, iva, total, anulada, notas, cae, cae_vencimiento, estado_emision, error_emision, pdf_path, enviada_email_at, email_destino, clientes(nombre)",
+        "id, tipo, punto_venta, numero, fecha, cliente_id, neto, iva, total, anulada, notas, cae, cae_vencimiento, estado_emision, error_emision, pdf_path, enviada_email_at, email_destino, clientes!facturas_cliente_id_fkey(nombre)",
       )
       .in("tipo", ["A", "B", "C"])
       .order("fecha", { ascending: false })
@@ -259,7 +263,7 @@ export function PaginaFacturacion() {
       if (fIds.length > 0) {
         const { data: sData, error: sError } = await supabase
           .from("servicios")
-          .select("id, numero, tipo, descripcion, monto, factura_id")
+          .select("id, numero, tipo, descripcion, monto, factura_id, moneda, monto_moneda, cotizacion")
           .in("factura_id", fIds);
 
         if (sError) {
@@ -440,7 +444,21 @@ export function PaginaFacturacion() {
     setModalEmisionAbierto(true);
 
     try {
-      const res = await emitirFacturaArca(cliente.id, servicioIds);
+      const cotizacionesPayload: Record<string, number> = {};
+      for (const sId of servicioIds) {
+        const s = pendientes.find((item) => item.id === sId);
+        if (s && s.moneda === "USD") {
+          cotizacionesPayload[sId] =
+            cotizacionesPendientes[sId] ??
+            (s.cotizacion ? Number(s.cotizacion) : 0);
+        }
+      }
+
+      const res = await emitirFacturaArca(
+        cliente.id,
+        servicioIds,
+        cotizacionesPayload,
+      );
       if (!res.ok || !res.cae) {
         setEtapaEmision("error");
         setErrorEmision(
@@ -997,8 +1015,48 @@ export function PaginaFacturacion() {
                             </div>
                           </div>
 
-                          <div className="shrink-0 text-right font-semibold tabular-nums text-tinta">
-                            {formatearPesos(s.monto)}
+                          <div className="shrink-0 text-right tabular-nums text-tinta">
+                            {s.moneda === "USD" && s.monto_moneda != null ? (
+                              <div>
+                                <div className="font-semibold">
+                                  {formatearDolares(s.monto_moneda)}
+                                </div>
+                                <div className="flex items-center justify-end gap-1 mt-1 text-xs text-tinta-suave">
+                                  <span>Cotiz: $</span>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={
+                                      cotizacionesPendientes[s.id] ??
+                                      s.cotizacion ??
+                                      1250
+                                    }
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      setCotizacionesPendientes((prev) => ({
+                                        ...prev,
+                                        [s.id]: isNaN(val) ? 0 : val,
+                                      }));
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-20 rounded border border-borde px-1 py-0.5 text-right text-xs text-tinta font-mono"
+                                  />
+                                </div>
+                                <div className="text-xs text-tinta-suave mt-0.5">
+                                  {formatearPesos(
+                                    (s.monto_moneda ?? 0) *
+                                      (cotizacionesPendientes[s.id] ??
+                                        (s.cotizacion
+                                          ? Number(s.cotizacion)
+                                          : 1250)),
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="font-semibold">
+                                {formatearPesos(s.monto)}
+                              </div>
+                            )}
                           </div>
 
                           <div className="shrink-0">

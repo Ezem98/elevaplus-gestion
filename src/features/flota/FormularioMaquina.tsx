@@ -26,6 +26,10 @@ export function FormularioMaquina({
   const [tipo, setTipo] = useState<TipoMaquina>(
     maquinaAEditar?.tipo ?? "autoelevador",
   );
+  const [permiteAlquilerHora, setPermiteAlquilerHora] = useState(
+    maquinaAEditar?.permite_alquiler_hora ??
+      (maquinaAEditar?.tipo ? maquinaAEditar.tipo !== "plataforma" : true),
+  );
   const [marca, setMarca] = useState(maquinaAEditar?.marca ?? "");
   const [modelo, setModelo] = useState(maquinaAEditar?.modelo ?? "");
   const [capacidad, setCapacidad] = useState(maquinaAEditar?.capacidad ?? "");
@@ -80,6 +84,7 @@ export function FormularioMaquina({
       proximo_service: proximoService || null,
       estado,
       notas: notas.trim() || null,
+      permite_alquiler_hora: permiteAlquilerHora,
       activo: estado !== "baja",
     };
 
@@ -247,6 +252,21 @@ export function FormularioMaquina({
               <option value="baja">De baja</option>
             </Selector>
           </Campo>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm text-tinta cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={permiteAlquilerHora}
+              onChange={(e) => setPermiteAlquilerHora(e.target.checked)}
+              className="rounded border-borde text-marca focus:ring-marca"
+            />
+            Permite alquiler por hora
+          </label>
+          <p className="mt-1 text-xs text-tinta-suave">
+            Desmarcalo si la máquina requiere alquiler mínimo por día (ej: tijeras elevadoras).
+          </p>
         </div>
 
         <Campo etiqueta="Notas técnicas / Ubicación" id="maq-notas">

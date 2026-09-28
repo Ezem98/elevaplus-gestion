@@ -303,7 +303,9 @@ En `FormularioServicio` (y en el cotizador), debajo del destino, botón **"+ Agr
 
 **La plataforma tijera se alquila mínimo por un día**, así que siempre es alquiler por período y siempre va en dólares. Se marca con `maquinas.permite_alquiler_hora = false`: en un servicio de alquiler por hora, el selector de máquina no la ofrece. Si se intenta de todos modos, aviso "La tijera se alquila mínimo por día: cargalo como alquiler por período". El flag es editable desde Flota, por si mañana otra máquina tiene la misma regla.
 
-**Supuesto a confirmar:** esos alquileres se **facturan y cobran en pesos** al tipo de cambio que ella fija (el vendedor del día, típicamente). Si alguna vez factura directo en dólares, cambia la sección 6.3.
+**Confirmado:** esos alquileres se **facturan y cobran en pesos**, al tipo de cambio que la dueña fija al facturar.
+
+**Regla derivada:** en la base, cuando `moneda = 'USD'`, el monto en pesos lo calcula un trigger (`monto = round(monto_moneda * cotizacion, 2)`), para que nunca queden desincronizados. Y la facturación automática nocturna **no** emite servicios en dólares: los descarta con el motivo "Requiere cotización del día", porque la cotización guardada puede tener semanas. Esos se facturan desde la pantalla, donde se ajusta la cotización antes de emitir.
 
 ### 6.1 Cargar
 

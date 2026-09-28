@@ -241,6 +241,7 @@ export interface Maquina {
   proximo_service?: string | null;
   estado: EstadoMaquina;
   activo: boolean;
+  permite_alquiler_hora?: boolean;
   notas: string | null;
 }
 
@@ -300,7 +301,7 @@ export interface Servicio {
   tercero_nombre?: string | null;
   costo_tercero?: number | null;
   presupuesto_id?: string | null;
-  moneda?: string;
+  moneda?: "ARS" | "USD";
   monto_moneda?: number | null;
   cotizacion?: number | null;
   continuacion_de?: string | null;

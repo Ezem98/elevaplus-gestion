@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/MenuAcciones";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useRealtime } from "@/hooks/use-realtime";
-import { formatearFecha, formatearPesos } from "@/lib/formato";
+import { formatearDolares, formatearFecha, formatearPesos } from "@/lib/formato";
 import {
   calcularEstadoPresupuesto,
   calcularFechaVencimiento,
@@ -625,7 +625,16 @@ export function PaginaServicios() {
                         </div>
                       )}
                       <div className="text-right text-sm font-medium tabular-nums text-tinta">
-                        {formatearPesos(s.monto)}
+                        {s.moneda === "USD" ? (
+                          <div>
+                            <div>{formatearDolares(s.monto_moneda)}</div>
+                            <div className="text-xs text-tinta-suave font-normal">
+                              {formatearPesos(s.monto)} a {formatearPesos(s.cotizacion)}
+                            </div>
+                          </div>
+                        ) : (
+                          formatearPesos(s.monto)
+                        )}
                       </div>
                     </div>
                     <div
@@ -748,7 +757,18 @@ export function PaginaServicios() {
                             {ETIQUETA_TIPO[s.tipo]}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {formatearPesos(s.monto)}
+                            {s.moneda === "USD" ? (
+                              <div>
+                                <div className="font-semibold text-tinta tabular-nums">
+                                  {formatearDolares(s.monto_moneda)}
+                                </div>
+                                <div className="text-xs text-tinta-suave tabular-nums font-normal">
+                                  {formatearPesos(s.monto)} a {formatearPesos(s.cotizacion)}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="tabular-nums">{formatearPesos(s.monto)}</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-right">
                             {formatearPesos(s.monto_cobrado)}

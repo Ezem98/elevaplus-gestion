@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatearCompacto,
   formatearDiaMes,
+  formatearDolares,
   formatearMes,
   formatearMontoEntrada,
   formatearRangoSemana,
@@ -223,3 +224,13 @@ describe("formatearDiaMes", () => {
     expect(formatearDiaMes(undefined)).toBe("—");
   });
 });
+
+describe("formatearDolares", () => {
+  it("formatea montos en dólares correctamente", () => {
+    expect(formatearDolares(1500)).toBe("U$S 1.500");
+    expect(formatearDolares(1500.5)).toBe("U$S 1.500,5");
+    expect(formatearDolares(null)).toBe("—");
+    expect(formatearDolares(undefined)).toBe("—");
+  });
+});
+

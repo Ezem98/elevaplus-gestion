@@ -19,6 +19,7 @@ import {
   calcularRangoRenovacion,
 } from "@/lib/alquiler";
 import {
+  formatearDolares,
   formatearFecha,
   formatearNumeroFactura,
   formatearPesos,
@@ -150,6 +151,7 @@ export function PaginaServicio() {
   const [renvCantidad, setRenvCantidad] = useState<number>(1);
   const [renvPrecioUnidad, setRenvPrecioUnidad] = useState<number | null>(null);
   const [renvMonto, setRenvMonto] = useState<number | null>(null);
+  const [renvCotizacion, setRenvCotizacion] = useState<number | null>(null);
   const [guardandoRenovacion, setGuardandoRenovacion] = useState(false);
   const [errorRenovacion, setErrorRenovacion] = useState<string | null>(null);
 
@@ -613,10 +615,18 @@ export function PaginaServicio() {
     setRenvUnidad(alquiler.unidad);
     setRenvCantidad(alquiler.cantidad);
     setRenvPrecioUnidad(alquiler.precio_unidad);
-    setRenvMonto(alquiler.cantidad * alquiler.precio_unidad);
+    if (servicio?.moneda === "USD") {
+      const c = servicio.cotizacion ? Number(servicio.cotizacion) : 1250;
+      setRenvCotizacion(c);
+      const montoDolares = alquiler.cantidad * alquiler.precio_unidad;
+      setRenvMonto(Math.round(montoDolares * c * 100) / 100);
+    } else {
+      setRenvCotizacion(null);
+      setRenvMonto(alquiler.cantidad * alquiler.precio_unidad);
+    }
     setErrorRenovacion(null);
     setMostrarRenovar(true);
-  }, [alquiler]);
+  }, [alquiler, servicio]);
 
   useEffect(() => {
     if (
@@ -739,11 +749,20 @@ export function PaginaServicio() {
     ? `${alquiler.fecha_hasta.split("-")[2]}/${alquiler.fecha_hasta.split("-")[1]}`
     : "";
 
-  const handleCambioPrecioOCantidad = (cant: number, precio: number | null) => {
+  const handleCambioPrecioOCantidad = (
+    cant: number,
+    precio: number | null,
+    cotiz = renvCotizacion,
+  ) => {
     setRenvCantidad(cant);
     setRenvPrecioUnidad(precio);
     if (precio != null && cant > 0) {
-      setRenvMonto(cant * precio);
+      if (servicio?.moneda === "USD") {
+        const c = cotiz ?? 1;
+        setRenvMonto(Math.round(cant * precio * c * 100) / 100);
+      } else {
+        setRenvMonto(cant * precio);
+      }
     }
   };
 
@@ -755,7 +774,12 @@ export function PaginaServicio() {
       const cant = calcularCantidadAlquiler(dias, renvUnidad);
       setRenvCantidad(cant);
       if (renvPrecioUnidad != null) {
-        setRenvMonto(cant * renvPrecioUnidad);
+        if (servicio?.moneda === "USD") {
+          const c = renvCotizacion ?? 1;
+          setRenvMonto(Math.round(cant * renvPrecioUnidad * c * 100) / 100);
+        } else {
+          setRenvMonto(cant * renvPrecioUnidad);
+        }
       }
     }
   };
@@ -767,7 +791,12 @@ export function PaginaServicio() {
       const cant = calcularCantidadAlquiler(dias, u);
       setRenvCantidad(cant);
       if (renvPrecioUnidad != null) {
-        setRenvMonto(cant * renvPrecioUnidad);
+        if (servicio?.moneda === "USD") {
+          const c = renvCotizacion ?? 1;
+          setRenvMonto(Math.round(cant * renvPrecioUnidad * c * 100) / 100);
+        } else {
+          setRenvMonto(cant * renvPrecioUnidad);
+        }
       }
     }
   };
@@ -786,6 +815,23 @@ export function PaginaServicio() {
         ? descBase
         : `${descBase} (renovación)`;
 
+      const esUsd = servicio.moneda === "USD";
+      if (esUsd && (!renvCotizacion || renvCotizacion <= 0)) {
+        throw new Error("Ingresá la cotización para el servicio en dólares.");
+      }
+
+      const montoMonedaRenovado = esUsd
+        ? renvPrecioUnidad != null
+          ? renvCantidad * renvPrecioUnidad
+          : servicio.monto_moneda
+        : null;
+
+      const montoPesosRenovado = esUsd
+        ? Math.round(
+            (montoMonedaRenovado ?? 0) * (renvCotizacion ?? 1) * 100,
+          ) / 100
+        : renvMonto;
+
       // 1. Insert servicio copiando campos
       const { data: nuevoServicio, error: errServicio } = await supabase
         .from("servicios")
@@ -801,7 +847,10 @@ export function PaginaServicio() {
           maquina_id: servicio.maquina_id,
           fecha_programada: renvDesde,
           hora_programada: servicio.hora_programada,
-          monto: renvMonto,
+          moneda: servicio.moneda,
+          monto_moneda: montoMonedaRenovado,
+          cotizacion: esUsd ? renvCotizacion : null,
+          monto: montoPesosRenovado,
           aplica_iva: servicio.aplica_iva,
           no_planificado: false,
           creado_por: session?.user?.id ?? null,
@@ -1198,37 +1247,121 @@ export function PaginaServicio() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Etiqueta htmlFor="renv_precio_unidad">
-                  Precio por unidad
-                </Etiqueta>
-                <EntradaMonto
-                  id="renv_precio_unidad"
-                  required
-                  valor={renvPrecioUnidad}
-                  onChange={(v) => handleCambioPrecioOCantidad(renvCantidad, v)}
-                />
-                <p className="mt-1 text-xs text-tinta-suave">
-                  Mismo precio original o actualizado
-                </p>
-              </div>
+            {servicio.moneda === "USD" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Etiqueta htmlFor="renv_precio_unidad">
+                      Precio por unidad (U$S) *
+                    </Etiqueta>
+                    <EntradaMonto
+                      id="renv_precio_unidad"
+                      required
+                      valor={renvPrecioUnidad}
+                      onChange={(v) =>
+                        handleCambioPrecioOCantidad(
+                          renvCantidad,
+                          v,
+                          renvCotizacion,
+                        )
+                      }
+                    />
+                    <p className="mt-1 text-xs text-tinta-suave">
+                      Precio en dólares pactado
+                    </p>
+                  </div>
 
-              <div>
-                <Etiqueta htmlFor="renv_monto">Monto recalculado</Etiqueta>
-                <EntradaMonto
-                  id="renv_monto"
-                  required
-                  valor={renvMonto}
-                  onChange={setRenvMonto}
-                />
-                <p className="mt-1 text-xs text-tinta-suave">
-                  {renvCantidad}{" "}
-                  {formatearUnidadPlural(renvUnidad, renvCantidad)} ×{" "}
-                  {formatearPesos(renvPrecioUnidad)}
-                </p>
+                  <div>
+                    <Etiqueta htmlFor="renv_cotizacion">
+                      Nueva cotización *
+                    </Etiqueta>
+                    <Entrada
+                      id="renv_cotizacion"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={renvCotizacion ?? ""}
+                      onChange={(e) => {
+                        const val =
+                          e.target.value === "" ? null : Number(e.target.value);
+                        setRenvCotizacion(val);
+                        if (renvPrecioUnidad != null && val != null && val > 0) {
+                          setRenvMonto(
+                            Math.round(
+                              renvCantidad * renvPrecioUnidad * val * 100,
+                            ) / 100,
+                          );
+                        }
+                      }}
+                      placeholder="Ej: 1300"
+                    />
+                    <p className="mt-1 text-xs text-tinta-suave">
+                      Cotización para este período
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-borde bg-fondo p-3 text-xs text-tinta-suave flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    Monto en U$S:{" "}
+                    <strong className="text-tinta text-sm font-semibold">
+                      U$S{" "}
+                      {renvPrecioUnidad != null
+                        ? (renvCantidad * renvPrecioUnidad).toLocaleString(
+                            "es-AR",
+                          )
+                        : "—"}
+                    </strong>
+                  </span>
+                  <span>
+                    Equivalente en pesos:{" "}
+                    <strong className="text-tinta text-sm font-semibold">
+                      {formatearPesos(renvMonto)}
+                    </strong>
+                    {renvCotizacion && (
+                      <span className="ml-1 text-tinta-suave font-normal">
+                        (a ${renvCotizacion.toLocaleString("es-AR")})
+                      </span>
+                    )}
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Etiqueta htmlFor="renv_precio_unidad">
+                    Precio por unidad
+                  </Etiqueta>
+                  <EntradaMonto
+                    id="renv_precio_unidad"
+                    required
+                    valor={renvPrecioUnidad}
+                    onChange={(v) =>
+                      handleCambioPrecioOCantidad(renvCantidad, v)
+                    }
+                  />
+                  <p className="mt-1 text-xs text-tinta-suave">
+                    Mismo precio original o actualizado
+                  </p>
+                </div>
+
+                <div>
+                  <Etiqueta htmlFor="renv_monto">Monto recalculado</Etiqueta>
+                  <EntradaMonto
+                    id="renv_monto"
+                    required
+                    valor={renvMonto}
+                    onChange={setRenvMonto}
+                  />
+                  <p className="mt-1 text-xs text-tinta-suave">
+                    {renvCantidad}{" "}
+                    {formatearUnidadPlural(renvUnidad, renvCantidad)} ×{" "}
+                    {formatearPesos(renvPrecioUnidad)}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Datos informativos heredados */}
             <div className="rounded-md border border-borde bg-fondo p-3 text-xs text-tinta-suave space-y-1">
@@ -1677,7 +1810,9 @@ export function PaginaServicio() {
                       Precio por unidad
                     </span>
                     <div className="text-tinta font-medium mt-0.5 tabular-nums">
-                      {formatearPesos(alquiler.precio_unidad)}
+                      {servicio.moneda === "USD"
+                        ? `U$S ${(alquiler.precio_unidad ?? 0).toLocaleString("es-AR")}`
+                        : formatearPesos(alquiler.precio_unidad)}
                     </div>
                   </div>
 
@@ -1707,7 +1842,16 @@ export function PaginaServicio() {
                   Monto
                 </span>
                 <div className="text-base font-semibold text-tinta tabular-nums mt-0.5">
-                  {formatearPesos(servicio.monto)}
+                  {servicio.moneda === "USD" ? (
+                    <div>
+                      <div>{formatearDolares(servicio.monto_moneda)}</div>
+                      <div className="text-xs text-tinta-suave font-normal">
+                        {formatearPesos(servicio.monto)} a {formatearPesos(servicio.cotizacion)}
+                      </div>
+                    </div>
+                  ) : (
+                    formatearPesos(servicio.monto)
+                  )}
                 </div>
               </div>
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { PUNTO_VENTA_DEFAULT } from "@/lib/config";
-import { formatearPesos, formatearNumeroFactura } from "@/lib/formato";
+import { formatearPesos } from "@/lib/formato";
 import { sugerirTipoFactura, calcularTotales } from "@/lib/facturacion";
 import type { CondicionIva, Servicio, TipoFactura } from "@/lib/tipos";
 import { ETIQUETA_CONDICION_IVA, ETIQUETA_TIPO } from "@/lib/tipos";
@@ -39,6 +39,16 @@ export function FormularioFactura({
   const [fecha, setFecha] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [notas, setNotas] = useState<string>("");
 
+  const [cotizaciones, setCotizaciones] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    for (const s of servicios) {
+      if (s.moneda === "USD") {
+        init[s.id] = s.cotizacion ? Number(s.cotizacion) : 1250;
+      }
+    }
+    return init;
+  });
+
   const [copiado, setCopiado] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
@@ -74,12 +84,32 @@ export function FormularioFactura({
     };
   }, [tipo, puntoVenta, numeroModificadoManualmente]);
 
-  const totales = useMemo(() => calcularTotales(servicios), [servicios]);
+  const serviciosEfectivos = useMemo(() => {
+    return servicios.map((s) => {
+      if (s.moneda === "USD") {
+        const cotiz =
+          cotizaciones[s.id] ?? (s.cotizacion ? Number(s.cotizacion) : 1250);
+        const montoPesos =
+          Math.round((s.monto_moneda ?? 0) * cotiz * 100) / 100;
+        return {
+          ...s,
+          cotizacion: cotiz,
+          monto: montoPesos,
+        };
+      }
+      return s;
+    });
+  }, [servicios, cotizaciones]);
+
+  const totales = useMemo(
+    () => calcularTotales(serviciosEfectivos),
+    [serviciosEfectivos],
+  );
 
   const faltaCuitParaA = tipo === "A" && (!cliente.cuit || !cliente.cuit.trim());
 
   const handleCopiarArca = async () => {
-    const lineasServicios = servicios.map((s) => {
+    const lineasServicios = serviciosEfectivos.map((s) => {
       const desc = s.descripcion?.trim() || `${ETIQUETA_TIPO[s.tipo]} #${s.numero}`;
       return `${desc} — ${formatearPesos(s.monto)}`;
     });
@@ -112,65 +142,64 @@ export function FormularioFactura({
       setErrorGuardar("El número de factura es obligatorio.");
       return;
     }
+    const pvParsed = Number(puntoVenta);
+    if (!pvParsed || pvParsed <= 0) {
+      setErrorGuardar("El punto de venta es obligatorio.");
+      return;
+    }
     if (faltaCuitParaA) {
       setErrorGuardar("Una Factura A requiere CUIT del cliente.");
       return;
+    }
+
+    for (const s of servicios) {
+      if (s.moneda === "USD") {
+        const c = cotizaciones[s.id];
+        if (!c || c <= 0) {
+          setErrorGuardar(`Falta la cotización del día para el servicio #${s.numero}`);
+          return;
+        }
+      }
     }
 
     setGuardando(true);
     setErrorGuardar(null);
 
     const numParsed = parseInt(numero, 10);
-    const pvParsed = Number(puntoVenta) || PUNTO_VENTA_DEFAULT;
 
     try {
-      const { data: facturaInsertada, error: errInsert } = await supabase
-        .from("facturas")
-        .insert({
-          tipo: tipo as TipoFactura,
-          punto_venta: pvParsed,
-          numero: numParsed,
-          fecha,
-          cliente_id: cliente.id,
-          neto: totales.neto,
-          iva: totales.iva,
-          total: totales.total,
-          notas: notas.trim() || null,
-        })
-        .select("id")
-        .single();
+      const p_datos = {
+        tipo: tipo as TipoFactura,
+        punto_venta: pvParsed,
+        numero: numParsed,
+        fecha,
+        cliente_id: cliente.id,
+        neto: totales.neto,
+        iva: totales.iva,
+        total: totales.total,
+        notas: notas.trim() || null,
+      };
 
-      if (errInsert) {
-        if (errInsert.code === "23505") {
-          setErrorGuardar("Ya existe una factura con ese número en ese punto de venta.");
+      const p_servicios = servicios.map((s) => ({
+        id: s.id,
+        ...(s.moneda === "USD" ? { cotizacion: cotizaciones[s.id] } : {}),
+      }));
+
+      const { error: rpcError } = await supabase.rpc("registrar_factura", {
+        p_datos,
+        p_servicios,
+      });
+
+      if (rpcError) {
+        if (rpcError.code === "23505" || rpcError.message.includes("unique")) {
+          setErrorGuardar(
+            "Ya existe una factura con ese número en ese punto de venta.",
+          );
         } else {
-          setErrorGuardar(errInsert.message || "Error al crear la factura.");
+          setErrorGuardar(rpcError.message || "Error al registrar la factura.");
         }
         setGuardando(false);
         return;
-      }
-
-      // Actualizar servicios asociados
-      const servicioIds = servicios.map((s) => s.id);
-      const { error: errServicios } = await supabase
-        .from("servicios")
-        .update({ factura_id: facturaInsertada.id })
-        .in("id", servicioIds);
-
-      if (errServicios) {
-        setErrorGuardar("Factura creada, pero falló al asociar los servicios: " + errServicios.message);
-        setGuardando(false);
-        return;
-      }
-
-      // Cambiar estado de cada servicio a facturado con la RPC
-      const numeroFormateado = formatearNumeroFactura(tipo, pvParsed, numParsed);
-      for (const s of servicios) {
-        await supabase.rpc("cambiar_estado", {
-          p_servicio_id: s.id,
-          p_nuevo: "facturado",
-          p_nota: `Factura ${numeroFormateado}`,
-        });
       }
 
       onGuardado();
@@ -188,16 +217,54 @@ export function FormularioFactura({
           Servicios a incluir ({servicios.length})
         </span>
         <div className="divide-y divide-borde text-sm">
-          {servicios.map((s) => (
-            <div key={s.id} className="py-1.5 flex items-center justify-between gap-2">
-              <span className="truncate text-tinta">
-                #{s.numero} · {s.descripcion || ETIQUETA_TIPO[s.tipo]}
-              </span>
-              <span className="shrink-0 font-medium tabular-nums text-tinta">
-                {formatearPesos(s.monto)}
-              </span>
-            </div>
-          ))}
+          {servicios.map((s) => {
+            const esUsd = s.moneda === "USD";
+            const cotiz =
+              cotizaciones[s.id] ?? (s.cotizacion ? Number(s.cotizacion) : 1250);
+            const montoPesos = esUsd
+              ? Math.round((s.monto_moneda ?? 0) * cotiz * 100) / 100
+              : s.monto;
+
+            return (
+              <div
+                key={s.id}
+                className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+              >
+                <span className="truncate text-tinta font-medium">
+                  #{s.numero} · {s.descripcion || ETIQUETA_TIPO[s.tipo]}
+                </span>
+                {esUsd ? (
+                  <div className="flex flex-wrap items-center gap-2 text-sm shrink-0">
+                    <span className="tabular-nums font-semibold text-tinta">
+                      U$S {(s.monto_moneda ?? 0).toLocaleString("es-AR")}
+                    </span>
+                    <span className="text-tinta-suave">× cotización</span>
+                    <input
+                      id={`cotiz_${s.id}`}
+                      data-testid="cotizacion-factura"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={cotiz}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setCotizaciones((prev) => ({ ...prev, [s.id]: val }));
+                      }}
+                      className="w-24 h-8 px-2 rounded border border-borde text-sm font-medium tabular-nums text-tinta bg-superficie focus:ring-1 focus:ring-marca"
+                    />
+                    <span className="text-tinta-suave">=</span>
+                    <span className="font-semibold tabular-nums text-tinta">
+                      {formatearPesos(montoPesos)}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="shrink-0 font-medium tabular-nums text-tinta">
+                    {formatearPesos(s.monto)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Desglose de totales */}

@@ -123,7 +123,8 @@ export async function consultarPadronArca(cuit: string): Promise<RespuestaPadron
  */
 export async function emitirFacturaArca(
   clienteId: string,
-  servicioIds: string[]
+  servicioIds: string[],
+  cotizaciones?: Record<string, number>
 ): Promise<RespuestaEmitirArca> {
   const workerUrl = obtenerWorkerUrl();
   const headers = await obtenerHeadersAuth();
@@ -135,6 +136,7 @@ export async function emitirFacturaArca(
       body: JSON.stringify({
         cliente_id: clienteId,
         servicio_ids: servicioIds,
+        cotizaciones,
       }),
     });
 
