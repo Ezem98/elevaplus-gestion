@@ -243,12 +243,49 @@ export function FormularioServicio() {
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
 
+  const fechaEfectiva =
+    tipo === "alquiler_periodo"
+      ? (fechaProgramada || fechaDesde)
+      : fechaProgramada;
+  const tieneFechaProgramada = Boolean(fechaEfectiva);
+
+  const derivarEstadoInicial = (
+    nuevaFechaProg: string,
+    nuevaFechaDesde: string,
+    nuevosChoferes: string[],
+    tipoActual: TipoServicio,
+  ) => {
+    const hoyLocal = new Date(Date.now() - 3 * 3600 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const fBase =
+      tipoActual === "alquiler_periodo"
+        ? (nuevaFechaProg || nuevaFechaDesde)
+        : nuevaFechaProg;
+
+    if (fBase && fBase < hoyLocal) {
+      return;
+    }
+
+    if (fBase) {
+      if (nuevosChoferes.length > 0) {
+        setEstadoInicial("programado");
+      } else {
+        setEstadoInicial("aceptado");
+      }
+    } else {
+      setEstadoInicial("aceptado");
+    }
+  };
+
   const toggleChofer = (choferId: string) => {
-    setChoferesSeleccionados((prev) =>
-      prev.includes(choferId)
+    setChoferesSeleccionados((prev) => {
+      const nuevo = prev.includes(choferId)
         ? prev.filter((cid) => cid !== choferId)
-        : [...prev, choferId],
-    );
+        : [...prev, choferId];
+      derivarEstadoInicial(fechaProgramada, fechaDesde, nuevo, tipo);
+      return nuevo;
+    });
   };
 
   const verificarFechasPasadas = (
@@ -512,7 +549,11 @@ export function FormularioServicio() {
       }
     }
 
-    if (estadoInicial === "programado" && !fechaProgramada) {
+    const fechaProgEfectiva =
+      tipo === "alquiler_periodo"
+        ? (fechaProgramada || fechaDesde)
+        : fechaProgramada;
+    if (estadoInicial === "programado" && !fechaProgEfectiva) {
       setErrorValidacion("Para programarlo hace falta la fecha");
       return;
     }
@@ -548,6 +589,13 @@ export function FormularioServicio() {
         );
         return;
       }
+    }
+
+    if (estadoInicial === "programado" && choferesSeleccionados.length === 0) {
+      setErrorValidacion(
+        "Debe seleccionar al menos un chofer para programar el servicio.",
+      );
+      return;
     }
 
     setGuardando(true);
@@ -670,7 +718,7 @@ export function FormularioServicio() {
         payloadServicio.carga = null;
         payloadServicio.km = null;
         payloadServicio.ida_y_vuelta = false;
-        payloadServicio.vehiculo_id = null;
+        payloadServicio.vehiculo_id = vehiculoId || null;
         payloadServicio.maquina_id = maquinaId || null;
       } else if (tipo === "mantenimiento") {
         payloadServicio.origen = null;
@@ -687,7 +735,7 @@ export function FormularioServicio() {
         payloadServicio.carga = null;
         payloadServicio.km = null;
         payloadServicio.ida_y_vuelta = false;
-        payloadServicio.vehiculo_id = null;
+        payloadServicio.vehiculo_id = vehiculoId || null;
         payloadServicio.maquina_id = null;
       }
 
@@ -761,8 +809,42 @@ export function FormularioServicio() {
         }
       }
 
-      // Transiciones de estado encadenadas con cambiar_estado RPC
-      if (estadoInicial === "aceptado") {
+      // Transiciones de estado encadenadas o programación atómica
+      if (estadoInicial === "programado") {
+        const fechaParaProg = (
+          tipo === "alquiler_periodo" ? fechaDesde : fechaProgramada
+        ) as string;
+
+        const { error: errProgramar } = await supabase.rpc(
+          "programar_servicio",
+          {
+            p_servicio_id: nuevoId,
+            p_fecha: fechaParaProg,
+            p_hora: horaProgramada
+              ? horaProgramada.length === 5
+                ? `${horaProgramada}:00`
+                : horaProgramada
+              : null,
+            p_vehiculo_id: vehiculoId || null,
+            p_maquina_id: maquinaId || null,
+            p_choferes: choferesSeleccionados,
+          },
+        );
+
+        if (errProgramar) {
+          console.error(
+            "[FormularioServicio] Error en programar_servicio:",
+            errProgramar.message,
+            errProgramar,
+          );
+          navigate(
+            `/servicios/${nuevoId}?aviso=${encodeURIComponent(
+              `El servicio quedó creado pero no se pudo programar: ${errProgramar.message}`,
+            )}`,
+          );
+          return;
+        }
+      } else if (estadoInicial === "aceptado") {
         // consulta → presupuestado → aceptado
         const { error: errorRpc1 } = await supabase.rpc("cambiar_estado", {
           p_servicio_id: nuevoId,
@@ -783,47 +865,10 @@ export function FormularioServicio() {
           setGuardando(false);
           return;
         }
-      } else if (estadoInicial === "programado") {
-        // consulta → programado directo
-        const { error: errorRpc } = await supabase.rpc("cambiar_estado", {
-          p_servicio_id: nuevoId,
-          p_nuevo: "programado",
-          p_nota: "Programado al cargar",
-        });
-        if (errorRpc) {
-          setErrorGuardar("No se pudo guardar el servicio. Probá de nuevo.");
-          setGuardando(false);
-          return;
-        }
       } else if (
         estadoInicial === "realizado" ||
         estadoInicial === "en_curso"
       ) {
-        // Choferes: asignar insertando en servicio_choferes después del insert del servicio y antes de la RPC
-        if (choferesSeleccionados.length > 0) {
-          const { error: errInsertChoferes } = await supabase
-            .from("servicio_choferes")
-            .insert(
-              choferesSeleccionados.map((chofer_id) => ({
-                servicio_id: nuevoId,
-                chofer_id,
-              })),
-            );
-
-          if (errInsertChoferes) {
-            console.error(
-              "[FormularioServicio] Error al asignar choferes:",
-              errInsertChoferes.message,
-              errInsertChoferes,
-            );
-            setErrorGuardar(
-              `No se pudieron asignar los choferes: ${errInsertChoferes.message}`,
-            );
-            setGuardando(false);
-            return;
-          }
-        }
-
         const { error: errorRpc } = await supabase.rpc(
           "registrar_servicio_realizado",
           {
@@ -1215,21 +1260,6 @@ export function FormularioServicio() {
                     </button>
                   </div>
                 </fieldset>
-
-                <Campo etiqueta="Vehículo" id="vehiculo">
-                  <Selector
-                    id="vehiculo"
-                    value={vehiculoId}
-                    onChange={(e) => setVehiculoId(e.target.value)}
-                  >
-                    <option value="">Sin vehículo asignado</option>
-                    {vehiculos.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.nombre}
-                      </option>
-                    ))}
-                  </Selector>
-                </Campo>
               </div>
             </div>
           )}
@@ -1290,24 +1320,6 @@ export function FormularioServicio() {
                   </div>
                 </Campo>
               </div>
-
-              <Campo
-                etiqueta="Vehículo (para el traslado de la máquina)"
-                id="vehiculo_traslado"
-              >
-                <Selector
-                  id="vehiculo_traslado"
-                  value={vehiculoId}
-                  onChange={(e) => setVehiculoId(e.target.value)}
-                >
-                  <option value="">Sin vehículo asignado</option>
-                  {vehiculos.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.nombre}
-                    </option>
-                  ))}
-                </Selector>
-              </Campo>
             </div>
           )}
 
@@ -1397,6 +1409,12 @@ export function FormularioServicio() {
                         fechaProgramada || val,
                         val,
                         fechaHasta,
+                      );
+                      derivarEstadoInicial(
+                        fechaProgramada || val,
+                        val,
+                        choferesSeleccionados,
+                        "alquiler_periodo",
                       );
                     }}
                   />
@@ -1543,24 +1561,6 @@ export function FormularioServicio() {
                     placeholder="Ej: autoelevador Toyota 2,5 t"
                   />
                 </Campo>
-
-                <Campo
-                  etiqueta="Vehículo (opcional)"
-                  id="vehiculo_mantenimiento"
-                >
-                  <Selector
-                    id="vehiculo_mantenimiento"
-                    value={vehiculoId}
-                    onChange={(e) => setVehiculoId(e.target.value)}
-                  >
-                    <option value="">Sin vehículo asignado</option>
-                    {vehiculos.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.nombre}
-                      </option>
-                    ))}
-                  </Selector>
-                </Campo>
               </div>
             </div>
           )}
@@ -1610,6 +1610,7 @@ export function FormularioServicio() {
                     const val = e.target.value;
                     setFechaProgramada(val);
                     verificarFechasPasadas(tipo, val, fechaDesde, fechaHasta);
+                    derivarEstadoInicial(val, fechaDesde, choferesSeleccionados, tipo);
                   }}
                 />
               </Campo>
@@ -1699,6 +1700,68 @@ export function FormularioServicio() {
                       </Boton>
                     </Aviso>
                   )}
+              </div>
+            )}
+
+            {tieneFechaProgramada && (
+              <div className="space-y-4 rounded-lg border border-borde bg-fondo p-4">
+                <h4 className="text-sm font-semibold text-tinta">
+                  Asignación
+                </h4>
+
+                <Campo etiqueta="Vehículo" id="vehiculo">
+                  <Selector
+                    id="vehiculo"
+                    value={vehiculoId}
+                    onChange={(e) => setVehiculoId(e.target.value)}
+                  >
+                    <option value="">Sin vehículo asignado</option>
+                    {vehiculos.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.nombre}
+                      </option>
+                    ))}
+                  </Selector>
+                </Campo>
+
+                <div>
+                  <Etiqueta>Choferes asignados</Etiqueta>
+                  {choferesDisponibles.length === 0 ? (
+                    <p className="text-xs text-tinta-suave mt-1">
+                      No hay choferes disponibles.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-1.5">
+                      {choferesDisponibles.map((ch) => {
+                        const seleccionado = choferesSeleccionados.includes(
+                          ch.id,
+                        );
+                        return (
+                          <button
+                            key={ch.id}
+                            type="button"
+                            onClick={() => toggleChofer(ch.id)}
+                            aria-pressed={seleccionado}
+                            className={`h-10 px-3 rounded-md border text-sm font-medium transition-colors text-center ${
+                              seleccionado
+                                ? "border-marca bg-marca-suave text-marca font-semibold"
+                                : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+                            }`}
+                          >
+                            {ch.nombre}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {choferesSeleccionados.length === 0 && (
+                    <div className="mt-2.5">
+                      <Aviso variante="alerta">
+                        Sin chofer asignado: los choferes no lo van a ver
+                      </Aviso>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -2042,57 +2105,30 @@ export function FormularioServicio() {
               })()}
             </div>
 
-            {/* Choferes y cobro para Ya realizado / En curso */}
+            {tieneFechaProgramada && choferesSeleccionados.length === 0 && (
+              <div className="mt-3">
+                <Aviso variante="alerta">
+                  Sin chofer asignado: los choferes no lo van a ver
+                </Aviso>
+              </div>
+            )}
+
             {(estadoInicial === "realizado" ||
               estadoInicial === "en_curso") && (
-              <div className="space-y-4 pt-3 mt-3 border-t border-borde">
-                <div>
-                  <Etiqueta>Choferes asignados</Etiqueta>
-                  {choferesDisponibles.length === 0 ? (
-                    <p className="text-xs text-tinta-suave">
-                      No hay choferes disponibles.
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                      {choferesDisponibles.map((ch) => {
-                        const seleccionado = choferesSeleccionados.includes(
-                          ch.id,
-                        );
-                        return (
-                          <button
-                            key={ch.id}
-                            type="button"
-                            onClick={() => toggleChofer(ch.id)}
-                            aria-pressed={seleccionado}
-                            className={`h-10 px-3 rounded-md border text-sm font-medium transition-colors text-center ${
-                              seleccionado
-                                ? "border-marca bg-marca-suave text-marca"
-                                : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
-                            }`}
-                          >
-                            {ch.nombre}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2">
-                  <label className="flex items-center gap-2 text-sm text-tinta font-medium cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={yaSeCobro}
-                      onChange={(e) => setYaSeCobro(e.target.checked)}
-                      className="rounded border-borde text-marca focus:ring-marca"
-                    />
-                    ¿Ya se cobró?
-                  </label>
-                  <p className="text-xs text-tinta-suave mt-0.5 ml-6">
-                    Abre el formulario para registrar el cobro con la fecha del
-                    servicio.
-                  </p>
-                </div>
+              <div className="pt-3 mt-3 border-t border-borde">
+                <label className="flex items-center gap-2 text-sm text-tinta font-medium cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={yaSeCobro}
+                    onChange={(e) => setYaSeCobro(e.target.checked)}
+                    className="rounded border-borde text-marca focus:ring-marca"
+                  />
+                  ¿Ya se cobró?
+                </label>
+                <p className="text-xs text-tinta-suave mt-0.5 ml-6">
+                  Abre el formulario para registrar el cobro con la fecha del
+                  servicio.
+                </p>
               </div>
             )}
           </div>

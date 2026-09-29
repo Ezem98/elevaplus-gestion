@@ -31,9 +31,30 @@ function obtenerFechaHoyTexto(): string {
   return `Hoy, ${dia} de ${meses[d.getMonth()]}`;
 }
 
+function sumarDias(fechaIso: string, dias: number): string {
+  const d = new Date(`${fechaIso}T00:00:00`);
+  d.setDate(d.getDate() + dias);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dia}`;
+}
+
+function formatearDiaSemana(fechaIso: string, hoyIso: string): string {
+  const d = new Date(`${fechaIso}T00:00:00`);
+  const diaSemana = d.toLocaleDateString("es-AR", { weekday: "long" });
+  const diaMes = d.getDate();
+  const mes = d.toLocaleDateString("es-AR", { month: "long" });
+  const conMayus = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+  if (fechaIso === hoyIso) {
+    return `Hoy · ${conMayus} ${diaMes} de ${mes}`;
+  }
+  return `${conMayus} ${diaMes} de ${mes}`;
+}
+
 export function PaginaChoferHoy() {
   const { perfil } = useAuth();
-  const [pestaña, setPestaña] = useState<"hoy" | "historial">("hoy");
+  const [pestaña, setPestaña] = useState<"hoy" | "mi_semana" | "historial">("hoy");
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [historial, setHistorial] = useState<Servicio[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -225,13 +246,34 @@ export function PaginaChoferHoy() {
 
   // Servicios de hoy (o sin fecha fijada)
   const serviciosHoy = servicios.filter(
-    (s) => !s.fecha_programada || s.fecha_programada >= hoyStr
+    (s) => !s.fecha_programada || s.fecha_programada === hoyStr
   );
+
+  // Servicios programados para los próximos 7 días
+  const limiteSemanaStr = sumarDias(hoyStr, 7);
+  const serviciosSemana = servicios.filter(
+    (s) =>
+      s.estado === "programado" &&
+      s.fecha_programada &&
+      s.fecha_programada >= hoyStr &&
+      s.fecha_programada <= limiteSemanaStr
+  );
+
+  // Agrupar servicios de la semana por fecha
+  const serviciosPorDia: Record<string, Servicio[]> = {};
+  for (const s of serviciosSemana) {
+    const f = s.fecha_programada!;
+    if (!serviciosPorDia[f]) {
+      serviciosPorDia[f] = [];
+    }
+    serviciosPorDia[f].push(s);
+  }
+  const fechasSemanaOrdenadas = Object.keys(serviciosPorDia).sort();
 
   return (
     <div className="mx-auto flex w-full max-w-[420px] flex-col pb-12 select-none">
-      {/* Selector de pestañas: Hoy | Últimos 7 días */}
-      <div className="mb-4 grid grid-cols-2 gap-1 rounded-lg border border-borde bg-superficie p-1 shadow-sm">
+      {/* Selector de pestañas: Hoy | Mi semana | Últimos 7 días */}
+      <div className="mb-4 grid grid-cols-3 gap-1 rounded-lg border border-borde bg-superficie p-1 shadow-sm">
         <button
           type="button"
           onClick={() => setPestaña("hoy")}
@@ -242,6 +284,17 @@ export function PaginaChoferHoy() {
           }`}
         >
           Hoy
+        </button>
+        <button
+          type="button"
+          onClick={() => setPestaña("mi_semana")}
+          className={`h-11 rounded-md text-sm font-semibold transition-all ${
+            pestaña === "mi_semana"
+              ? "bg-marca text-white shadow-sm"
+              : "text-tinta-suave hover:text-tinta hover:bg-fondo"
+          }`}
+        >
+          Mi semana
         </button>
         <button
           type="button"
@@ -262,7 +315,7 @@ export function PaginaChoferHoy() {
         </Aviso>
       )}
 
-      {pestaña === "hoy" ? (
+      {pestaña === "hoy" && (
         <>
           {/* Encabezado del día */}
           <div className="mb-3 flex items-baseline justify-between pt-1">
@@ -361,7 +414,70 @@ export function PaginaChoferHoy() {
             </Boton>
           </div>
         </>
-      ) : (
+      )}
+
+      {pestaña === "mi_semana" && (
+        <div className="flex flex-col gap-4">
+          <div className="mb-1">
+            <h1 className="text-xl font-semibold text-tinta">Mi semana</h1>
+            <p className="mt-0.5 text-xs text-tinta-suave">
+              Servicios programados para los próximos 7 días
+            </p>
+          </div>
+
+          {fechasSemanaOrdenadas.length === 0 ? (
+            <Tarjeta className="p-8 text-center text-sm text-tinta-suave shadow-sm">
+              No tenés servicios programados para los próximos 7 días.
+            </Tarjeta>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {fechasSemanaOrdenadas.map((fecha) => (
+                <div key={fecha} className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2 border-b border-borde pb-1.5">
+                    <span className="text-sm font-semibold text-tinta">
+                      {formatearDiaSemana(fecha, hoyStr)}
+                    </span>
+                    <span className="text-xs text-tinta-suave">
+                      · {serviciosPorDia[fecha].length}{" "}
+                      {serviciosPorDia[fecha].length === 1
+                        ? "servicio"
+                        : "servicios"}
+                    </span>
+                  </div>
+                  {serviciosPorDia[fecha].map((s) => (
+                    <TarjetaServicioItem
+                      key={s.id}
+                      servicio={s}
+                      finalizandoId={finalizandoId}
+                      fotoRemito={fotoRemito}
+                      fotoRemitoUrl={fotoRemitoUrl}
+                      guardandoTerminado={guardandoTerminado}
+                      inputRemitoRef={inputRemitoRef}
+                      onIniciar={() => cambiarEstado(s.id, "en_curso")}
+                      onMostrarTerminar={() => {
+                        cancelarFotoRemito();
+                        setFinalizandoId(s.id);
+                      }}
+                      onCancelarTerminar={() => {
+                        cancelarFotoRemito();
+                        setFinalizandoId(null);
+                      }}
+                      onSeleccionarFoto={seleccionarFotoRemito}
+                      onQuitarFoto={cancelarFotoRemito}
+                      onTerminar={(conFoto, ultimaParada) =>
+                        ejecutarTermine(s, conFoto, ultimaParada)
+                      }
+                      onCobrar={() => setServicioCobrando(s)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {pestaña === "historial" && (
         /* Pestaña Historial: Últimos 7 días */
         <div className="flex flex-col gap-3">
           <div className="mb-1">

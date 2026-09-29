@@ -54,6 +54,33 @@ function obtenerFechaHoyCorta(): string {
   return conMayuscula.replace(",", "");
 }
 
+function obtenerFechaLocal(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dia}`;
+}
+
+function obtenerFechaMananaLocal(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dia}`;
+}
+
+interface ServicioAtencionHoy {
+  id: string;
+  numero: number | null;
+  estado: string;
+  fecha_programada: string | null;
+  descripcion: string | null;
+  clientes: { nombre: string } | null;
+  servicio_choferes: { chofer_id: string }[];
+}
+
 export function PaginaHoy() {
   const [hoy, setHoy] = useState<Servicio[]>([]);
   const [sinCerrar, setSinCerrar] = useState<Servicio[]>([]);
@@ -65,9 +92,11 @@ export function PaginaHoy() {
   const [venceHoy, setVenceHoy] = useState<ItemAgenda[]>([]);
   const [atrasadosAgenda, setAtrasadosAgenda] = useState<ItemAgenda[]>([]);
   const [incompletosSinReprogramar, setIncompletosSinReprogramar] = useState(0);
+  const [serviciosAtencion, setServiciosAtencion] = useState<ServicioAtencionHoy[]>([]);
 
   const cargar = useCallback(async () => {
-    const fecha = new Date().toISOString().slice(0, 10);
+    const fecha = obtenerFechaLocal();
+    const fechaManana = obtenerFechaMananaLocal();
     const [
       resHoy,
       resSinCerrar,
@@ -79,6 +108,7 @@ export function PaginaHoy() {
       resVenceHoy,
       resAtrasados,
       resIncompletos,
+      resAtencion,
     ] = await Promise.all([
       supabase
         .from("servicios")
@@ -136,6 +166,14 @@ export function PaginaHoy() {
         .from("servicios")
         .select("id, paradas!paradas_servicio_id_fkey!inner(id, estado)")
         .eq("paradas.estado", "no_realizada"),
+      supabase
+        .from("servicios")
+        .select(
+          "id, numero, estado, fecha_programada, descripcion, clientes!servicios_cliente_id_fkey(nombre), servicio_choferes(chofer_id)",
+        )
+        .in("fecha_programada", [fecha, fechaManana])
+        .not("estado", "in", "(cancelado,terminado,cobrado,facturado)")
+        .order("fecha_programada"),
     ]);
 
     if (resHoy.error) {
@@ -251,6 +289,22 @@ export function PaginaHoy() {
     if (resAtrasados.data) {
       setAtrasadosAgenda(resAtrasados.data as ItemAgenda[]);
     }
+
+    if (resAtencion.error) {
+      console.error(
+        "Error al cargar servicios que requieren atención:",
+        resAtencion.error.message,
+      );
+    } else if (resAtencion.data) {
+      const atencion = (resAtencion.data as any[]).filter((s) => {
+        const sinChofer =
+          !s.servicio_choferes || s.servicio_choferes.length === 0;
+        return s.estado === "aceptado" || sinChofer;
+      });
+      setServiciosAtencion(atencion);
+    } else {
+      setServiciosAtencion([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -269,12 +323,14 @@ export function PaginaHoy() {
       "vencimientos",
       "vencimiento_instancias",
       "paradas",
+      "servicio_choferes",
     ],
     cargar,
   );
 
   const fechaHoy = obtenerFechaHoyLarga();
   const fechaHoyCorta = obtenerFechaHoyCorta();
+  const fechaHoyIso = obtenerFechaLocal();
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -377,6 +433,43 @@ export function PaginaHoy() {
               Ver recorridos incompletos
             </Link>
           </span>
+        </Aviso>
+      )}
+
+      {serviciosAtencion.length > 0 && (
+        <Aviso variante="alerta">
+          <div className="space-y-1.5">
+            <div className="font-semibold">
+              {serviciosAtencion.length === 1
+                ? "Hay 1 servicio de hoy o mañana en aceptado o sin chofer asignado:"
+                : `Hay ${serviciosAtencion.length} servicios de hoy o mañana en aceptado o sin chofer asignado:`}
+            </div>
+            <ul className="list-disc list-inside space-y-1 text-sm font-normal">
+              {serviciosAtencion.map((s) => {
+                const dia =
+                  s.fecha_programada === fechaHoyIso ? "Hoy" : "Mañana";
+                const cliente = s.clientes?.nombre || "Sin cliente";
+                const motivo =
+                  s.estado === "aceptado" &&
+                  (!s.servicio_choferes || s.servicio_choferes.length === 0)
+                    ? "en aceptado y sin chofer"
+                    : s.estado === "aceptado"
+                      ? "en aceptado"
+                      : "sin chofer asignado";
+                return (
+                  <li key={s.id}>
+                    <Link
+                      to={`/servicios/${s.id}`}
+                      className="underline font-semibold hover:opacity-80"
+                    >
+                      Servicio #{s.numero ?? s.id.slice(0, 8)}
+                    </Link>{" "}
+                    ({dia} · {cliente}) — {motivo}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </Aviso>
       )}
 

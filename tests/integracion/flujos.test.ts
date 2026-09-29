@@ -784,4 +784,122 @@ describe("Flujos de Integración y Casos de Negocio", () => {
       }
     }
   });
+
+  it("Servicio cargado con fecha y chofer aparece para el chofer; sin chofer no aparece y genera aviso en Hoy oficina", async () => {
+    const oficina = await comoOficina();
+    const chofer1 = await comoChofer1();
+    const dHoy = new Date();
+    const hoy = `${dHoy.getFullYear()}-${String(dHoy.getMonth() + 1).padStart(2, "0")}-${String(dHoy.getDate()).padStart(2, "0")}`;
+
+    const dManana = new Date();
+    dManana.setDate(dManana.getDate() + 1);
+    const manana = `${dManana.getFullYear()}-${String(dManana.getMonth() + 1).padStart(2, "0")}-${String(dManana.getDate()).padStart(2, "0")}`;
+
+    // 1. Crear servicio con fecha y chofer asignado usando la RPC atómica programar_servicio
+    const { data: servConChofer, error: errCrear1 } = await oficina
+      .from("servicios")
+      .insert({
+        cliente_id: CLIENTES.deza.id,
+        tipo: "traslado",
+        estado: "consulta",
+        descripcion: `${PREFIJO}Con chofer asignado`,
+      })
+      .select("id, numero")
+      .single();
+
+    expect(errCrear1).toBeNull();
+    const idConChofer = servConChofer!.id;
+
+    // Programar el servicio de forma atómica con Chofer 1
+    const { error: errProg } = await oficina.rpc("programar_servicio", {
+      p_servicio_id: idConChofer,
+      p_fecha: hoy,
+      p_hora: "09:00:00",
+      p_choferes: [USUARIOS.chofer1.id],
+    });
+    expect(errProg).toBeNull();
+
+    // 2. Crear servicio con fecha pero sin chofer asignado (estado inicial: aceptado)
+    const { data: servSinChofer, error: errCrear2 } = await oficina
+      .from("servicios")
+      .insert({
+        cliente_id: CLIENTES.deza.id,
+        tipo: "traslado",
+        estado: "consulta",
+        descripcion: `${PREFIJO}Sin chofer asignado`,
+        fecha_programada: manana,
+      })
+      .select("id, numero")
+      .single();
+
+    expect(errCrear2).toBeNull();
+    const idSinChofer = servSinChofer!.id;
+
+    // Pasar a presupuestado y luego a aceptado (como hace FormularioServicio cuando queda en aceptado)
+    const { error: errPres } = await oficina.rpc("cambiar_estado", {
+      p_servicio_id: idSinChofer,
+      p_nuevo: "presupuestado",
+    });
+    expect(errPres).toBeNull();
+
+    const { error: errAcep } = await oficina.rpc("cambiar_estado", {
+      p_servicio_id: idSinChofer,
+      p_nuevo: "aceptado",
+      p_nota: "Aceptado sin chofer",
+    });
+    expect(errAcep).toBeNull();
+
+    // 3. Verificar visibilidad para el chofer
+    const { data: servsChofer, error: errChofer } = await chofer1
+      .from("servicios")
+      .select(
+        "*, clientes!servicios_cliente_id_fkey(nombre), paradas!paradas_servicio_id_fkey(*)",
+      )
+      .in("estado", ["programado", "en_curso", "terminado"])
+      .order("fecha_programada")
+      .order("hora_programada");
+
+    expect(errChofer).toBeNull();
+    expect(servsChofer).toBeDefined();
+
+    const idsVisiblesChofer = (servsChofer || []).map((s: any) => s.id);
+
+    // El servicio con chofer asignado aparece en la consulta del chofer
+    expect(idsVisiblesChofer).toContain(idConChofer);
+    // El servicio sin chofer asignado NO aparece para el chofer
+    expect(idsVisiblesChofer).not.toContain(idSinChofer);
+
+    // Filtro de la pestaña "Hoy" del chofer: solo lo de hoy
+    const serviciosHoyChofer = (servsChofer || []).filter(
+      (s: any) => !s.fecha_programada || s.fecha_programada === hoy,
+    );
+    expect(serviciosHoyChofer.map((s: any) => s.id)).toContain(idConChofer);
+    expect(serviciosHoyChofer.map((s: any) => s.id)).not.toContain(idSinChofer);
+
+    // 4. Verificar consulta de avisos de PaginaHoy (oficina)
+    const { data: atencionData, error: errAtencion } = await oficina
+      .from("servicios")
+      .select(
+        "id, numero, estado, fecha_programada, descripcion, clientes!servicios_cliente_id_fkey(nombre), servicio_choferes(chofer_id)",
+      )
+      .in("fecha_programada", [hoy, manana])
+      .not("estado", "in", "(cancelado,terminado,cobrado,facturado)")
+      .order("fecha_programada");
+
+    expect(errAtencion).toBeNull();
+    expect(atencionData).toBeDefined();
+
+    const queRequierenAtencion = (atencionData as any[]).filter((s) => {
+      const sinChofer =
+        !s.servicio_choferes || s.servicio_choferes.length === 0;
+      return s.estado === "aceptado" || sinChofer;
+    });
+
+    const idsAtencion = queRequierenAtencion.map((s) => s.id);
+
+    // El servicio sin chofer (en aceptado) genera el aviso
+    expect(idsAtencion).toContain(idSinChofer);
+    // El servicio con chofer programado NO genera aviso
+    expect(idsAtencion).not.toContain(idConChofer);
+  });
 });

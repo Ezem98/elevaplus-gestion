@@ -75,8 +75,8 @@ test.describe("Recorridos con Paradas (E2E)", () => {
     // Fecha programada
     await page.locator("#fecha_programada").fill(hoy);
 
-    // Estado inicial: Programado
-    await page.getByRole("button", { name: "Programado" }).click();
+    // Asignar Chofer 1 desde el formulario (deriva estado a Programado y asigna vía programar_servicio)
+    await page.getByRole("button", { name: USUARIOS.chofer1.nombre }).click();
 
     // Guardar servicio
     await page.getByRole("button", { name: "Guardar servicio" }).click();
@@ -86,14 +86,6 @@ test.describe("Recorridos con Paradas (E2E)", () => {
     const urlServicio = page.url();
     const servicioId = urlServicio.match(/\/servicios\/([a-f0-9-]+)$/)?.[1];
     expect(servicioId).toBeDefined();
-
-    // Asignar Chofer 1 al servicio
-    const admin = await comoAdmin();
-    const { error: errAsig } = await admin.from("servicio_choferes").insert({
-      servicio_id: servicioId!,
-      chofer_id: USUARIOS.chofer1.id,
-    });
-    expect(errAsig).toBeNull();
 
     // Verificar que las 3 paradas se visualizan en el detalle de la oficina
     await expect(page.getByText(`${PREFIJO}Parada 1 Lanús`)).toBeVisible();

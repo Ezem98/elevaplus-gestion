@@ -220,4 +220,55 @@ test.describe("Flujo Chofer (E2E)", () => {
     // como prefijo del input para que el chofer tipee el monto que el cliente le entregó en mano.
     // El precio presupuestado o convenido por la empresa NUNCA se le muestra al chofer.
   });
+
+  test("Pestaña 'Mi semana': muestra servicios programados de los próximos 7 días agrupados y sin montos", async ({
+    page,
+  }) => {
+    const admin = await comoAdmin();
+    const dManana = new Date();
+    dManana.setDate(dManana.getDate() + 1);
+    const manana = `${dManana.getFullYear()}-${String(dManana.getMonth() + 1).padStart(2, "0")}-${String(dManana.getDate()).padStart(2, "0")}`;
+
+    // Crear un servicio para mañana asignado al chofer
+    const { data: serv, error: errServ } = await admin
+      .from("servicios")
+      .insert({
+        cliente_id: CLIENTES.deza.id,
+        tipo: "traslado",
+        estado: "programado",
+        descripcion: `${PREFIJO}Viaje de mañana`,
+        carga: `${PREFIJO}Carga programada semana`,
+        monto: 120000,
+        fecha_programada: manana,
+      })
+      .select("id, numero")
+      .single();
+
+    expect(errServ).toBeNull();
+
+    await admin.from("servicio_choferes").insert({
+      servicio_id: serv!.id,
+      chofer_id: USUARIOS.chofer1.id,
+    });
+
+    await page.goto("/chofer");
+
+    // En "Hoy", el servicio de mañana NO debe figurar
+    await expect(page.getByText(`${PREFIJO}Carga programada semana`)).not.toBeVisible();
+
+    // Tocar pestaña "Mi semana"
+    const botonMiSemana = page.getByRole("button", {
+      name: "Mi semana",
+      exact: true,
+    });
+    await expect(botonMiSemana).toBeVisible();
+    await botonMiSemana.click();
+
+    // Debe mostrar la tarjeta del servicio de mañana
+    await expect(page.getByText(`${PREFIJO}Carga programada semana`)).toBeVisible();
+
+    // No debe contener montos de dinero ($ ni 120000)
+    await expect(page.locator("body")).not.toContainText("$");
+    await expect(page.locator("body")).not.toContainText("120000");
+  });
 });

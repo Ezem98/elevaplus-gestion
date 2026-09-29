@@ -451,55 +451,36 @@ export function PaginaServicio() {
     e.preventDefault();
     if (!servicio || !fechaProg) return;
 
+    if (choferesSeleccionados.length === 0) {
+      setErrorEstado("Debe seleccionar al menos un chofer para programar.");
+      return;
+    }
+
     setGuardandoProg(true);
     setErrorEstado(null);
 
     try {
-      const { error: errServicio } = await supabase
-        .from("servicios")
-        .update({
-          fecha_programada: fechaProg,
-          hora_programada: horaProg || null,
-          vehiculo_id: vehiculoId || null,
-          maquina_id: maquinaId || null,
-        })
-        .eq("id", servicio.id);
+      const { error: errRpc } = await supabase.rpc("programar_servicio", {
+        p_servicio_id: servicio.id,
+        p_fecha: fechaProg,
+        p_hora: horaProg
+          ? horaProg.length === 5
+            ? `${horaProg}:00`
+            : horaProg
+          : null,
+        p_vehiculo_id: vehiculoId || null,
+        p_maquina_id: maquinaId || null,
+        p_choferes: choferesSeleccionados,
+      });
 
-      if (errServicio) throw errServicio;
-
-      const { error: errDelete } = await supabase
-        .from("servicio_choferes")
-        .delete()
-        .eq("servicio_id", servicio.id);
-
-      if (errDelete) throw errDelete;
-
-      if (choferesSeleccionados.length > 0) {
-        const { error: errInsert } = await supabase
-          .from("servicio_choferes")
-          .insert(
-            choferesSeleccionados.map((chofer_id) => ({
-              servicio_id: servicio.id,
-              chofer_id,
-            })),
-          );
-
-        if (errInsert) throw errInsert;
-      }
-
-      if (servicio.estado === "aceptado") {
-        const { error: errRpc } = await supabase.rpc("cambiar_estado", {
-          p_servicio_id: servicio.id,
-          p_nuevo: "programado",
-          p_nota: `Programado para ${fechaProg}`,
-        });
-        if (errRpc) throw errRpc;
-      }
+      if (errRpc) throw errRpc;
 
       setMostrarProgramar(false);
       await cargarDatos();
     } catch (err: any) {
-      setErrorEstado("No se pudo programar el servicio. Probá de nuevo.");
+      setErrorEstado(
+        err?.message || "No se pudo programar el servicio. Probá de nuevo.",
+      );
     } finally {
       setGuardandoProg(false);
     }
