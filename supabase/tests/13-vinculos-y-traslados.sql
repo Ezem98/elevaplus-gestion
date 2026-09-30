@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(34);
+select plan(38);
 
 -- Constantes del seed
 \set admin_id 'a0000000-0000-0000-0000-000000000001'
@@ -465,7 +465,7 @@ select results_eq(
   'crear_traslado_vinculado incluido deja monto 0, no_facturable = true y traslado_incluido = true'
 );
 
--- Test 17: No permite vincular si el principal es un traslado de máquina
+-- Test 17: No permite vincular si el principal es un traslado de máquina vinculado
 select throws_matching(
   $$
     select public.crear_traslado_vinculado(
@@ -474,8 +474,8 @@ select throws_matching(
       false
     )
   $$,
-  'Un traslado de máquina no puede tener servicios vinculados',
-  'crear_traslado_vinculado rechaza crear vinculado si el principal es traslado de máquina'
+  'No se permiten vínculos en cadena',
+  'crear_traslado_vinculado rechaza crear vinculado si el principal ya es un traslado vinculado'
 );
 
 -- Test 18: No permite vincular si el principal ya está vinculado a otro (un solo nivel)
@@ -661,9 +661,9 @@ declare
   v_factura_id uuid;
 begin
   insert into facturas (
-    tipo, punto_venta, numero, cliente_id, fecha, total, creado_por
+    tipo, punto_venta, numero, cliente_id, fecha, neto, iva, total
   ) values (
-    'A', 1, 99991, 'c0000000-0000-0000-0000-000000000001'::uuid, current_date, 60500, 'a0000000-0000-0000-0000-000000000002'::uuid
+    'A', 1, 99991, 'c0000000-0000-0000-0000-000000000001'::uuid, current_date, 50000, 10500, 60500
   ) returning id into v_factura_id;
 
   insert into servicios (
