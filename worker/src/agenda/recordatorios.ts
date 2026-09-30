@@ -1,4 +1,5 @@
 import { latir } from "../notificaciones/heartbeat";
+import { armarTituloRecordatorioHoy } from "../notificaciones/mensajes";
 import { enviarPushDirecto } from "../notificaciones/push";
 import { supabaseAdmin } from "../supabase";
 import { finalizarEjecucion, registrarEjecucion } from "./idempotencia";
@@ -121,17 +122,60 @@ export async function recordatoriosHoy(
       throw new Error(`Error al consultar agenda de hoy: ${errAgenda.message}`);
     }
 
+    // 2. Consultar servicios aceptados o en consulta con fecha de hoy o mañana y sin chofer
+    const mananaStr = sumarDias(hoyStr, 1);
+    const { data: serviciosPendientes, error: errServicios } = await supabaseAdmin
+      .from("servicios")
+      .select(
+        "id, numero, estado, fecha_programada, hora_programada, cliente:clientes(nombre), servicio_choferes(chofer_id)",
+      )
+      .in("fecha_programada", [hoyStr, mananaStr])
+      .in("estado", ["aceptado", "consulta"]);
+
+    if (errServicios) {
+      console.error(
+        "[RECORDATORIOS] Error al consultar servicios de hoy o mañana para recordatorios:",
+        errServicios,
+      );
+    }
+
+    const serviciosSinChofer = (serviciosPendientes || []).filter(
+      (s: any) =>
+        !s.servicio_choferes ||
+        (Array.isArray(s.servicio_choferes) && s.servicio_choferes.length === 0),
+    );
+
+    const itemsServiciosSinChofer: ItemAgendaSimple[] = serviciosSinChofer.map(
+      (s: any) => {
+        const cliente = s.cliente?.nombre || "Cliente";
+        const hora = s.hora_programada
+          ? `${s.hora_programada.slice(0, 5)} `
+          : "";
+        const prefijoDia = s.fecha_programada === mananaStr ? "mañana " : "";
+        return {
+          titulo: `Sin chofer: ${prefijoDia}${hora}${cliente}`.trim(),
+          monto: null,
+        };
+      },
+    );
+
+    const itemsParaNotificar = [
+      ...(itemsHoy || []),
+      ...itemsServiciosSinChofer,
+    ];
+
     let notificacionEnviada = false;
 
-    if (itemsHoy && itemsHoy.length > 0) {
-      const cant = itemsHoy.length;
-      const titulo = `Hoy tenés ${cant} ${cant === 1 ? "vencimiento" : "vencimientos"}`;
-      const cuerpo = construirCuerpoPush(itemsHoy);
+    if (itemsParaNotificar.length > 0) {
+      const cantVenc = itemsHoy?.length ?? 0;
+      const cantSinChofer = itemsServiciosSinChofer.length;
+      const titulo = armarTituloRecordatorioHoy(cantVenc, cantSinChofer);
+      const cuerpo = construirCuerpoPush(itemsParaNotificar);
 
       await enviarPushDirecto({
         titulo,
         cuerpo,
-        url: "/agenda",
+        url: cantVenc > 0 ? "/agenda" : "/",
         tag: `agenda-hoy:${hoyStr}`,
         destinatarios: "oficina",
       });
@@ -139,7 +183,7 @@ export async function recordatoriosHoy(
       notificacionEnviada = true;
     } else {
       console.log(
-        `[RECORDATORIOS] Sin vencimientos con monto para hoy (${hoyStr}).`,
+        `[RECORDATORIOS] Sin vencimientos ni servicios sin chofer para hoy (${hoyStr}).`,
       );
     }
 
@@ -223,6 +267,7 @@ export async function recordatoriosHoy(
 
     await finalizarEjecucion("recordatorio-hoy", clave, {
       itemsProcesados: itemsHoy?.length ?? 0,
+      serviciosSinChofer: serviciosSinChofer.length,
       notificacionEnviada,
       chequesAlertados,
     });

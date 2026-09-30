@@ -32,6 +32,8 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  let notificacionId: string | null = null;
+
   try {
     const payload: any = await req.json();
 
@@ -40,6 +42,7 @@ Deno.serve(async (req: Request) => {
     let url = "";
     let tag = "";
     let usuarioExcluido: string | null = null;
+    let destinatariosPersonalizados: any = null;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey =
@@ -76,20 +79,21 @@ Deno.serve(async (req: Request) => {
     } else {
       const { type, table, record } = payload;
 
-      // Solo se procesan eventos tipo INSERT
-      if (type !== "INSERT" || !record) {
+      const esEventoValido = type === "INSERT" && record;
+
+      if (!esEventoValido) {
         return new Response(
           JSON.stringify({
             ok: true,
             ignorado: true,
-            motivo: "No es un evento INSERT",
+            motivo: "Tipo de evento o tabla no procesable",
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
       // Caso 1: INSERT en servicio_eventos con estado_nuevo in ('terminado', 'en_curso')
-      if (table === "servicio_eventos") {
+      if (table === "servicio_eventos" && type === "INSERT") {
         if (
           record.estado_nuevo !== "terminado" &&
           record.estado_nuevo !== "en_curso"
@@ -145,7 +149,7 @@ Deno.serve(async (req: Request) => {
         tag = `servicio-${record.servicio_id}`;
       }
       // Caso 2: INSERT en servicios con no_planificado = true
-      else if (table === "servicios") {
+      else if (table === "servicios" && type === "INSERT") {
         if (!record.no_planificado) {
           return new Response(
             JSON.stringify({
@@ -191,12 +195,21 @@ Deno.serve(async (req: Request) => {
           : clienteNombre;
         url = `/servicios/${record.id}`;
         tag = `servicio-${record.id}`;
+      }
+      // Caso 3: INSERT en notificaciones
+      else if (table === "notificaciones" && type === "INSERT") {
+        titulo = record.titulo;
+        cuerpo = record.cuerpo;
+        url = record.url || "/chofer";
+        tag = record.tag || `notif-${record.id}`;
+        destinatariosPersonalizados = { usuarios: [record.usuario_id] };
+        notificacionId = record.id;
       } else {
         return new Response(
           JSON.stringify({
             ok: true,
             ignorado: true,
-            motivo: "Tabla no configurada para push",
+            motivo: "Tabla o evento no configurado para push",
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
@@ -204,31 +217,79 @@ Deno.serve(async (req: Request) => {
     }
 
     // 2. Obtener usuarios destino según destinatarios (por defecto admin y oficina)
-    const rolesDestino =
-      payload.destinatarios === "oficina"
-        ? ["admin", "oficina"]
-        : payload.destinatarios
-          ? [payload.destinatarios]
-          : ["admin", "oficina"];
+    let idsDestino: string[] = [];
+    const dest = destinatariosPersonalizados || payload.destinatarios;
 
-    const { data: perfilesDestino, error: errPerfiles } = await supabaseAdmin
-      .from("perfiles")
-      .select("id")
-      .in("rol", rolesDestino);
+    if (dest && typeof dest === "object" && !Array.isArray(dest)) {
+      if (Array.isArray(dest.usuarios) && dest.usuarios.length > 0) {
+        idsDestino.push(...dest.usuarios);
+      }
+      if (
+        dest.roles &&
+        (Array.isArray(dest.roles) ? dest.roles.length > 0 : true)
+      ) {
+        const rolesABuscar = Array.isArray(dest.roles)
+          ? dest.roles
+          : [dest.roles];
+        const { data: perfilesRol, error: errPerfiles } = await supabaseAdmin
+          .from("perfiles")
+          .select("id")
+          .in("rol", rolesABuscar);
 
-    if (errPerfiles) {
-      console.error("Error consultando perfiles:", errPerfiles);
-      return new Response(
-        JSON.stringify({ ok: false, error: "Error consultando destinatarios" }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+        if (errPerfiles) {
+          console.error("Error consultando perfiles por rol:", errPerfiles);
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error: "Error consultando destinatarios",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (perfilesRol) {
+          idsDestino.push(...perfilesRol.map((p: { id: string }) => p.id));
+        }
+      }
+    } else {
+      const rolesDestino =
+        dest === "oficina"
+          ? ["admin", "oficina"]
+          : Array.isArray(dest)
+            ? dest
+            : dest
+              ? [dest]
+              : ["admin", "oficina"];
+
+      const { data: perfilesDestino, error: errPerfiles } = await supabaseAdmin
+        .from("perfiles")
+        .select("id")
+        .in("rol", rolesDestino);
+
+      if (errPerfiles) {
+        console.error("Error consultando perfiles:", errPerfiles);
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: "Error consultando destinatarios",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      idsDestino = (perfilesDestino || []).map((p: { id: string }) => p.id);
     }
 
-    const idsDestino = (perfilesDestino || [])
-      .map((p: { id: string }) => p.id)
-      .filter((id: string) => id !== usuarioExcluido);
+    idsDestino = Array.from(new Set(idsDestino)).filter(
+      (id: string) => id !== usuarioExcluido,
+    );
 
     if (idsDestino.length === 0) {
+      if (notificacionId) {
+        await supabaseAdmin
+          .from("notificaciones")
+          .update({ error: "Sin destinatarios autorizados" })
+          .eq("id", notificacionId);
+      }
       return new Response(
         JSON.stringify({
           ok: true,
@@ -247,6 +308,12 @@ Deno.serve(async (req: Request) => {
 
     if (errSubs) {
       console.error("Error consultando push_suscripciones:", errSubs);
+      if (notificacionId) {
+        await supabaseAdmin
+          .from("notificaciones")
+          .update({ error: `Error consultando suscripciones: ${errSubs.message}` })
+          .eq("id", notificacionId);
+      }
       return new Response(
         JSON.stringify({ ok: false, error: "Error consultando suscripciones" }),
         { status: 200, headers: { "Content-Type": "application/json" } },
@@ -254,6 +321,12 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!suscripciones || suscripciones.length === 0) {
+      if (notificacionId) {
+        await supabaseAdmin
+          .from("notificaciones")
+          .update({ error: "Sin suscripciones registradas" })
+          .eq("id", notificacionId);
+      }
       return new Response(
         JSON.stringify({
           ok: true,
@@ -272,6 +345,12 @@ Deno.serve(async (req: Request) => {
 
     if (!vapidPublicKey || !vapidPrivateKey) {
       console.error("Faltan claves VAPID_PUBLIC_KEY o VAPID_PRIVATE_KEY");
+      if (notificacionId) {
+        await supabaseAdmin
+          .from("notificaciones")
+          .update({ error: "Claves VAPID no configuradas en el servidor" })
+          .eq("id", notificacionId);
+      }
       return new Response(
         JSON.stringify({
           ok: false,
@@ -330,6 +409,20 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    if (notificacionId) {
+      if (enviados > 0) {
+        await supabaseAdmin
+          .from("notificaciones")
+          .update({ enviada_at: ahora, error: null })
+          .eq("id", notificacionId);
+      } else {
+        await supabaseAdmin
+          .from("notificaciones")
+          .update({ error: "No se pudo entregar el push a ninguna suscripción" })
+          .eq("id", notificacionId);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -340,6 +433,14 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   } catch (error: any) {
+    if (notificacionId) {
+      try {
+        await supabaseAdmin
+          .from("notificaciones")
+          .update({ error: error?.message || "Error inesperado" })
+          .eq("id", notificacionId);
+      } catch (_) {}
+    }
     console.error("Error inesperado en webhook enviar-push:", error);
     return new Response(
       JSON.stringify({

@@ -3,6 +3,7 @@ import express from "express";
 import cron from "node-cron";
 import { generarInstancias } from "./agenda/instancias";
 import { recordatoriosHoy, recordatoriosManana } from "./agenda/recordatorios";
+import { resumenChoferesHoy } from "./agenda/resumenChoferes";
 import { resumenSemanal } from "./agenda/resumenSemanal";
 import { config } from "./config";
 import { correrLote } from "./emision/lote";
@@ -141,10 +142,30 @@ app.listen(port, () => {
     { timezone: tz },
   );
 
+  // 7. Cron 07:00 hs diario - Resumen del día para choferes
+  cron.schedule(
+    "0 7 * * *",
+    async () => {
+      console.log(
+        `[CRON] Disparando resumen del día para choferes (${new Date().toISOString()})...`,
+      );
+      try {
+        await resumenChoferesHoy();
+      } catch (err) {
+        console.error(
+          "[CRON] Error al ejecutar resumen del día para choferes:",
+          err,
+        );
+      }
+    },
+    { timezone: tz },
+  );
+
   console.log(`[CRON] Crons programados en zona horaria ${tz}:`);
   console.log(`  - Facturación nocturna: 21:30 hs (30 21 * * *)`);
   console.log(`  - Generación de instancias: 00:30 hs (30 0 * * *)`);
   console.log(`  - Sincronización Google Calendar: 01:00 hs (0 1 * * *)`);
+  console.log(`  - Resumen del día choferes: 07:00 hs (0 7 * * *)`);
   console.log(`  - Resumen semanal lunes: 07:00 hs (0 7 * * 1)`);
   console.log(`  - Recordatorios de hoy: 08:00 hs (0 8 * * *)`);
   console.log(`  - Recordatorios de mañana: 09:00 hs (0 9 * * *)`);

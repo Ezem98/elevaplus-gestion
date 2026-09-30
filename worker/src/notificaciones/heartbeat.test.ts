@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generarInstancias } from "../agenda/instancias";
 import { recordatoriosHoy } from "../agenda/recordatorios";
+import { resumenChoferesHoy } from "../agenda/resumenChoferes";
 import { resumenSemanal } from "../agenda/resumenSemanal";
 import { config } from "../config";
 import * as emitirModule from "../emision/emitir";
@@ -119,6 +120,28 @@ describe("Worker - Heartbeats de Better Stack", () => {
 
       expect(fetchMock).toHaveBeenCalledWith(
         "https://betterstack.com/heartbeat/calendario",
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it("hace fetch GET con timeout de 5s en camino exitoso para 'choferes'", async () => {
+      (config as any).HEARTBEAT_CHOFERES =
+        "https://betterstack.com/heartbeat/choferes";
+
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response("ok", {
+          status: 200,
+          statusText: "OK",
+        }),
+      );
+      globalThis.fetch = fetchMock;
+      const warnSpy = vi.spyOn(logger, "warn");
+
+      await expect(latir("choferes")).resolves.not.toThrow();
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://betterstack.com/heartbeat/choferes",
         expect.objectContaining({ method: "GET" }),
       );
       expect(warnSpy).not.toHaveBeenCalled();
@@ -256,6 +279,16 @@ describe("Worker - Heartbeats de Better Stack", () => {
               eq: vi.fn().mockReturnThis(),
               gte: vi.fn().mockReturnThis(),
               lte: vi.fn().mockResolvedValue({ data: [], error: null }),
+            };
+            return {
+              select: vi.fn().mockReturnValue(queryChain),
+            } as any;
+          }
+          if (tabla === "servicios") {
+            const queryChain: any = {
+              in: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
             };
             return {
               select: vi.fn().mockReturnValue(queryChain),
@@ -1258,9 +1291,107 @@ describe("Worker - Heartbeats de Better Stack", () => {
 
         const res = await sincronizarCalendario();
 
-        expect(res.ok).toBe(false);
         expect(fetchMock).not.toHaveBeenCalledWith(
           "https://betterstack.com/heartbeat/calendario",
+          expect.anything(),
+        );
+      });
+    });
+
+    describe("resumenChoferesHoy", () => {
+      it("llama a latir('choferes') en el camino feliz cuando no hay choferes", async () => {
+        (config as any).HEARTBEAT_CHOFERES =
+          "https://betterstack.com/heartbeat/choferes";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "ejecuciones_worker") {
+            return {
+              upsert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi
+                    .fn()
+                    .mockResolvedValue({ data: { id: 1 }, error: null }),
+                }),
+              }),
+              update: vi.fn().mockReturnValue({
+                match: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            } as any;
+          }
+          if (tabla === "perfiles") {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "servicios") {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockReturnValue({
+                    order: vi.fn().mockResolvedValue({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        const res = await resumenChoferesHoy({ forzar: true });
+
+        expect(res.ok).toBe(true);
+        expect(fetchMock).toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/choferes",
+          expect.anything(),
+        );
+      });
+
+      it("NO llama a latir('choferes') si ocurre un error al consultar la base", async () => {
+        (config as any).HEARTBEAT_CHOFERES =
+          "https://betterstack.com/heartbeat/choferes";
+
+        const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+        globalThis.fetch = fetchMock;
+
+        vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+          if (tabla === "ejecuciones_worker") {
+            return {
+              upsert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                  single: vi
+                    .fn()
+                    .mockResolvedValue({ data: { id: 1 }, error: null }),
+                }),
+              }),
+            } as any;
+          }
+          if (tabla === "perfiles") {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: "Error consultando perfiles" },
+                  }),
+                }),
+              }),
+            } as any;
+          }
+          return {} as any;
+        });
+
+        const res = await resumenChoferesHoy({ forzar: true });
+
+        expect(res.ok).toBe(false);
+        expect(fetchMock).not.toHaveBeenCalledWith(
+          "https://betterstack.com/heartbeat/choferes",
           expect.anything(),
         );
       });

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { generarInstancias } from "../agenda/instancias";
 import { recordatoriosHoy, recordatoriosManana } from "../agenda/recordatorios";
+import { resumenChoferesHoy } from "../agenda/resumenChoferes";
 import { resumenSemanal } from "../agenda/resumenSemanal";
 import { consultarPadron } from "../arca/padron";
 import { config } from "../config";
@@ -205,10 +206,13 @@ enrutador.post(
         case "calendario":
           resultado = await sincronizarCalendario({ forzar });
           break;
+        case "resumen-choferes":
+          resultado = await resumenChoferesHoy({ forzar });
+          break;
         default:
           res.status(400).json({
             ok: false,
-            error: `Tarea desconocida: '${nombre}'. Tareas válidas: instancias, recordatorios-hoy, recordatorios-manana, resumen-semanal, calendario.`,
+            error: `Tarea desconocida: '${nombre}'. Tareas válidas: instancias, recordatorios-hoy, recordatorios-manana, resumen-semanal, calendario, resumen-choferes.`,
           });
           return;
       }

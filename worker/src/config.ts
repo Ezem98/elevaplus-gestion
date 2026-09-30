@@ -36,6 +36,7 @@ const esquemaConfig = z.object({
   HEARTBEAT_LOTE: z.string().optional(),
   HEARTBEAT_SEMANAL: z.string().optional(),
   HEARTBEAT_CALENDARIO: z.string().optional(),
+  HEARTBEAT_CHOFERES: z.string().optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional().default(""),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().default(""),
   GOOGLE_OAUTH_REDIRECT_URI: z

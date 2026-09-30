@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   construirCuerpoPush,
   evaluarDescubiertoCheque,
@@ -111,6 +111,169 @@ describe("Agenda y Recordatorios - Funciones puras", () => {
       expect(obtenerNombreDiaSemana("2026-09-25")).toBe("viernes");
       expect(obtenerNombreDiaSemana("2026-09-26")).toBe("sábado");
       expect(obtenerNombreDiaSemana("2026-09-27")).toBe("domingo");
+    });
+  });
+
+  describe("recordatoriosHoy con servicios sin chofer", () => {
+    it("incluye ítems de agenda y servicios sin chofer en la notificación push de oficina", async () => {
+      const { recordatoriosHoy } = await import("./recordatorios");
+      const { supabaseAdmin } = await import("../supabase");
+      const pushModule = await import("../notificaciones/push");
+      const idempotenciaModule = await import("./idempotencia");
+
+      vi.spyOn(idempotenciaModule, "registrarEjecucion").mockResolvedValue({
+        ejecutado: true,
+        id: 1,
+      });
+      vi.spyOn(idempotenciaModule, "finalizarEjecucion").mockResolvedValue(
+        undefined,
+      );
+      const pushSpy = vi
+        .spyOn(pushModule, "enviarPushDirecto")
+        .mockResolvedValue({ ok: true });
+
+      vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+        if (tabla === "agenda") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                neq: vi.fn().mockResolvedValue({
+                  data: [{ clave: "venc:1", titulo: "Sueldos", monto: 1200000, sentido: "egreso" }],
+                  error: null,
+                }),
+              }),
+            }),
+          } as any;
+        }
+        if (tabla === "servicios") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: "s-1",
+                      numero: 105,
+                      fecha_programada: "2026-09-29",
+                      hora_programada: "08:00:00",
+                      estado: "aceptado",
+                      cliente: { nombre: "Huma S.A." },
+                      servicio_choferes: [],
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          } as any;
+        }
+        if (tabla === "cheques") {
+          const chain: any = {
+            eq: vi.fn().mockReturnThis(),
+            gte: vi.fn().mockReturnThis(),
+            lte: vi.fn().mockResolvedValue({ data: [], error: null }),
+          };
+          return { select: vi.fn().mockReturnValue(chain) } as any;
+        }
+        return {} as any;
+      });
+
+      const res = await recordatoriosHoy({ forzar: true });
+
+      expect(res.ok).toBe(true);
+      expect(res.notificacionEnviada).toBe(true);
+      expect(pushSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          titulo: "Hoy tenés 1 vencimiento y 1 servicio sin chofer",
+          cuerpo: expect.stringContaining("Sin chofer: 08:00 Huma S.A."),
+          destinatarios: "oficina",
+        }),
+      );
+    });
+
+    it("envía push cuando no hay vencimientos pero sí servicios sin chofer asignado", async () => {
+      const { recordatoriosHoy } = await import("./recordatorios");
+      const { supabaseAdmin } = await import("../supabase");
+      const pushModule = await import("../notificaciones/push");
+      const idempotenciaModule = await import("./idempotencia");
+
+      vi.spyOn(idempotenciaModule, "registrarEjecucion").mockResolvedValue({
+        ejecutado: true,
+        id: 2,
+      });
+      vi.spyOn(idempotenciaModule, "finalizarEjecucion").mockResolvedValue(
+        undefined,
+      );
+      const pushSpy = vi
+        .spyOn(pushModule, "enviarPushDirecto")
+        .mockResolvedValue({ ok: true });
+
+      vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+        if (tabla === "agenda") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                neq: vi.fn().mockResolvedValue({
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          } as any;
+        }
+        if (tabla === "servicios") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                in: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: "s-1",
+                      numero: 105,
+                      fecha_programada: "2026-09-29",
+                      hora_programada: "08:00:00",
+                      estado: "aceptado",
+                      cliente: { nombre: "Huma S.A." },
+                      servicio_choferes: [],
+                    },
+                    {
+                      id: "s-2",
+                      numero: 106,
+                      fecha_programada: "2026-09-30",
+                      hora_programada: "14:00:00",
+                      estado: "consulta",
+                      cliente: { nombre: "Deza" },
+                      servicio_choferes: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          } as any;
+        }
+        if (tabla === "cheques") {
+          const chain: any = {
+            eq: vi.fn().mockReturnThis(),
+            gte: vi.fn().mockReturnThis(),
+            lte: vi.fn().mockResolvedValue({ data: [], error: null }),
+          };
+          return { select: vi.fn().mockReturnValue(chain) } as any;
+        }
+        return {} as any;
+      });
+
+      const res = await recordatoriosHoy({ forzar: true });
+
+      expect(res.ok).toBe(true);
+      expect(res.notificacionEnviada).toBe(true);
+      expect(pushSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          titulo: "Hoy tenés 2 servicios sin chofer",
+          cuerpo: "Sin chofer: 08:00 Huma S.A. · Sin chofer: mañana 14:00 Deza",
+          destinatarios: "oficina",
+        }),
+      );
     });
   });
 });

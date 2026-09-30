@@ -1,12 +1,17 @@
 import { config } from "../config";
 import { supabaseAdmin } from "../supabase";
 
+export interface DestinatariosPush {
+  usuarios?: string[];
+  roles?: string[];
+}
+
 export interface ParametrosPushDirecto {
   titulo: string;
   cuerpo: string;
   url?: string;
   tag: string;
-  destinatarios?: "oficina" | string;
+  destinatarios?: "oficina" | string | DestinatariosPush;
 }
 
 export interface ParametrosNotificacionLote {

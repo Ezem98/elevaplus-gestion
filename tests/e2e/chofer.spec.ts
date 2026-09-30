@@ -6,6 +6,14 @@ import {
   USUARIOS,
 } from "../integracion/setup";
 
+function obtenerFechaLocal(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dia}`;
+}
+
 test.describe("Flujo Chofer (E2E)", () => {
   const PREFIJO = "TEST-E2E-CHF-";
 
@@ -21,7 +29,7 @@ test.describe("Flujo Chofer (E2E)", () => {
     page,
   }) => {
     const admin = await comoAdmin();
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = obtenerFechaLocal();
 
     // 1. Crear un servicio programado asignado a Chofer 1 (con carga descriptiva visible en la tarjeta)
     const { data: serv, error: errServ } = await admin
@@ -129,7 +137,7 @@ test.describe("Flujo Chofer (E2E)", () => {
     page,
   }) => {
     const admin = await comoAdmin();
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = obtenerFechaLocal();
 
     // 1. Crear dos servicios asignados con montos explícitos en BD: uno programado y uno terminado
     const { data: servProgramado } = await admin
