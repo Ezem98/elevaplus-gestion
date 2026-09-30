@@ -435,7 +435,7 @@ select is(
 );
 
 select is(
-  (select estado from servicios s
+  (select s.estado from servicios s
    join presupuestos p on p.id = s.presupuesto_id
    where p.prospecto_nombre = 'TEST-PGTAP-Aceptado-PDF'),
   'aceptado'::estado_servicio,
