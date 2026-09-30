@@ -117,6 +117,8 @@ describe("Agenda y Recordatorios - Funciones puras", () => {
   describe("recordatoriosHoy con servicios sin chofer", () => {
     it("incluye ítems de agenda y servicios sin chofer en la notificación push de oficina", async () => {
       const { recordatoriosHoy } = await import("./recordatorios");
+      const { obtenerFechaHoyBA } = await import("./instancias");
+      const hoyStr = obtenerFechaHoyBA();
       const { supabaseAdmin } = await import("../supabase");
       const pushModule = await import("../notificaciones/push");
       const idempotenciaModule = await import("./idempotencia");
@@ -154,7 +156,7 @@ describe("Agenda y Recordatorios - Funciones puras", () => {
                     {
                       id: "s-1",
                       numero: 105,
-                      fecha_programada: "2026-09-29",
+                      fecha_programada: hoyStr,
                       hora_programada: "08:00:00",
                       estado: "aceptado",
                       cliente: { nombre: "Huma S.A." },
@@ -193,6 +195,9 @@ describe("Agenda y Recordatorios - Funciones puras", () => {
 
     it("envía push cuando no hay vencimientos pero sí servicios sin chofer asignado", async () => {
       const { recordatoriosHoy } = await import("./recordatorios");
+      const { obtenerFechaHoyBA, sumarDias } = await import("./instancias");
+      const hoyStr = obtenerFechaHoyBA();
+      const mananaStr = sumarDias(hoyStr, 1);
       const { supabaseAdmin } = await import("../supabase");
       const pushModule = await import("../notificaciones/push");
       const idempotenciaModule = await import("./idempotencia");
@@ -230,7 +235,7 @@ describe("Agenda y Recordatorios - Funciones puras", () => {
                     {
                       id: "s-1",
                       numero: 105,
-                      fecha_programada: "2026-09-29",
+                      fecha_programada: hoyStr,
                       hora_programada: "08:00:00",
                       estado: "aceptado",
                       cliente: { nombre: "Huma S.A." },
@@ -239,7 +244,7 @@ describe("Agenda y Recordatorios - Funciones puras", () => {
                     {
                       id: "s-2",
                       numero: 106,
-                      fecha_programada: "2026-09-30",
+                      fecha_programada: mananaStr,
                       hora_programada: "14:00:00",
                       estado: "consulta",
                       cliente: { nombre: "Deza" },

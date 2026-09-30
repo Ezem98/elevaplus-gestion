@@ -14,7 +14,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useBorrador } from "@/hooks/useBorrador";
 
 interface PantallaNoPlanificadoProps {
   onCancelar: () => void;
@@ -56,6 +57,38 @@ export function PantallaNoPlanificado({
 
   // Tipo de servicio
   const [tipo, setTipo] = useState<TipoServicio>("traslado");
+
+  const estadoNoPlanificado = useMemo(
+    () => ({
+      busqueda,
+      clienteSeleccionado,
+      esClienteNuevo,
+      tipo,
+    }),
+    [busqueda, clienteSeleccionado, esClienteNuevo, tipo],
+  );
+
+  const { AvisoBorrador, limpiar: limpiarBorrador } = useBorrador(
+    "chofer_no_planificado",
+    estadoNoPlanificado,
+    {
+      tieneContenido: (d) =>
+        Boolean(d.busqueda?.trim() || d.clienteSeleccionado || d.esClienteNuevo),
+      onRestaurar: (d) => {
+        if (d.busqueda !== undefined) setBusqueda(d.busqueda);
+        if (d.clienteSeleccionado !== undefined)
+          setClienteSeleccionado(d.clienteSeleccionado);
+        if (d.esClienteNuevo !== undefined) setEsClienteNuevo(d.esClienteNuevo);
+        if (d.tipo) setTipo(d.tipo);
+      },
+      onDescartar: () => {
+        setBusqueda("");
+        setClienteSeleccionado(null);
+        setEsClienteNuevo(false);
+        setTipo("traslado");
+      },
+    },
+  );
 
   // Foto (Obligatoria)
   const [fotoArchivo, setFotoArchivo] = useState<File | null>(null);
@@ -311,6 +344,7 @@ export function PantallaNoPlanificado({
       }
 
       // 5. Transicionar directamente a PantallaCobraste para este servicio
+      limpiarBorrador();
       onCreado(nuevoServicio as Servicio);
     } catch (err: any) {
       setError(err?.message ?? "Error al guardar el servicio no planificado.");
@@ -333,6 +367,10 @@ export function PantallaNoPlanificado({
         >
           Cancelar
         </button>
+      </div>
+
+      <div className="mb-4">
+        <AvisoBorrador />
       </div>
 
       {error && (

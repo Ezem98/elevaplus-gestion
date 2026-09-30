@@ -19,7 +19,8 @@ import type {
   TipoComprobanteCompra,
   TipoMovimiento,
 } from "@/lib/tipos";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useBorrador } from "@/hooks/useBorrador";
 
 interface PropsFormularioMovimiento {
   tipoInicial: TipoMovimiento;
@@ -226,6 +227,89 @@ export function FormularioMovimiento({
   );
   const [comprobantePath] = useState<string | null>(
     movimientoAEditar?.comprobante_path ?? null,
+  );
+
+  const estadoMovimiento = useMemo(
+    () => ({
+      ambito,
+      fecha,
+      categoriaId,
+      proveedor,
+      descripcion,
+      monto,
+      medio,
+      cuentaId,
+      cuentaDestinoId,
+      estado,
+      fechaAcreditacion,
+      tieneFactura,
+      comprobanteTipo,
+      puntoVenta,
+      numeroComprobante,
+      cuitProveedor,
+      neto,
+      iva,
+    }),
+    [
+      ambito,
+      fecha,
+      categoriaId,
+      proveedor,
+      descripcion,
+      monto,
+      medio,
+      cuentaId,
+      cuentaDestinoId,
+      estado,
+      fechaAcreditacion,
+      tieneFactura,
+      comprobanteTipo,
+      puntoVenta,
+      numeroComprobante,
+      cuitProveedor,
+      neto,
+      iva,
+    ],
+  );
+
+  const { AvisoBorrador, limpiar: limpiarBorrador } = useBorrador(
+    `caja_${tipo}_${movimientoAEditar ? movimientoAEditar.id : "nuevo"}`,
+    estadoMovimiento,
+    {
+      tieneContenido: (d) =>
+        Boolean(
+          (d.monto && d.monto > 0) ||
+            d.descripcion?.trim() ||
+            d.proveedor?.trim() ||
+            d.categoriaId,
+        ),
+      onRestaurar: (d) => {
+        if (d.ambito) setAmbito(d.ambito);
+        if (d.fecha) setFecha(d.fecha);
+        if (d.categoriaId !== undefined) setCategoriaId(d.categoriaId);
+        if (d.proveedor !== undefined) setProveedor(d.proveedor);
+        if (d.descripcion !== undefined) setDescripcion(d.descripcion);
+        if (d.monto !== undefined) setMonto(d.monto);
+        if (d.medio) setMedio(d.medio);
+        if (d.cuentaId !== undefined) setCuentaId(d.cuentaId);
+        if (d.cuentaDestinoId !== undefined) setCuentaDestinoId(d.cuentaDestinoId);
+        if (d.estado) setEstado(d.estado);
+        if (d.fechaAcreditacion !== undefined) setFechaAcreditacion(d.fechaAcreditacion);
+        if (d.tieneFactura !== undefined) setTieneFactura(d.tieneFactura);
+        if (d.comprobanteTipo !== undefined) setComprobanteTipo(d.comprobanteTipo);
+        if (d.puntoVenta !== undefined) setPuntoVenta(d.puntoVenta);
+        if (d.numeroComprobante !== undefined) setNumeroComprobante(d.numeroComprobante);
+        if (d.cuitProveedor !== undefined) setCuitProveedor(d.cuitProveedor);
+        if (d.neto !== undefined) setNeto(d.neto);
+        if (d.iva !== undefined) setIva(d.iva);
+      },
+      onDescartar: () => {
+        setDescripcion("");
+        setProveedor("");
+        setMonto(null);
+        setCategoriaId("");
+      },
+    },
   );
 
   const [cuentas, setCuentas] = useState<Cuenta[]>([]);
@@ -632,6 +716,7 @@ export function FormularioMovimiento({
       if (onGuardadoConId) {
         onGuardadoConId(idRegistro);
       }
+      limpiarBorrador();
       onGuardado();
     } catch (err: any) {
       setErrorValidacion(
@@ -655,6 +740,7 @@ export function FormularioMovimiento({
 
   return (
     <Tarjeta className="p-5 space-y-4">
+      <AvisoBorrador />
       <div className="flex items-center justify-between pb-3 border-b border-borde">
         <h2 className="text-base font-semibold text-tinta">{titulo}</h2>
         <button

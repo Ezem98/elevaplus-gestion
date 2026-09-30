@@ -134,6 +134,7 @@ export function PaginaCliente() {
         ) : (
           <FormularioCobro
             clienteId={id!}
+            origen="cliente"
             servicios={serviciosPendientes}
             onGuardado={() => {
               setMostrarCobro(false);

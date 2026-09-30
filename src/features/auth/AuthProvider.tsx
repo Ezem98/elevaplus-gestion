@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { Perfil } from "@/lib/tipos";
+import { limpiarTodosLosBorradores } from "@/hooks/useBorrador";
 
 interface AuthCtx {
   session: Session | null;
@@ -19,7 +20,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "SIGNED_OUT") {
+        limpiarTodosLosBorradores();
+      }
+      setSession(s);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -42,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   const salir = async () => {
+    limpiarTodosLosBorradores();
     await supabase.auth.signOut();
   };
 

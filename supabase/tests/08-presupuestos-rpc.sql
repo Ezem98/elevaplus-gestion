@@ -1,6 +1,6 @@
 -- 08-presupuestos-rpc.sql: Pruebas pgTAP de las RPCs transaccionales de presupuestos
 begin;
-select plan(22);
+select plan(26);
 
 create temp table _test_rpc_counts (
   count_antes int,
@@ -21,6 +21,7 @@ declare
   v_pres_add_borrador record;
   v_pres_add_enviado record;
   v_pres_desde record;
+  v_pres_aceptado_pdf record;
   v_s1 uuid;
   v_s2 uuid;
   v_s3 uuid;
@@ -211,6 +212,24 @@ begin
 
   insert into _test_rpc_counts values (v_count_antes, v_count_despues);
 
+  -- =========================================================================
+  -- 9. marcar_presupuesto_enviado en presupuesto aceptado: actualiza pdf_path y generado_at sin tocar estado ni ítems
+  -- =========================================================================
+  select * into v_pres_aceptado_pdf from public.crear_presupuesto(
+    jsonb_build_object('prospecto_nombre', 'TEST-PGTAP-Aceptado-PDF', 'validez_dias', 15),
+    jsonb_build_array(
+      jsonb_build_object('tipo', 'traslado', 'monto', 90000, 'descripcion', 'Item aceptado PDF')
+    )
+  );
+
+  perform public.aceptar_presupuesto(
+    v_pres_aceptado_pdf.id,
+    v_cliente_deza,
+    null
+  );
+
+  perform public.marcar_presupuesto_enviado(v_pres_aceptado_pdf.id, 'presupuestos/test/doc_aceptado.pdf');
+
   perform public.como_postgres();
 end $$;
 
@@ -396,5 +415,33 @@ select throws_ok(
 
 select public.como_postgres();
 
+-- 9. marcar_presupuesto_enviado en presupuesto aceptado
+select is(
+  (select estado from presupuestos where prospecto_nombre = 'TEST-PGTAP-Aceptado-PDF'),
+  'aceptado'::estado_presupuesto,
+  'marcar_presupuesto_enviado en aceptado mantiene el estado aceptado'
+);
+
+select is(
+  (select pdf_path from presupuestos where prospecto_nombre = 'TEST-PGTAP-Aceptado-PDF'),
+  'presupuestos/test/doc_aceptado.pdf',
+  'marcar_presupuesto_enviado en aceptado actualiza pdf_path'
+);
+
+select is(
+  (select generado_at is not null from presupuestos where prospecto_nombre = 'TEST-PGTAP-Aceptado-PDF'),
+  true,
+  'marcar_presupuesto_enviado en aceptado actualiza generado_at'
+);
+
+select is(
+  (select estado from servicios s
+   join presupuestos p on p.id = s.presupuesto_id
+   where p.prospecto_nombre = 'TEST-PGTAP-Aceptado-PDF'),
+  'aceptado'::estado_servicio,
+  'marcar_presupuesto_enviado en aceptado no modifica el estado de los ítems'
+);
+
 select * from finish();
 rollback;
+

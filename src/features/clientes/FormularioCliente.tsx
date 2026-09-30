@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Search, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +16,7 @@ import { Campo, Entrada, Selector, AreaTexto } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Aviso } from "@/components/ui/Aviso";
+import { useBorrador } from "@/hooks/useBorrador";
 
 export function FormularioCliente() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +43,91 @@ export function FormularioCliente() {
   const [guardando, setGuardando] = useState(false);
   const [errorNombre, setErrorNombre] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  const estadoCliente = useMemo(
+    () => ({
+      nombre,
+      tipo,
+      cuit,
+      condicionIva,
+      telefono,
+      email,
+      direccion,
+      localidad,
+      condicionPago,
+      diasPago,
+      notas,
+      facturacionModo,
+      facturacionAutomatica,
+      enviarFacturaEmail,
+      emailFacturacion,
+    }),
+    [
+      nombre,
+      tipo,
+      cuit,
+      condicionIva,
+      telefono,
+      email,
+      direccion,
+      localidad,
+      condicionPago,
+      diasPago,
+      notas,
+      facturacionModo,
+      facturacionAutomatica,
+      enviarFacturaEmail,
+      emailFacturacion,
+    ],
+  );
+
+  const { AvisoBorrador, limpiar: limpiarBorrador } = useBorrador(
+    esEdicion && id ? `cliente_${id}` : "cliente_nuevo",
+    estadoCliente,
+    {
+      deshabilitado: cargando,
+      tieneContenido: (d) =>
+        Boolean(
+          d.nombre?.trim() ||
+            d.cuit?.trim() ||
+            d.telefono?.trim() ||
+            d.email?.trim() ||
+            d.direccion?.trim() ||
+            d.localidad?.trim() ||
+            d.notas?.trim(),
+        ),
+      onRestaurar: (d) => {
+        if (d.nombre !== undefined) setNombre(d.nombre);
+        if (d.tipo !== undefined) setTipo(d.tipo);
+        if (d.cuit !== undefined) setCuit(d.cuit);
+        if (d.condicionIva !== undefined) setCondicionIva(d.condicionIva);
+        if (d.telefono !== undefined) setTelefono(d.telefono);
+        if (d.email !== undefined) setEmail(d.email);
+        if (d.direccion !== undefined) setDireccion(d.direccion);
+        if (d.localidad !== undefined) setLocalidad(d.localidad);
+        if (d.condicionPago !== undefined) setCondicionPago(d.condicionPago);
+        if (d.diasPago !== undefined) setDiasPago(d.diasPago);
+        if (d.notas !== undefined) setNotas(d.notas);
+        if (d.facturacionModo !== undefined) setFacturacionModo(d.facturacionModo);
+        if (d.facturacionAutomatica !== undefined)
+          setFacturacionAutomatica(d.facturacionAutomatica);
+        if (d.enviarFacturaEmail !== undefined)
+          setEnviarFacturaEmail(d.enviarFacturaEmail);
+        if (d.emailFacturacion !== undefined) setEmailFacturacion(d.emailFacturacion);
+      },
+      onDescartar: () => {
+        setNombre("");
+        setCuit("");
+        setCondicionIva("");
+        setTelefono("");
+        setEmail("");
+        setDireccion("");
+        setLocalidad("");
+        setNotas("");
+        setEmailFacturacion("");
+      },
+    },
+  );
 
   const [buscandoArca, setBuscandoArca] = useState(false);
   const [alertaArca, setAlertaArca] = useState<{
@@ -191,6 +277,7 @@ export function FormularioCliente() {
           setGuardando(false);
           return;
         }
+        limpiarBorrador();
         navigate(`/clientes/${id}`);
       } else {
         const { data, error } = await supabase
@@ -218,6 +305,7 @@ export function FormularioCliente() {
           setGuardando(false);
           return;
         }
+        limpiarBorrador();
         navigate(`/clientes/${data.id}`);
       }
     } catch (err: any) {
@@ -246,7 +334,8 @@ export function FormularioCliente() {
         titulo={esEdicion ? "Editar cliente" : "Nuevo cliente"}
       />
 
-      <Tarjeta className="p-6">
+      <Tarjeta className="p-6 space-y-4">
+        <AvisoBorrador />
         <form onSubmit={handleSubmit} className="space-y-4 pb-[72px] md:pb-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">

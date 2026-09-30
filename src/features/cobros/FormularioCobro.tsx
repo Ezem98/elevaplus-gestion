@@ -8,7 +8,8 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { formatearFecha, formatearPesos } from "@/lib/formato";
 import { supabase } from "@/lib/supabase";
 import type { Cuenta, EstadoCobro, MedioPago } from "@/lib/tipos";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useBorrador } from "@/hooks/useBorrador";
 
 export interface ServicioCobroItem {
   id: string;
@@ -23,6 +24,7 @@ interface PropsFormularioCobro {
   clienteId: string | null;
   servicios: ServicioCobroItem[];
   fechaDefault?: string;
+  origen?: "servicio" | "cliente";
   onGuardado: () => void;
   onCancelar: () => void;
 }
@@ -64,6 +66,7 @@ export function FormularioCobro({
   clienteId,
   servicios,
   fechaDefault,
+  origen,
   onGuardado,
   onCancelar,
 }: PropsFormularioCobro) {
@@ -115,6 +118,85 @@ export function FormularioCobro({
 
   const [guardando, setGuardando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
+
+  const estadoCobro = useMemo(
+    () => ({
+      medio,
+      cuentaId,
+      fecha,
+      monto,
+      referencia,
+      fechaAcreditacion,
+      numeroCheque,
+      bancoCheque,
+      emisorCheque,
+      fechaPagoCheque,
+      aplicaciones,
+    }),
+    [
+      medio,
+      cuentaId,
+      fecha,
+      monto,
+      referencia,
+      fechaAcreditacion,
+      numeroCheque,
+      bancoCheque,
+      emisorCheque,
+      fechaPagoCheque,
+      aplicaciones,
+    ],
+  );
+
+  const claveBorrador = useMemo(() => {
+    if (origen === "servicio" && servicios.length > 0) {
+      return `cobro_servicio_${servicios[0].id}`;
+    }
+    if (origen === "cliente") {
+      return `cobro_cliente_${clienteId || "general"}`;
+    }
+    // Detección automática por defecto
+    if (servicios.length === 1) {
+      return `cobro_servicio_${servicios[0].id}`;
+    }
+    return `cobro_cliente_${clienteId || "general"}`;
+  }, [origen, servicios, clienteId]);
+
+  const { AvisoBorrador, limpiar: limpiarBorrador } = useBorrador(
+    claveBorrador,
+    estadoCobro,
+    {
+      tieneContenido: (d) =>
+        Boolean(
+          (d.monto && d.monto > 0) ||
+            d.referencia?.trim() ||
+            d.numeroCheque?.trim() ||
+            d.bancoCheque?.trim() ||
+            d.cuentaId,
+        ),
+      onRestaurar: (d) => {
+        if (d.medio) setMedio(d.medio);
+        if (d.cuentaId !== undefined) setCuentaId(d.cuentaId);
+        if (d.fecha) setFecha(d.fecha);
+        if (d.monto !== undefined) setMonto(d.monto);
+        if (d.referencia !== undefined) setReferencia(d.referencia);
+        if (d.fechaAcreditacion !== undefined) setFechaAcreditacion(d.fechaAcreditacion);
+        if (d.numeroCheque !== undefined) setNumeroCheque(d.numeroCheque);
+        if (d.bancoCheque !== undefined) setBancoCheque(d.bancoCheque);
+        if (d.emisorCheque !== undefined) setEmisorCheque(d.emisorCheque);
+        if (d.fechaPagoCheque !== undefined) setFechaPagoCheque(d.fechaPagoCheque);
+        if (d.aplicaciones) setAplicaciones(d.aplicaciones);
+      },
+      onDescartar: () => {
+        setMonto(sumaSaldosInicial > 0 ? sumaSaldosInicial : null);
+        setReferencia("");
+        setFechaAcreditacion("");
+        setNumeroCheque("");
+        setBancoCheque("");
+        setCuentaId("");
+      },
+    },
+  );
 
   // Cargar nombre del cliente como default de emisor si hay clienteId
   useEffect(() => {
@@ -434,6 +516,7 @@ export function FormularioCobro({
       }
 
       // 4. Éxito: el trigger recalculó monto_cobrado y estado
+      limpiarBorrador();
       onGuardado();
     } catch (err: any) {
       setErrorValidacion(
@@ -445,6 +528,7 @@ export function FormularioCobro({
 
   return (
     <Tarjeta className="p-5 space-y-4">
+      <AvisoBorrador />
       <div className="flex items-center justify-between pb-3 border-b border-borde">
         <h2 className="text-base font-semibold text-tinta">Registrar cobro</h2>
         <button

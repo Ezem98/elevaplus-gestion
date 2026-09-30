@@ -14,7 +14,8 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useMemo, useState } from "react";
+import { useBorrador } from "@/hooks/useBorrador";
 
 interface PantallaCobrasteProps {
   servicio: Servicio;
@@ -38,6 +39,45 @@ export function PantallaCobraste({ servicio, onListo }: PantallaCobrasteProps) {
   const [numeroCheque, setNumeroCheque] = useState("");
   const [bancoCheque, setBancoCheque] = useState("");
   const [fechaPagoCheque, setFechaPagoCheque] = useState(obtenerFechaLocal());
+
+  const estadoCobraste = useMemo(
+    () => ({
+      opcion,
+      monto,
+      numeroCheque,
+      bancoCheque,
+      fechaPagoCheque,
+    }),
+    [opcion, monto, numeroCheque, bancoCheque, fechaPagoCheque],
+  );
+
+  const { AvisoBorrador, limpiar: limpiarBorrador } = useBorrador(
+    `chofer_cobraste_${servicio.id}`,
+    estadoCobraste,
+    {
+      tieneContenido: (d) =>
+        Boolean(
+          d.opcion !== "efectivo" ||
+            d.numeroCheque?.trim() ||
+            d.bancoCheque?.trim() ||
+            (d.monto !== null && d.monto !== servicio.monto),
+        ),
+      onRestaurar: (d) => {
+        if (d.opcion) setOpcion(d.opcion);
+        if (d.monto !== undefined) setMonto(d.monto);
+        if (d.numeroCheque !== undefined) setNumeroCheque(d.numeroCheque);
+        if (d.bancoCheque !== undefined) setBancoCheque(d.bancoCheque);
+        if (d.fechaPagoCheque !== undefined) setFechaPagoCheque(d.fechaPagoCheque);
+      },
+      onDescartar: () => {
+        setOpcion("efectivo");
+        setMonto(servicio.monto ?? null);
+        setNumeroCheque("");
+        setBancoCheque("");
+        setFechaPagoCheque(obtenerFechaLocal());
+      },
+    },
+  );
 
   const [fotoArchivo, setFotoArchivo] = useState<File | null>(null);
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
@@ -73,6 +113,7 @@ export function PantallaCobraste({ servicio, onListo }: PantallaCobrasteProps) {
 
     // Caso 1: No cobró (paga después)
     if (opcion === "despues") {
+      limpiarBorrador();
       onListo();
       return;
     }
@@ -227,6 +268,7 @@ export function PantallaCobraste({ servicio, onListo }: PantallaCobrasteProps) {
         if (aplicError) throw aplicError;
       }
 
+      limpiarBorrador();
       setRegistrado(true);
       setTimeout(() => {
         onListo();
@@ -267,6 +309,10 @@ export function PantallaCobraste({ servicio, onListo }: PantallaCobrasteProps) {
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-marca-suave text-marca">
           <DollarSign className="h-6 w-6" />
         </div>
+      </div>
+
+      <div className="mb-4">
+        <AvisoBorrador />
       </div>
 
       {error && (

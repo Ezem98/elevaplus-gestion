@@ -32,6 +32,7 @@ import {
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useBorrador } from "@/hooks/useBorrador";
 
 interface ClienteOpcion {
   id: string;
@@ -242,6 +243,163 @@ export function FormularioServicio() {
   const [guardando, setGuardando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  const estadoFormulario = useMemo(
+    () => ({
+      tipo,
+      moneda,
+      montoMoneda,
+      cotizacion,
+      clienteId,
+      clienteSinDefinir,
+      origen,
+      destino,
+      carga,
+      km,
+      idaYVuelta,
+      vehiculoId,
+      paradas,
+      maquinaId,
+      horasEstimadas,
+      fechaDesde,
+      fechaHasta,
+      unidad,
+      precioUnidad,
+      renovacionAutomatica,
+      alertarDiasAntes,
+      maquinaCliente,
+      descripcion,
+      fechaProgramada,
+      horaProgramada,
+      nocturno,
+      monto,
+      cargaAsegurada,
+      seguroImporte,
+      precioServicio,
+      aplicaIva,
+      remito,
+      ordenCompra,
+      notas,
+      estadoInicial,
+      horaFin,
+      choferesSeleccionados,
+      yaSeCobro,
+      tercerizadoId,
+      terceroNombre,
+      costoTercero,
+    }),
+    [
+      tipo,
+      moneda,
+      montoMoneda,
+      cotizacion,
+      clienteId,
+      clienteSinDefinir,
+      origen,
+      destino,
+      carga,
+      km,
+      idaYVuelta,
+      vehiculoId,
+      paradas,
+      maquinaId,
+      horasEstimadas,
+      fechaDesde,
+      fechaHasta,
+      unidad,
+      precioUnidad,
+      renovacionAutomatica,
+      alertarDiasAntes,
+      maquinaCliente,
+      descripcion,
+      fechaProgramada,
+      horaProgramada,
+      nocturno,
+      monto,
+      cargaAsegurada,
+      seguroImporte,
+      precioServicio,
+      aplicaIva,
+      remito,
+      ordenCompra,
+      notas,
+      estadoInicial,
+      horaFin,
+      choferesSeleccionados,
+      yaSeCobro,
+      tercerizadoId,
+      terceroNombre,
+      costoTercero,
+    ],
+  );
+
+  const { AvisoBorrador, limpiar: limpiarBorrador } = useBorrador("nuevo_servicio", estadoFormulario, {
+    onRestaurar: (d) => {
+      if (d.tipo) setTipo(d.tipo);
+      if (d.moneda) setMoneda(d.moneda);
+      if (d.montoMoneda !== undefined) setMontoMoneda(d.montoMoneda);
+      if (d.cotizacion !== undefined) setCotizacion(d.cotizacion);
+      if (d.clienteId !== undefined) setClienteId(d.clienteId);
+      if (d.clienteSinDefinir !== undefined) setClienteSinDefinir(d.clienteSinDefinir);
+      if (d.origen !== undefined) setOrigen(d.origen);
+      if (d.destino !== undefined) setDestino(d.destino);
+      if (d.carga !== undefined) setCarga(d.carga);
+      if (d.km !== undefined) setKm(d.km);
+      if (d.idaYVuelta !== undefined) setIdaYVuelta(d.idaYVuelta);
+      if (d.vehiculoId !== undefined) setVehiculoId(d.vehiculoId);
+      if (d.paradas !== undefined) setParadas(d.paradas);
+      if (d.maquinaId !== undefined) setMaquinaId(d.maquinaId);
+      if (d.horasEstimadas !== undefined) setHorasEstimadas(d.horasEstimadas);
+      if (d.fechaDesde !== undefined) setFechaDesde(d.fechaDesde);
+      if (d.fechaHasta !== undefined) setFechaHasta(d.fechaHasta);
+      if (d.unidad !== undefined) setUnidad(d.unidad);
+      if (d.precioUnidad !== undefined) setPrecioUnidad(d.precioUnidad);
+      if (d.renovacionAutomatica !== undefined) setRenovacionAutomatica(d.renovacionAutomatica);
+      if (d.alertarDiasAntes !== undefined) setAlertarDiasAntes(d.alertarDiasAntes);
+      if (d.maquinaCliente !== undefined) setMaquinaCliente(d.maquinaCliente);
+      if (d.descripcion !== undefined) setDescripcion(d.descripcion);
+      if (d.fechaProgramada !== undefined) setFechaProgramada(d.fechaProgramada);
+      if (d.horaProgramada !== undefined) setHoraProgramada(d.horaProgramada);
+      if (d.nocturno !== undefined) setNocturno(d.nocturno);
+      if (d.monto !== undefined) setMonto(d.monto);
+      if (d.cargaAsegurada !== undefined) setCargaAsegurada(d.cargaAsegurada);
+      if (d.seguroImporte !== undefined) setSeguroImporte(d.seguroImporte);
+      if (d.precioServicio !== undefined) setPrecioServicio(d.precioServicio);
+      if (d.aplicaIva !== undefined) setAplicaIva(d.aplicaIva);
+      if (d.remito !== undefined) setRemito(d.remito);
+      if (d.ordenCompra !== undefined) setOrdenCompra(d.ordenCompra);
+      if (d.notas !== undefined) setNotas(d.notas);
+      if (d.estadoInicial !== undefined) setEstadoInicial(d.estadoInicial);
+      if (d.horaFin !== undefined) setHoraFin(d.horaFin);
+      if (d.choferesSeleccionados !== undefined) setChoferesSeleccionados(d.choferesSeleccionados);
+      if (d.yaSeCobro !== undefined) setYaSeCobro(d.yaSeCobro);
+      if (d.tercerizadoId !== undefined) setTercerizadoId(d.tercerizadoId);
+      if (d.terceroNombre !== undefined) setTerceroNombre(d.terceroNombre);
+      if (d.costoTercero !== undefined) setCostoTercero(d.costoTercero);
+    },
+    onDescartar: () => {
+      setOrigen("");
+      setDestino("");
+      setCarga("");
+      setKm("");
+      setIdaYVuelta(false);
+      setVehiculoId("");
+      setParadas([]);
+      setMaquinaId("");
+      setHorasEstimadas("");
+      setFechaDesde("");
+      setFechaHasta("");
+      setPrecioUnidad(null);
+      setDescripcion("");
+      setFechaProgramada("");
+      setHoraProgramada("");
+      setMonto(null);
+      setRemito("");
+      setOrdenCompra("");
+      setNotas("");
+      setChoferesSeleccionados([]);
+    },
+  });
 
   const fechaEfectiva =
     tipo === "alquiler_periodo"
@@ -892,6 +1050,7 @@ export function FormularioServicio() {
         }
       }
 
+      limpiarBorrador();
       const querySeguro =
         tipo === "traslado" && seguroImporteFinal ? "seguro=1" : "";
       const baseNav = `/servicios/${nuevoId}`;
@@ -920,7 +1079,8 @@ export function FormularioServicio() {
         volverA="/servicios"
       />
 
-      <Tarjeta className="p-4 sm:p-6">
+      <Tarjeta className="p-4 sm:p-6 space-y-4">
+        <AvisoBorrador />
         <form onSubmit={handleSubmit} className="space-y-6 pb-[72px] md:pb-0">
           {/* 1. Tipo de servicio */}
           <fieldset>

@@ -1428,6 +1428,7 @@ export function PaginaServicio() {
       {mostrarCobro && (
         <FormularioCobro
           clienteId={servicio.cliente_id}
+          origen="servicio"
           servicios={[
             {
               id: servicio.id,

@@ -10,6 +10,7 @@ import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Entrada, Etiqueta, AreaTexto } from "@/components/ui/Campo";
 import { Aviso } from "@/components/ui/Aviso";
+import { useBorrador } from "@/hooks/useBorrador";
 
 interface ClienteFactura {
   id: string;
@@ -52,6 +53,60 @@ export function FormularioFactura({
   const [copiado, setCopiado] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  const estadoFactura = useMemo(
+    () => ({
+      tipo,
+      puntoVenta,
+      numero,
+      numeroModificadoManualmente,
+      fecha,
+      notas,
+      cotizaciones,
+    }),
+    [
+      tipo,
+      puntoVenta,
+      numero,
+      numeroModificadoManualmente,
+      fecha,
+      notas,
+      cotizaciones,
+    ],
+  );
+
+  const claveBorrador = useMemo(() => {
+    const idsOrdenados = servicios
+      .map((s) => s.id)
+      .slice()
+      .sort()
+      .join("_");
+    return `factura_${cliente.id}_${idsOrdenados}`;
+  }, [cliente.id, servicios]);
+
+  const { AvisoBorrador, limpiar: limpiarBorrador } = useBorrador(
+    claveBorrador,
+    estadoFactura,
+    {
+      tieneContenido: (d) => Boolean(d.numero?.trim() || d.notas?.trim()),
+      onRestaurar: (d) => {
+        if (d.tipo) setTipo(d.tipo);
+        if (d.puntoVenta !== undefined) setPuntoVenta(d.puntoVenta);
+        if (d.numero !== undefined) {
+          setNumero(d.numero);
+          setNumeroModificadoManualmente(Boolean(d.numeroModificadoManualmente));
+        }
+        if (d.fecha) setFecha(d.fecha);
+        if (d.notas !== undefined) setNotas(d.notas);
+        if (d.cotizaciones) setCotizaciones(d.cotizaciones);
+      },
+      onDescartar: () => {
+        setNumero("");
+        setNumeroModificadoManualmente(false);
+        setNotas("");
+      },
+    },
+  );
 
   useEffect(() => {
     if (numeroModificadoManualmente) return;
@@ -219,6 +274,7 @@ export function FormularioFactura({
         return;
       }
 
+      limpiarBorrador();
       onGuardado();
     } catch (err: any) {
       setErrorGuardar(err.message || "Ocurrió un error inesperado.");
@@ -228,6 +284,7 @@ export function FormularioFactura({
 
   return (
     <form onSubmit={handleGuardar} className="mt-4 border-t border-borde pt-4 space-y-4 pb-[72px] md:pb-0">
+      <AvisoBorrador />
       {/* Resumen de los servicios incluidos */}
       <div className="rounded-md border border-borde bg-fondo p-3 space-y-2">
         <span className="text-sm font-medium text-tinta-suave block">

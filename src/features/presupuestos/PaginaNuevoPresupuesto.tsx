@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Plus,
@@ -41,6 +41,7 @@ import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Boton } from "@/components/ui/Boton";
 import { BarraAcciones } from "@/components/ui/BarraAcciones";
 import { Aviso } from "@/components/ui/Aviso";
+import { useBorrador } from "@/hooks/useBorrador";
 
 interface ItemBorrador {
   idTemp: string;
@@ -223,6 +224,69 @@ export function PaginaNuevoPresupuesto() {
   const [guardando, setGuardando] = useState(false);
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
   const [errorItem, setErrorItem] = useState<string | null>(null);
+
+  const estadoPresupuesto = useMemo(
+    () => ({
+      modoDestinatario,
+      clienteSeleccionadoId: clienteSeleccionado?.id ?? null,
+      busquedaCliente,
+      prospectoNombre,
+      prospectoTelefono,
+      prospectoEmail,
+      prospectoCuit,
+      items,
+      validezDias,
+      condiciones,
+    }),
+    [
+      modoDestinatario,
+      clienteSeleccionado,
+      busquedaCliente,
+      prospectoNombre,
+      prospectoTelefono,
+      prospectoEmail,
+      prospectoCuit,
+      items,
+      validezDias,
+      condiciones,
+    ],
+  );
+
+  const { AvisoBorrador, limpiar: limpiarBorrador } = useBorrador("nuevo_presupuesto", estadoPresupuesto, {
+    tieneContenido: (d) =>
+      Boolean(
+        d.prospectoNombre?.trim() ||
+          d.clienteSeleccionadoId ||
+          (Array.isArray(d.items) && d.items.length > 0) ||
+          d.prospectoTelefono?.trim() ||
+          d.prospectoEmail?.trim() ||
+          d.prospectoCuit?.trim(),
+      ),
+    onRestaurar: (d) => {
+      if (d.modoDestinatario) setModoDestinatario(d.modoDestinatario);
+      if (d.clienteSeleccionadoId && clientes.length > 0) {
+        const c = clientes.find((cli) => cli.id === d.clienteSeleccionadoId);
+        if (c) setClienteSeleccionado(c);
+      }
+      if (d.busquedaCliente) setBusquedaCliente(d.busquedaCliente);
+      if (d.prospectoNombre) setProspectoNombre(d.prospectoNombre);
+      if (d.prospectoTelefono) setProspectoTelefono(d.prospectoTelefono);
+      if (d.prospectoEmail) setProspectoEmail(d.prospectoEmail);
+      if (d.prospectoCuit) setProspectoCuit(d.prospectoCuit);
+      if (Array.isArray(d.items) && d.items.length > 0) setItems(d.items);
+      if (d.validezDias) setValidezDias(d.validezDias);
+      if (d.condiciones !== undefined) setCondiciones(d.condiciones);
+    },
+    onDescartar: () => {
+      setClienteSeleccionado(null);
+      setBusquedaCliente("");
+      setProspectoNombre("");
+      setProspectoTelefono("");
+      setProspectoEmail("");
+      setProspectoCuit("");
+      setItems([]);
+    },
+  });
 
   // Cargar empresa, clientes y máquinas
   useEffect(() => {
@@ -621,6 +685,7 @@ export function PaginaNuevoPresupuesto() {
 
       // 4. Si no se pidió generar PDF, navegar directo al presupuesto creado
       if (!conPdf) {
+        limpiarBorrador();
         navigate(`/presupuestos/${pres.id}`);
         return;
       }
@@ -694,10 +759,12 @@ export function PaginaNuevoPresupuesto() {
           );
         }
 
+        limpiarBorrador();
         navigate(`/presupuestos/${pres.id}`);
       } catch (pdfErr: any) {
         console.error("Error al generar o subir PDF:", pdfErr);
         // Si falla la generación/subida del PDF, navegar al presupuesto ya creado con aviso
+        limpiarBorrador();
         navigate(`/presupuestos/${pres.id}`, {
           state: {
             aviso: `El presupuesto #${pres.numero} fue creado como borrador, pero ocurrió un error al generar el PDF (${pdfErr.message}). Podés generarlo desde acá.`,
@@ -718,6 +785,8 @@ export function PaginaNuevoPresupuesto() {
         volverA="/servicios?filtro=presupuestos"
         titulo="Nuevo presupuesto"
       />
+
+      <AvisoBorrador />
 
       {errorGlobal && <Aviso variante="peligro">{errorGlobal}</Aviso>}
 
