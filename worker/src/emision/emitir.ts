@@ -16,6 +16,7 @@ import {
 import { generarYSubirPdfFactura } from "../pdf/generar";
 import { enviarFacturaEmail } from "../mail/enviar";
 import { formatearFechaArca } from "./recuperar";
+import { config } from "../config";
 
 export interface ParametrosEmitirFactura {
   clienteId: string;
@@ -74,14 +75,26 @@ export async function emitirFactura(
   }
 
   // 1. Obtener parámetros de empresa
-  const { data: empresa } = await supabaseAdmin
+  const { data: empresa, error: errorEmpresa } = await supabaseAdmin
     .from("empresa")
-    .select("punto_venta_ws, arca_ambiente")
+    .select("cuit, punto_venta_ws, arca_ambiente")
     .limit(1)
     .single();
 
+  if (errorEmpresa) {
+    throw new Error(`Error al consultar datos de empresa: ${errorEmpresa.message}`);
+  }
+
   const puntoVentaWs = empresa?.punto_venta_ws || 3;
   const ambienteArca: AmbienteArca = (empresa?.arca_ambiente as AmbienteArca) || "homologacion";
+
+  if (ambienteArca === "produccion") {
+    const cuitEmpresa = (empresa?.cuit || "").replace(/\D/g, "");
+    const cuitConfig = config.ARCA_CUIT ? String(config.ARCA_CUIT).replace(/\D/g, "") : "";
+    if (!cuitEmpresa || !cuitConfig || cuitEmpresa !== cuitConfig) {
+      throw new Error("El CUIT de Configuración no coincide con ARCA_CUIT del worker");
+    }
+  }
 
   // 2. Obtener datos del cliente
   const { data: cliente, error: errorCliente } = await supabaseAdmin

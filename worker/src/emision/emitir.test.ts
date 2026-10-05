@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../supabase";
 import * as arcaCliente from "../arca/cliente";
 import * as pdfGenerar from "../pdf/generar";
 import * as mailEnviar from "../mail/enviar";
+import { config } from "../config";
 import { emitirFactura } from "./emitir";
 
 describe("Worker - Emisión electrónica ARCA (emitirFactura)", () => {
@@ -195,5 +196,40 @@ describe("Worker - Emisión electrónica ARCA (emitirFactura)", () => {
     expect(resultado.factura_id).toBe("fac-1");
     expect(resultado.numero).toBe(101);
     expect(resultado.cae).toBe("12345678901234");
+  });
+
+  it("rechaza la emisión en producción si empresa.cuit no coincide con config.ARCA_CUIT", async () => {
+    config.ARCA_CUIT = 20999999999;
+
+    vi.spyOn(supabaseAdmin, "from").mockImplementation((tabla: string) => {
+      if (tabla === "empresa") {
+        return {
+          select: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  punto_venta_ws: 3,
+                  arca_ambiente: "produccion",
+                  cuit: "20-11111111-2",
+                },
+                error: null,
+              }),
+            }),
+          }),
+        } as any;
+      }
+      return {} as any;
+    });
+
+    const spyArca = vi.spyOn(arcaCliente, "solicitarComprobanteArca");
+
+    await expect(
+      emitirFactura({
+        clienteId: "cli-1",
+        servicioIds: ["srv-1"],
+      }),
+    ).rejects.toThrow("El CUIT de Configuración no coincide con ARCA_CUIT del worker");
+
+    expect(spyArca).not.toHaveBeenCalled();
   });
 });

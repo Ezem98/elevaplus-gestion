@@ -17,11 +17,17 @@ Servicio en segundo plano para tareas asíncronas, emisión de comprobantes en A
 | `RESEND_API_KEY`            | API key de Resend para envío de correos                                  | `re_...`                                                              |
 | `RESEND_REMITENTE`          | Remitente por defecto                                                    | `ELEVAPLUS <facturacion@eleva-plus.com.ar>`                           |
 | `MAIL_LISTA_BLANCA`         | Lista de emails autorizados en desarrollo / staging (separados por coma) | `admin@empresa.com,test@test.com`                                     |
+| `AFIPSDK_ACCESS_TOKEN`      | Token de acceso de Afip SDK (obligatorio en producción)                  | `eyJhbGci...`                                                         |
+| `ARCA_CUIT`                 | CUIT emisor de ARCA (obligatorio en producción; debe coincidir con empresa) | `20304050607`                                                      |
+| `ARCA_CERT`                 | Certificado X.509 de ARCA en base64 o PEM (obligatorio en producción)       | `LS0tLS1CRUdJTi...`                                                   |
+| `ARCA_KEY`                  | Clave privada de ARCA en base64 o PEM (obligatorio en producción)           | `LS0tLS1CRUdJTi...`                                                   |
 | `HEARTBEAT_INSTANCIAS`      | URL de heartbeat para generación de instancias (+90 días)                | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
 | `HEARTBEAT_RECORDATORIOS`   | URL de heartbeat para recordatorios del día y alerta de fondos           | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
 | `HEARTBEAT_LOTE`            | URL de heartbeat para lote nocturno de facturación                       | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
 | `HEARTBEAT_SEMANAL`         | URL de heartbeat para resumen semanal por correo                         | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
 | `HEARTBEAT_CALENDARIO`      | URL de heartbeat para sincronización con Google Calendar (preparada)     | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
+
+> **Facturación electrónica en producción:** Cuando `empresa.arca_ambiente = 'produccion'`, las variables `ARCA_CUIT`, `ARCA_CERT`, `ARCA_KEY` y `AFIPSDK_ACCESS_TOKEN` son obligatorias y no admiten valores por defecto. Si alguna falta o si el CUIT configurado no coincide con el CUIT de la empresa, el worker rechaza la emisión con un error explícito. En homologación, ante la ausencia de `ARCA_CUIT` se utiliza el CUIT genérico de prueba de Afip SDK (`20409378472`).
 
 ## Monitoreo de Crons (Heartbeats en Better Stack)
 

@@ -19,7 +19,7 @@ const esquemaConfig = z.object({
     .string()
     .default(process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy_service_role_key"),
   AFIPSDK_ACCESS_TOKEN: z.string().optional().default(""),
-  ARCA_CUIT: z.coerce.number().default(20409378472),
+  ARCA_CUIT: z.coerce.number().optional(),
   ARCA_CERT: z.string().optional(),
   ARCA_KEY: z.string().optional(),
   WORKER_SECRET: z.string().optional().default(""),
