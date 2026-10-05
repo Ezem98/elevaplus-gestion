@@ -52,6 +52,8 @@ export function PaginaConfiguracion() {
   const [emailSecundario, setEmailSecundario] = useState("");
   const [instagram, setInstagram] = useState("");
   const [direccionGalpon, setDireccionGalpon] = useState("");
+  const [iibb, setIibb] = useState("");
+  const [inicioActividades, setInicioActividades] = useState("");
   const [guardandoEmpresa, setGuardandoEmpresa] = useState(false);
   const [mensajeEmpresa, setMensajeEmpresa] = useState<string | null>(null);
   const [errorEmpresa, setErrorEmpresa] = useState<string | null>(null);
@@ -151,6 +153,10 @@ export function PaginaConfiguracion() {
       setEmailSecundario(emp.email_secundario || "");
       setInstagram(emp.instagram || "");
       setDireccionGalpon(emp.direccion_galpon || "");
+      setIibb(emp.iibb || "");
+      setInicioActividades(
+        emp.inicio_actividades ? emp.inicio_actividades.slice(0, 10) : "",
+      );
 
       setValidezDias(emp.presupuesto_validez_dias ?? 15);
       setPrecioEsperaCamion(emp.precio_hora_espera_camion ?? null);
@@ -226,6 +232,8 @@ export function PaginaConfiguracion() {
         email_secundario: emailSecundario.trim() || null,
         instagram: instagram.trim() || null,
         direccion_galpon: direccionGalpon.trim() || null,
+        iibb: iibb.trim() || null,
+        inicio_actividades: inicioActividades.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", 1);
@@ -521,6 +529,24 @@ export function PaginaConfiguracion() {
                   {ETIQUETA_CONDICION_IVA.consumidor_final}
                 </option>
               </Selector>
+            </Campo>
+
+            <Campo etiqueta="Ingresos Brutos" id="emp-iibb">
+              <Entrada
+                id="emp-iibb"
+                placeholder="Ej: 901-123456-7 o Convenio Multilateral"
+                value={iibb}
+                onChange={(e) => setIibb(e.target.value)}
+              />
+            </Campo>
+
+            <Campo etiqueta="Inicio de actividades" id="emp-inicio-actividades">
+              <Entrada
+                id="emp-inicio-actividades"
+                type="date"
+                value={inicioActividades}
+                onChange={(e) => setInicioActividades(e.target.value)}
+              />
             </Campo>
 
             <Campo etiqueta="Domicilio" id="emp-domicilio">

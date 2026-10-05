@@ -4,11 +4,11 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 
 ## Último estado (05/10/2026)
 
-- Rama: `hito/arca-produccion` (desde `origin/main`).
+- Rama: `hito/arca-produccion`, PR #3.
 - Job de agy activo: ninguno (último: `muvj5kof_2a08ed`, terminado).
-- Hito 3 commiteado y pusheado en `hito/arca-produccion`, PR abierto para merge. Del lado del usuario: `AFIPSDK_ACCESS_TOKEN` ya está; falta cargar `ARCA_CERT` en Railway, punto de venta WS y pasar ambiente a producción.
+- Hito 3 commiteado y pusheado en `hito/arca-produccion`, PR #3 abierto para merge. Del lado del usuario: `AFIPSDK_ACCESS_TOKEN` ya está; falta cargar `ARCA_CERT` en Railway, punto de venta WS y pasar ambiente a producción.
 - Orden de hitos validado por el usuario.
-- Hito 2 en PR #2 (https://github.com/Ezem98/elevaplus-gestion/pull/2) contra `main`, esperando CI y merge. Siguiente: hito 3 cuando el usuario dé el OK.
+- Hito 2 mergeado a `main` (PR #2); migración 0035 aplicada por la integración.
 - Hito 1 mergeado a `main` (PR #1, 05/10 17:19 UTC); migraciones 0033 y 0034 aplicadas por la integración.
 
 ## Hitos
@@ -16,8 +16,8 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 | # | Hito | Estado |
 | --- | --- | --- |
 | 1 | Cerrar vínculos y alquileres (UI + migraciones 0033 y 0034) | hecho, mergeado (PR #1) |
-| 2 | Datos fiscales de la empresa para el PDF de factura (migración 0035 + Configuración) | hecho, PR #2 abierto |
-| 3 | ARCA a producción | código hecho, PR abierto; falta ARCA_CERT (usuario) |
+| 2 | Datos fiscales de la empresa para el PDF de factura (migración 0035 + Configuración) | hecho, mergeado (PR #2) |
+| 3 | ARCA a producción | código hecho, PR #3 abierto; falta ARCA_CERT (usuario) |
 | 4 | Fase 7: auditoría de seguridad (H-2 a H-4 + auditoría completa) | pendiente |
 | 5 | Fase 6: asistente Chimuelo en la app | pendiente |
 | 6 | Fase 6: asistente por WhatsApp | pendiente |

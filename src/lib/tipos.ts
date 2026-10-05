@@ -419,6 +419,8 @@ export interface Empresa {
   email_facturacion?: string | null;
   texto_pie_factura?: string | null;
   direccion_galpon?: string | null;
+  iibb?: string | null;
+  inicio_actividades?: string | null;
   updated_at?: string;
 }
 
