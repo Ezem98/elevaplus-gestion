@@ -12,7 +12,12 @@ import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { formatearDiaMes, formatearMontoEntrada, formatearPesos } from "@/lib/formato";
+import {
+  formatearDiaMes,
+  formatearFecha,
+  formatearMontoEntrada,
+  formatearPesos,
+} from "@/lib/formato";
 import { netoSeguro } from "@/lib/seguro";
 import { supabase } from "@/lib/supabase";
 import type {
@@ -204,6 +209,38 @@ export function FormularioServicio() {
   // Mantenimiento
   const [maquinaCliente, setMaquinaCliente] = useState("");
 
+  // Dirección de trabajo (alquiler_hora, alquiler_periodo, mantenimiento)
+  const [direccionTrabajo, setDireccionTrabajo] = useState("");
+  const [localidadTrabajo, setLocalidadTrabajo] = useState("");
+  const [trabajoARealizar, setTrabajoARealizar] = useState("");
+
+  // Traslado de la máquina (alquiler_hora, alquiler_periodo)
+  const [trasladoOpcion, setTrasladoOpcion] = useState<
+    "no_hace_falta" | "incluido" | "aparte"
+  >("no_hace_falta");
+  const [trasladoAccion, setTrasladoAccion] = useState<"crear" | "vincular">(
+    "crear",
+  );
+  const [empresaGalpon, setEmpresaGalpon] = useState("");
+  const [origenTraslado, setOrigenTraslado] = useState("");
+  const [horaTraslado, setHoraTraslado] = useState("");
+  const [vehiculoTrasladoId, setVehiculoTrasladoId] = useState("");
+  const [choferesTraslado, setChoferesTraslado] = useState<string[]>([]);
+  const [precioTraslado, setPrecioTraslado] = useState<number | null>(null);
+  const [trasladoAVincularId, setTrasladoAVincularId] = useState("");
+  const [candidatosTraslado, setCandidatosTraslado] = useState<
+    {
+      id: string;
+      fecha_programada: string | null;
+      hora_programada: string | null;
+      origen: string | null;
+      destino: string | null;
+      numero: number | null;
+    }[]
+  >([]);
+  const [cargandoCandidatos, setCargandoCandidatos] = useState(false);
+  const [errorCandidatos, setErrorCandidatos] = useState<string | null>(null);
+
   // 4. Campos comunes
   const [descripcion, setDescripcion] = useState("");
   const [fechaProgramada, setFechaProgramada] = useState("");
@@ -268,6 +305,17 @@ export function FormularioServicio() {
       renovacionAutomatica,
       alertarDiasAntes,
       maquinaCliente,
+      direccionTrabajo,
+      localidadTrabajo,
+      trabajoARealizar,
+      trasladoOpcion,
+      trasladoAccion,
+      origenTraslado,
+      horaTraslado,
+      vehiculoTrasladoId,
+      choferesTraslado,
+      precioTraslado,
+      trasladoAVincularId,
       descripcion,
       fechaProgramada,
       horaProgramada,
@@ -311,6 +359,17 @@ export function FormularioServicio() {
       renovacionAutomatica,
       alertarDiasAntes,
       maquinaCliente,
+      direccionTrabajo,
+      localidadTrabajo,
+      trabajoARealizar,
+      trasladoOpcion,
+      trasladoAccion,
+      origenTraslado,
+      horaTraslado,
+      vehiculoTrasladoId,
+      choferesTraslado,
+      precioTraslado,
+      trasladoAVincularId,
       descripcion,
       fechaProgramada,
       horaProgramada,
@@ -357,6 +416,17 @@ export function FormularioServicio() {
       if (d.renovacionAutomatica !== undefined) setRenovacionAutomatica(d.renovacionAutomatica);
       if (d.alertarDiasAntes !== undefined) setAlertarDiasAntes(d.alertarDiasAntes);
       if (d.maquinaCliente !== undefined) setMaquinaCliente(d.maquinaCliente);
+      if (d.direccionTrabajo !== undefined) setDireccionTrabajo(d.direccionTrabajo);
+      if (d.localidadTrabajo !== undefined) setLocalidadTrabajo(d.localidadTrabajo);
+      if (d.trabajoARealizar !== undefined) setTrabajoARealizar(d.trabajoARealizar);
+      if (d.trasladoOpcion !== undefined) setTrasladoOpcion(d.trasladoOpcion);
+      if (d.trasladoAccion !== undefined) setTrasladoAccion(d.trasladoAccion);
+      if (d.origenTraslado !== undefined) setOrigenTraslado(d.origenTraslado);
+      if (d.horaTraslado !== undefined) setHoraTraslado(d.horaTraslado);
+      if (d.vehiculoTrasladoId !== undefined) setVehiculoTrasladoId(d.vehiculoTrasladoId);
+      if (d.choferesTraslado !== undefined) setChoferesTraslado(d.choferesTraslado);
+      if (d.precioTraslado !== undefined) setPrecioTraslado(d.precioTraslado);
+      if (d.trasladoAVincularId !== undefined) setTrasladoAVincularId(d.trasladoAVincularId);
       if (d.descripcion !== undefined) setDescripcion(d.descripcion);
       if (d.fechaProgramada !== undefined) setFechaProgramada(d.fechaProgramada);
       if (d.horaProgramada !== undefined) setHoraProgramada(d.horaProgramada);
@@ -398,6 +468,17 @@ export function FormularioServicio() {
       setOrdenCompra("");
       setNotas("");
       setChoferesSeleccionados([]);
+      setDireccionTrabajo("");
+      setLocalidadTrabajo("");
+      setTrabajoARealizar("");
+      setTrasladoOpcion("no_hace_falta");
+      setTrasladoAccion("crear");
+      setOrigenTraslado("");
+      setHoraTraslado("");
+      setVehiculoTrasladoId("");
+      setChoferesTraslado([]);
+      setPrecioTraslado(null);
+      setTrasladoAVincularId("");
     },
   });
 
@@ -576,7 +657,91 @@ export function FormularioServicio() {
           });
         }
       });
+
+    supabase
+      .from("empresa")
+      .select("direccion_galpon, domicilio")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error(
+            "[FormularioServicio] Error al cargar empresa:",
+            error.message,
+            error,
+          );
+          return;
+        }
+        if (!data) {
+          return;
+        }
+        const galpon = data.direccion_galpon || data.domicilio || "";
+        setEmpresaGalpon(galpon);
+        setOrigenTraslado(galpon);
+      });
   }, [clienteParam]);
+
+  // Cargar candidatos de traslado para vincular
+  useEffect(() => {
+    if (trasladoOpcion === "no_hace_falta" || trasladoAccion !== "vincular") {
+      setCandidatosTraslado([]);
+      setErrorCandidatos(null);
+      return;
+    }
+
+    const fechaRef =
+      tipo === "alquiler_periodo"
+        ? fechaDesde || fechaProgramada
+        : fechaProgramada;
+    if (!fechaRef) {
+      setCandidatosTraslado([]);
+      setErrorCandidatos(null);
+      return;
+    }
+
+    const min = new Date(new Date(fechaRef).getTime() - 3 * 86400000)
+      .toISOString()
+      .slice(0, 10);
+    const max = new Date(new Date(fechaRef).getTime() + 3 * 86400000)
+      .toISOString()
+      .slice(0, 10);
+
+    setCargandoCandidatos(true);
+    setErrorCandidatos(null);
+    let query = supabase
+      .from("servicios")
+      .select("id, fecha_programada, hora_programada, origen, destino, numero")
+      .eq("tipo", "traslado")
+      .is("vinculado_a", null)
+      .is("factura_id", null)
+      .not("estado", "in", "(facturado,cancelado)")
+      .gte("fecha_programada", min)
+      .lte("fecha_programada", max)
+      .order("fecha_programada");
+
+    if (clienteId) {
+      query = query.or(`cliente_id.eq.${clienteId},cliente_id.is.null`);
+    } else {
+      query = query.is("cliente_id", null);
+    }
+
+    query.then(({ data, error }) => {
+      if (error) {
+        console.error(
+          "[FormularioServicio] Error al buscar candidatos traslado:",
+          error.message,
+          error,
+        );
+        setErrorCandidatos(error.message);
+        setCandidatosTraslado([]);
+        setCargandoCandidatos(false);
+        return;
+      }
+      setErrorCandidatos(null);
+      setCandidatosTraslado((data as typeof candidatosTraslado) ?? []);
+      setCargandoCandidatos(false);
+    });
+  }, [trasladoOpcion, trasladoAccion, tipo, fechaDesde, fechaProgramada, clienteId]);
 
   // Cálculo automático de cantidad para Alquiler por período
   const diasTotales = useMemo(() => {
@@ -630,7 +795,11 @@ export function FormularioServicio() {
       return;
     }
 
-    if (!descripcion.trim() && tipo !== "alquiler_periodo") {
+    if (
+      !descripcion.trim() &&
+      tipo !== "alquiler_periodo" &&
+      tipo !== "alquiler_hora"
+    ) {
       setErrorValidacion("Ingresá una descripción.");
       return;
     }
@@ -677,6 +846,30 @@ export function FormularioServicio() {
         );
         return;
       }
+    }
+
+    // Dirección de trabajo obligatoria para alquileres y mantenimiento
+    if (
+      (tipo === "alquiler_hora" ||
+        tipo === "alquiler_periodo" ||
+        tipo === "mantenimiento") &&
+      !direccionTrabajo.trim()
+    ) {
+      setErrorValidacion("La dirección de trabajo es obligatoria.");
+      return;
+    }
+
+    // Traslado: si eligió vincular, tiene que seleccionar uno
+    if (
+      (tipo === "alquiler_hora" || tipo === "alquiler_periodo") &&
+      trasladoOpcion !== "no_hace_falta" &&
+      trasladoAccion === "vincular" &&
+      !trasladoAVincularId
+    ) {
+      setErrorValidacion(
+        "Seleccioná un traslado para vincular o creá uno nuevo.",
+      );
+      return;
     }
 
     if (tipo === "alquiler_periodo") {
@@ -837,7 +1030,11 @@ export function FormularioServicio() {
           tipo === "traslado" || tipo === "alquiler_hora" ? nocturno : false,
         remito: remito.trim() || null,
         orden_compra: ordenCompra.trim() || null,
-        descripcion: descripcion.trim() || null,
+        descripcion:
+          descripcion.trim() ||
+          (tipo === "alquiler_hora"
+            ? trabajoARealizar.trim() || "Alquiler por hora"
+            : null),
         notas: notas.trim() || null,
         tercerizado: Boolean(tercerizadoId),
         tercerizado_id:
@@ -870,6 +1067,9 @@ export function FormularioServicio() {
         payloadServicio.ida_y_vuelta = false;
         payloadServicio.vehiculo_id = vehiculoId || null;
         payloadServicio.maquina_id = maquinaId || null;
+        payloadServicio.direccion_trabajo = direccionTrabajo.trim() || null;
+        payloadServicio.localidad_trabajo = localidadTrabajo.trim() || null;
+        payloadServicio.trabajo_a_realizar = trabajoARealizar.trim() || null;
       } else if (tipo === "alquiler_periodo") {
         payloadServicio.origen = null;
         payloadServicio.destino = null;
@@ -878,6 +1078,9 @@ export function FormularioServicio() {
         payloadServicio.ida_y_vuelta = false;
         payloadServicio.vehiculo_id = vehiculoId || null;
         payloadServicio.maquina_id = maquinaId || null;
+        payloadServicio.direccion_trabajo = direccionTrabajo.trim() || null;
+        payloadServicio.localidad_trabajo = localidadTrabajo.trim() || null;
+        payloadServicio.trabajo_a_realizar = trabajoARealizar.trim() || null;
       } else if (tipo === "mantenimiento") {
         payloadServicio.origen = null;
         payloadServicio.destino = null;
@@ -886,6 +1089,9 @@ export function FormularioServicio() {
         payloadServicio.ida_y_vuelta = false;
         payloadServicio.vehiculo_id = vehiculoId || null;
         payloadServicio.maquina_id = null;
+        payloadServicio.direccion_trabajo = direccionTrabajo.trim() || null;
+        payloadServicio.localidad_trabajo = localidadTrabajo.trim() || null;
+        payloadServicio.trabajo_a_realizar = trabajoARealizar.trim() || null;
       } else {
         // otro
         payloadServicio.origen = null;
@@ -1050,6 +1256,90 @@ export function FormularioServicio() {
         }
       }
 
+      // Traslado de la máquina para alquileres
+      if (
+        (tipo === "alquiler_hora" || tipo === "alquiler_periodo") &&
+        trasladoOpcion !== "no_hace_falta"
+      ) {
+        if (trasladoAccion === "crear") {
+          const datosTraslado: Record<string, any> = {
+            origen: origenTraslado.trim() || empresaGalpon.trim() || null,
+            fecha_programada: fechaProgramada || fechaDesde || null,
+            hora_programada: horaTraslado
+              ? horaTraslado.length === 5
+                ? `${horaTraslado}:00`
+                : horaTraslado
+              : null,
+            vehiculo_id: vehiculoTrasladoId || null,
+            ida_y_vuelta: tipo === "alquiler_hora",
+          };
+
+          if (trasladoOpcion === "aparte") {
+            // "Se cobra aparte" sin precio: permitido, pero nunca mandar 0 (mandar null)
+            datosTraslado.monto =
+              precioTraslado != null && precioTraslado > 0
+                ? precioTraslado
+                : null;
+            datosTraslado.no_facturable = false;
+          } else {
+            // incluido
+            datosTraslado.monto = 0;
+            datosTraslado.no_facturable = true;
+          }
+
+          const { error: errorTraslado } = await supabase.rpc(
+            "crear_traslado_vinculado",
+            {
+              p_servicio_id: nuevoId,
+              p_datos: datosTraslado,
+              p_incluido: trasladoOpcion === "incluido",
+              p_choferes:
+                choferesTraslado.length > 0 ? choferesTraslado : null,
+            },
+          );
+
+          if (errorTraslado) {
+            console.error(
+              "[FormularioServicio] Error en crear_traslado_vinculado:",
+              errorTraslado.message,
+              errorTraslado,
+            );
+            limpiarBorrador();
+            navigate(
+              `/servicios/${nuevoId}?aviso=${encodeURIComponent(
+                `El alquiler quedó creado pero no se pudo cargar el traslado: ${errorTraslado.message}`,
+              )}`,
+            );
+            return;
+          }
+        } else if (trasladoAccion === "vincular" && trasladoAVincularId) {
+          const { error: errorVincular } = await supabase.rpc(
+            "vincular_servicio",
+            {
+              p_servicio_id: trasladoAVincularId,
+              p_principal_id: nuevoId,
+              p_rol: "traslado_maquina",
+              p_incluido: trasladoOpcion === "incluido",
+            },
+          );
+
+          if (errorVincular) {
+            console.error(
+              "[FormularioServicio] Error en vincular_servicio:",
+              errorVincular.message,
+              errorVincular,
+            );
+            limpiarBorrador();
+            navigate(
+              `/servicios/${nuevoId}?aviso=${encodeURIComponent(
+                `El alquiler quedó creado pero no se pudo cargar el traslado: ${errorVincular.message}`,
+              )}`,
+            );
+            return;
+          }
+        }
+      }
+
       limpiarBorrador();
       const querySeguro =
         tipo === "traslado" && seguroImporteFinal ? "seguro=1" : "";
@@ -1070,6 +1360,358 @@ export function FormularioServicio() {
       setGuardando(false);
     }
   };
+
+  const renderDireccionYTrabajo = () => (
+    <div className="space-y-4 pt-2 border-t border-borde">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Campo etiqueta="Dirección *" id="direccion_trabajo">
+          <Entrada
+            id="direccion_trabajo"
+            value={direccionTrabajo}
+            onChange={(e) => setDireccionTrabajo(e.target.value)}
+            placeholder="Ej: Av. San Martín 1234"
+            required
+          />
+        </Campo>
+
+        <Campo etiqueta="Localidad" id="localidad_trabajo">
+          <Entrada
+            id="localidad_trabajo"
+            value={localidadTrabajo}
+            onChange={(e) => setLocalidadTrabajo(e.target.value)}
+            placeholder="Ej: Burzaco"
+          />
+        </Campo>
+      </div>
+
+      <div className="space-y-1.5">
+        <Etiqueta htmlFor="trabajo_a_realizar">Trabajo a realizar</Etiqueta>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              "Descarga",
+              "Carga",
+              "Movimiento de máquinas",
+              "Estiba",
+              "Otro",
+            ] as const
+          ).map((chip) => {
+            const activo =
+              trabajoARealizar === chip ||
+              (chip === "Otro" &&
+                Boolean(trabajoARealizar) &&
+                ![
+                  "Descarga",
+                  "Carga",
+                  "Movimiento de máquinas",
+                  "Estiba",
+                ].includes(trabajoARealizar));
+            return (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => {
+                  if (chip === "Otro") {
+                    if (
+                      [
+                        "Descarga",
+                        "Carga",
+                        "Movimiento de máquinas",
+                        "Estiba",
+                      ].includes(trabajoARealizar)
+                    ) {
+                      setTrabajoARealizar("");
+                    }
+                    document.getElementById("trabajo_a_realizar")?.focus();
+                  } else {
+                    setTrabajoARealizar(chip);
+                  }
+                }}
+                aria-pressed={activo}
+                className={`min-h-[44px] px-3.5 py-2 rounded-md border text-sm font-medium transition-colors ${
+                  activo
+                    ? "border-marca bg-marca-suave text-marca font-semibold"
+                    : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+                }`}
+              >
+                {chip}
+              </button>
+            );
+          })}
+        </div>
+        <div className="pt-1">
+          <Entrada
+            id="trabajo_a_realizar"
+            value={trabajoARealizar}
+            onChange={(e) => setTrabajoARealizar(e.target.value)}
+            placeholder="Ej: Descarga de contenedor 40'"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderSeccionTraslado = () => (
+    <div className="space-y-3 pt-3 border-t border-borde">
+      <fieldset>
+        <legend className="mb-2 block text-sm font-medium text-tinta-suave">
+          Traslado de la máquina
+        </legend>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => setTrasladoOpcion("no_hace_falta")}
+            aria-pressed={trasladoOpcion === "no_hace_falta"}
+            className={`min-h-[44px] px-3 py-2 rounded-md border text-center text-sm font-medium transition-colors ${
+              trasladoOpcion === "no_hace_falta"
+                ? "border-marca bg-marca-suave text-marca font-semibold"
+                : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+            }`}
+          >
+            No hace falta
+          </button>
+          <button
+            type="button"
+            onClick={() => setTrasladoOpcion("incluido")}
+            aria-pressed={trasladoOpcion === "incluido"}
+            className={`min-h-[44px] px-3 py-2 rounded-md border text-center text-sm font-medium transition-colors ${
+              trasladoOpcion === "incluido"
+                ? "border-marca bg-marca-suave text-marca font-semibold"
+                : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+            }`}
+          >
+            Incluido en el precio
+          </button>
+          <button
+            type="button"
+            onClick={() => setTrasladoOpcion("aparte")}
+            aria-pressed={trasladoOpcion === "aparte"}
+            className={`min-h-[44px] px-3 py-2 rounded-md border text-center text-sm font-medium transition-colors ${
+              trasladoOpcion === "aparte"
+                ? "border-marca bg-marca-suave text-marca font-semibold"
+                : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+            }`}
+          >
+            Se cobra aparte
+          </button>
+        </div>
+      </fieldset>
+
+      {trasladoOpcion !== "no_hace_falta" && (
+        <div className="space-y-4 rounded-lg border border-borde bg-superficie p-4 mt-3">
+          <div className="flex flex-wrap gap-2 border-b border-borde pb-3">
+            <button
+              type="button"
+              onClick={() => setTrasladoAccion("crear")}
+              aria-pressed={trasladoAccion === "crear"}
+              className={`min-h-[44px] px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                trasladoAccion === "crear"
+                  ? "border-marca bg-marca-suave text-marca font-semibold"
+                  : "border-borde bg-fondo text-tinta-suave hover:bg-fondo/80"
+              }`}
+            >
+              Crear el traslado ahora
+            </button>
+            <button
+              type="button"
+              onClick={() => setTrasladoAccion("vincular")}
+              aria-pressed={trasladoAccion === "vincular"}
+              className={`min-h-[44px] px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                trasladoAccion === "vincular"
+                  ? "border-marca bg-marca-suave text-marca font-semibold"
+                  : "border-borde bg-fondo text-tinta-suave hover:bg-fondo/80"
+              }`}
+            >
+              Vincular uno ya cargado
+            </button>
+          </div>
+
+          {trasladoAccion === "crear" && (
+            <div className="space-y-4">
+              <div className="rounded-md bg-fondo p-3 text-xs text-tinta-suave space-y-1 border border-borde">
+                <div>
+                  <span className="font-semibold text-tinta">Destino:</span>{" "}
+                  {direccionTrabajo
+                    ? `${direccionTrabajo}${localidadTrabajo ? `, ${localidadTrabajo}` : ""}`
+                    : "Se toma de la dirección de trabajo"}
+                </div>
+                <div>
+                  <span className="font-semibold text-tinta">Fecha:</span>{" "}
+                  {fechaProgramada || fechaDesde
+                    ? formatearFecha(fechaProgramada || fechaDesde)
+                    : "Se toma de la fecha del alquiler"}
+                </div>
+                <div>
+                  <span className="font-semibold text-tinta">Recorrido:</span>{" "}
+                  <span className="font-medium text-marca">
+                    {tipo === "alquiler_hora" ? "Ida y vuelta" : "Solo ida"}
+                  </span>
+                </div>
+              </div>
+
+              <Campo
+                etiqueta="Origen"
+                id="origen_traslado"
+                ayuda="Por defecto el galpón de la empresa"
+              >
+                <Entrada
+                  id="origen_traslado"
+                  value={origenTraslado}
+                  onChange={(e) => setOrigenTraslado(e.target.value)}
+                  placeholder="Dirección del galpón o lugar de retiro"
+                />
+              </Campo>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Campo etiqueta="Hora del traslado" id="hora_traslado">
+                  <Entrada
+                    id="hora_traslado"
+                    type="time"
+                    value={horaTraslado}
+                    onChange={(e) => setHoraTraslado(e.target.value)}
+                  />
+                </Campo>
+
+                <Campo etiqueta="Vehículo" id="vehiculo_traslado">
+                  <Selector
+                    id="vehiculo_traslado"
+                    value={vehiculoTrasladoId}
+                    onChange={(e) => setVehiculoTrasladoId(e.target.value)}
+                  >
+                    <option value="">Sin vehículo asignado</option>
+                    {vehiculos.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.nombre}
+                      </option>
+                    ))}
+                  </Selector>
+                </Campo>
+              </div>
+
+              <div>
+                <Etiqueta>Choferes asignados al traslado</Etiqueta>
+                {choferesDisponibles.length === 0 ? (
+                  <p className="text-xs text-tinta-suave mt-1">
+                    No hay choferes disponibles.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1.5">
+                    {choferesDisponibles.map((ch) => {
+                      const seleccionado = choferesTraslado.includes(ch.id);
+                      return (
+                        <button
+                          key={ch.id}
+                          type="button"
+                          onClick={() => {
+                            setChoferesTraslado((prev) =>
+                              prev.includes(ch.id)
+                                ? prev.filter((id) => id !== ch.id)
+                                : [...prev, ch.id],
+                            );
+                          }}
+                          aria-pressed={seleccionado}
+                          className={`min-h-[44px] px-3 rounded-md border text-sm font-medium transition-colors text-center ${
+                            seleccionado
+                              ? "border-marca bg-marca-suave text-marca font-semibold"
+                              : "border-borde bg-superficie text-tinta-suave hover:bg-fondo"
+                          }`}
+                        >
+                          {ch.nombre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {trasladoOpcion === "aparte" && (
+                <div className="space-y-2 pt-2 border-t border-borde">
+                  <Campo etiqueta="Precio del traslado" id="precio_traslado">
+                    <EntradaMonto
+                      id="precio_traslado"
+                      valor={precioTraslado}
+                      onChange={setPrecioTraslado}
+                      placeholder="0"
+                    />
+                  </Campo>
+                  {precioTraslado == null && (
+                    <Aviso variante="alerta">
+                      El traslado queda sin precio: acordate de cargarlo antes de facturar
+                    </Aviso>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {trasladoAccion === "vincular" && (
+            <div className="space-y-3">
+              {cargandoCandidatos ? (
+                <p className="text-sm text-tinta-suave py-2">Buscando traslados...</p>
+              ) : errorCandidatos ? (
+                <Aviso variante="peligro">{errorCandidatos}</Aviso>
+              ) : candidatosTraslado.length === 0 ? (
+                <div className="rounded-md bg-fondo p-4 text-center space-y-3 border border-borde">
+                  <p className="text-sm text-tinta-suave">
+                    No hay traslados cargados para esas fechas
+                  </p>
+                  <Boton
+                    type="button"
+                    variante="secundario"
+                    className="min-h-[44px]"
+                    onClick={() => setTrasladoAccion("crear")}
+                  >
+                    Crear el traslado ahora
+                  </Boton>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-tinta-suave">
+                    Seleccioná el traslado a vincular (mostrando traslados a ±3 días):
+                  </p>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {candidatosTraslado.map((cand) => {
+                      const seleccionado = trasladoAVincularId === cand.id;
+                      return (
+                        <button
+                          key={cand.id}
+                          type="button"
+                          onClick={() => setTrasladoAVincularId(cand.id)}
+                          aria-pressed={seleccionado}
+                          className={`w-full text-left p-3 rounded-md border min-h-[44px] transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${
+                            seleccionado
+                              ? "border-marca bg-marca-suave text-marca font-medium"
+                              : "border-borde bg-superficie text-tinta hover:bg-fondo"
+                          }`}
+                        >
+                          <div>
+                            <div className="font-semibold text-sm">
+                              #{cand.numero ?? "—"} · {formatearFecha(cand.fecha_programada)}
+                              {cand.hora_programada && (
+                                <span className="text-xs text-tinta-suave font-normal ml-2">
+                                  {cand.hora_programada.slice(0, 5)} hs
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-tinta-suave mt-0.5">
+                              {cand.origen ?? "—"} → {cand.destino ?? "—"}
+                            </div>
+                          </div>
+                          <div className="text-xs font-semibold shrink-0">
+                            {seleccionado ? "Seleccionado" : "Seleccionar"}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -1480,6 +2122,9 @@ export function FormularioServicio() {
                   </div>
                 </Campo>
               </div>
+
+              {renderDireccionYTrabajo()}
+              {renderSeccionTraslado()}
             </div>
           )}
 
@@ -1704,6 +2349,9 @@ export function FormularioServicio() {
                   />
                 </Campo>
               </div>
+
+              {renderDireccionYTrabajo()}
+              {renderSeccionTraslado()}
             </div>
           )}
 
@@ -1722,6 +2370,8 @@ export function FormularioServicio() {
                   />
                 </Campo>
               </div>
+
+              {renderDireccionYTrabajo()}
             </div>
           )}
 

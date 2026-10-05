@@ -160,6 +160,19 @@ export async function limpiarRegistrosTest(prefijo: string) {
 
   const sIds = (servs || []).map((s) => s.id);
   if (sIds.length > 0) {
+    // Sumar los servicios vinculados (ej.: traslado de la máquina), que no llevan el prefijo
+    const { data: vinculados } = await admin
+      .from("servicios")
+      .select("id")
+      .in("vinculado_a", sIds);
+    for (const v of vinculados || []) {
+      if (!sIds.includes(v.id)) sIds.push(v.id);
+    }
+    await admin
+      .from("servicios")
+      .update({ vinculado_a: null, rol_vinculo: null, traslado_incluido: false })
+      .in("id", sIds);
+
     // Obtener cobros aplicados a estos servicios para borrarlos
     const { data: aplicas } = await admin
       .from("cobro_aplicaciones")

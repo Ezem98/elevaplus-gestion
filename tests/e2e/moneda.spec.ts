@@ -44,6 +44,9 @@ test.describe("Moneda en Alquileres y Facturación (E2E)", () => {
     // Seleccionar primera máquina disponible
     await page.locator("#maquina_periodo").selectOption({ index: 1 });
 
+    // Dirección de trabajo
+    await page.locator("#direccion_trabajo").fill("Parque Industrial Burzaco");
+
     // Fechas desde y hasta (período concluido en el pasado para carga retroactiva)
     await page.locator("#fecha_desde").fill("2026-08-01");
     await page.locator("#fecha_hasta").fill("2026-08-31");

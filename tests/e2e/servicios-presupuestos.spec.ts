@@ -256,6 +256,9 @@ test.describe("Servicios y Presupuestos (E2E)", () => {
     // 4. Seleccionar máquina disponible (AE-01 o primera disponible)
     await page.locator("#maquina_periodo").selectOption({ index: 1 });
 
+    // Dirección de trabajo
+    await page.locator("#direccion_trabajo").fill("Parque Industrial Burzaco");
+
     // 5. Cargar fechas desde y hasta
     await page.locator("#fecha_desde").fill(fechaDesde);
     await page.locator("#fecha_hasta").fill(fechaHasta);

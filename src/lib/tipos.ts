@@ -268,6 +268,13 @@ export interface Parada {
 }
 
 
+export type RolVinculo = "traslado_maquina" | "relacionado";
+
+export const ETIQUETA_ROL_VINCULO: Record<RolVinculo, string> = {
+  traslado_maquina: "Traslado de máquina",
+  relacionado: "Relacionado",
+};
+
 export interface Servicio {
   id: string;
   numero: number;
@@ -307,6 +314,12 @@ export interface Servicio {
   monto_moneda?: number | null;
   cotizacion?: number | null;
   continuacion_de?: string | null;
+  vinculado_a?: string | null;
+  rol_vinculo?: RolVinculo | null;
+  traslado_incluido?: boolean;
+  direccion_trabajo?: string | null;
+  localidad_trabajo?: string | null;
+  trabajo_a_realizar?: string | null;
   presupuesto_validez_dias?: number | null;
   presupuesto_condiciones?: string | null;
   presupuesto_pdf_path?: string | null;
@@ -405,6 +418,7 @@ export interface Empresa {
   banco?: string | null;
   email_facturacion?: string | null;
   texto_pie_factura?: string | null;
+  direccion_galpon?: string | null;
   updated_at?: string;
 }
 

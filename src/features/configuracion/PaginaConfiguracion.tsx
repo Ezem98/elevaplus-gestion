@@ -51,6 +51,7 @@ export function PaginaConfiguracion() {
   const [email, setEmail] = useState("");
   const [emailSecundario, setEmailSecundario] = useState("");
   const [instagram, setInstagram] = useState("");
+  const [direccionGalpon, setDireccionGalpon] = useState("");
   const [guardandoEmpresa, setGuardandoEmpresa] = useState(false);
   const [mensajeEmpresa, setMensajeEmpresa] = useState<string | null>(null);
   const [errorEmpresa, setErrorEmpresa] = useState<string | null>(null);
@@ -149,6 +150,7 @@ export function PaginaConfiguracion() {
       setEmail(emp.email || "");
       setEmailSecundario(emp.email_secundario || "");
       setInstagram(emp.instagram || "");
+      setDireccionGalpon(emp.direccion_galpon || "");
 
       setValidezDias(emp.presupuesto_validez_dias ?? 15);
       setPrecioEsperaCamion(emp.precio_hora_espera_camion ?? null);
@@ -223,6 +225,7 @@ export function PaginaConfiguracion() {
         email: email.trim() || null,
         email_secundario: emailSecundario.trim() || null,
         instagram: instagram.trim() || null,
+        direccion_galpon: direccionGalpon.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", 1);
@@ -526,6 +529,19 @@ export function PaginaConfiguracion() {
                 placeholder="Ej: Av. Espora 1200"
                 value={domicilio}
                 onChange={(e) => setDomicilio(e.target.value)}
+              />
+            </Campo>
+
+            <Campo
+              etiqueta="Dirección del galpón"
+              id="emp-direccion-galpon"
+              ayuda="Origen por defecto para los traslados de máquinas"
+            >
+              <Entrada
+                id="emp-direccion-galpon"
+                placeholder="Ej: Matienzo 34, Llavallol"
+                value={direccionGalpon}
+                onChange={(e) => setDireccionGalpon(e.target.value)}
               />
             </Campo>
 
