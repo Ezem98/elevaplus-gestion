@@ -6,6 +6,7 @@ import {
   type AmbienteArca,
 } from "../arca/cliente";
 import { generarYSubirPdfFactura } from "../pdf/generar";
+import { config } from "../config";
 
 export interface ComprobanteArcaRespuesta {
   ImpTotal?: number;
@@ -144,14 +145,26 @@ export async function recuperarFacturasColgadas(minutosLimite = 10): Promise<Res
 
   console.log(`Se encontraron ${facturasColgadas.length} factura(s) en estado 'emitiendo' de más de ${minutosLimite} minutos.`);
 
-  const { data: empresa } = await supabaseAdmin
+  const { data: empresa, error: errorEmpresa } = await supabaseAdmin
     .from("empresa")
-    .select("punto_venta_ws, arca_ambiente")
+    .select("cuit, punto_venta_ws, arca_ambiente")
     .limit(1)
     .single();
 
+  if (errorEmpresa) {
+    throw new Error(`Error al consultar datos de empresa: ${errorEmpresa.message}`);
+  }
+
   const puntoVentaWs = empresa?.punto_venta_ws || 3;
   const ambienteArca: AmbienteArca = (empresa?.arca_ambiente as AmbienteArca) || "homologacion";
+
+  if (ambienteArca === "produccion") {
+    const cuitEmpresa = (empresa?.cuit || "").replace(/\D/g, "");
+    const cuitConfig = config.ARCA_CUIT ? String(config.ARCA_CUIT).replace(/\D/g, "") : "";
+    if (!cuitEmpresa || !cuitConfig || cuitEmpresa !== cuitConfig) {
+      throw new Error("El CUIT de Configuración no coincide con ARCA_CUIT del worker");
+    }
+  }
 
   let recuperadas = 0;
   let desvinculadas = 0;

@@ -141,15 +141,18 @@ worker/
 ```
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
-AFIPSDK_ACCESS_TOKEN=
-ARCA_CUIT=27226514878
-ARCA_CERT=            # contenido del .crt (base64) — homologación o producción según empresa.arca_ambiente
-ARCA_KEY=             # contenido del .key (base64)
+AFIPSDK_ACCESS_TOKEN= # obligatorio en producción; en homologación opcional (Afip SDK provee token dev)
+ARCA_CUIT=            # obligatorio en producción (debe coincidir con empresa.cuit); en homologación usa 20409378472 por defecto
+ARCA_CERT=            # contenido del .crt (base64 o PEM) — obligatorio en producción
+ARCA_KEY=             # contenido del .key (base64 o PEM) — obligatorio en producción
 RESEND_API_KEY=
 WORKER_SECRET=        # para /lote manual desde la app
 TZ=America/Argentina/Buenos_Aires
 PORT=
 ```
+
+> **Validación estricta en producción:** Si `empresa.arca_ambiente = 'produccion'`, las variables `ARCA_CUIT`, `ARCA_CERT`, `ARCA_KEY` y `AFIPSDK_ACCESS_TOKEN` son estrictamente obligatorias y no tienen defaults. Si falta alguna, el worker aborta la emisión indicando qué variables faltan. Además, se valida que `empresa.cuit` (solo dígitos) coincida exactamente con `ARCA_CUIT` configurado antes de llamar a ARCA.
+
 
 ### 4.2 Selección (`seleccionar.ts`)
 
@@ -278,5 +281,6 @@ Páginas de Afip SDK relevantes por prompt (todas bajo `https://docs.afipsdk.com
 - Certificado digital de producción en ARCA con la clave fiscal de la titular; autorizar servicio `wsfe` al certificado. Guías con capturas: `docs.afipsdk.com/recursos/tutoriales-pagina-de-arca/` (habilitar administrador de certificados, obtener certificado, autorizar web service) y `docs.afipsdk.com/siguientes-pasos/ir-a-produccion`.
 - Punto de venta 0003 tipo web service. Guía: `docs.afipsdk.com/recursos/tutoriales-pagina-de-arca/crear-punto-de-venta`.
 - Cuenta Afip SDK (token) y cuenta Resend (API key, dominio verificado).
+- Configuración en Railway (producción): variables `ARCA_CUIT`, `ARCA_CERT`, `ARCA_KEY` y `AFIPSDK_ACCESS_TOKEN` obligatorias (el worker bloquea la emisión si falta alguna o si el CUIT no coincide con el de la empresa).
 - CBU/alias/banco para el pie de factura y el mail.
 - Confirmar con el contador: que la app emita por 0003 y el portal siga en 0002 no le complica los libros (no debería; son puntos de venta distintos del mismo contribuyente).

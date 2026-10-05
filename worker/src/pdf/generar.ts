@@ -78,13 +78,18 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
     .maybeSingle();
 
   if (errEmpresa) {
-    console.error("[PDF] Error al consultar datos de empresa:", errEmpresa);
+    console.error("[PDF] Error al consultar datos de empresa:", errEmpresa.message, errEmpresa);
+    throw new Error(`Error al consultar datos de empresa: ${errEmpresa.message}`);
+  }
+
+  const cuitEmisorRaw = (empresa?.cuit || "").trim();
+  const cuitEmisorDigitos = cuitEmisorRaw.replace(/\D/g, "");
+  if (!cuitEmisorRaw || !cuitEmisorDigitos) {
+    throw new Error("Falta el CUIT de la empresa en Configuración");
   }
 
   // 4. Generar QR de ARCA
-  const cuitEmisorLimpio = Number(
-    (empresa?.cuit || "27226514878").replace(/\D/g, ""),
-  );
+  const cuitEmisorLimpio = Number(cuitEmisorDigitos);
   const cuitReceptorLimpio = Number(
     (factura.clientes?.cuit || "0").replace(/\D/g, ""),
   );
@@ -154,7 +159,7 @@ export async function generarYSubirPdfFactura(facturaId: string): Promise<{
     qrDataUrl,
     emisor: {
       razonSocial: empresa?.razon_social || "ELEVAPLUS",
-      cuit: empresa?.cuit || "27-22651487-8",
+      cuit: empresa.cuit,
       condicionIva: "Responsable Inscripto",
       domicilio:
         empresa?.domicilio ||

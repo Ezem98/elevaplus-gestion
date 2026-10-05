@@ -18,6 +18,9 @@ export interface RespuestaCrearComprobante {
   CAEFchVto: string;
 }
 
+/** CUIT genérico de prueba provisto por Afip SDK para el ambiente de homologación. */
+export const CUIT_HOMOLOGACION_AFIPSDK = 20409378472;
+
 function decodificarCertificado(val?: string): string | undefined {
   if (!val) return undefined;
   if (val.includes("-----BEGIN")) return val;
@@ -38,8 +41,26 @@ export function obtenerInstanciaAfip(opciones: OpcionesClienteArca = {}): any {
   const esProduccion = ambiente === "produccion";
   const cert = decodificarCertificado(opciones.cert || config.ARCA_CERT);
   const key = decodificarCertificado(opciones.key || config.ARCA_KEY);
-  const cuit = opciones.cuit || config.ARCA_CUIT;
-  const accessToken = opciones.accessToken || config.AFIPSDK_ACCESS_TOKEN || undefined;
+  const cuit = esProduccion
+    ? opciones.cuit || config.ARCA_CUIT
+    : opciones.cuit || config.ARCA_CUIT || CUIT_HOMOLOGACION_AFIPSDK;
+  const tokenRaw = opciones.accessToken ?? config.AFIPSDK_ACCESS_TOKEN;
+  const accessToken =
+    tokenRaw && tokenRaw.trim().length > 0 ? tokenRaw.trim() : undefined;
+
+  if (esProduccion) {
+    const faltantes: string[] = [];
+    if (!cuit) faltantes.push("ARCA_CUIT");
+    if (!cert) faltantes.push("ARCA_CERT");
+    if (!key) faltantes.push("ARCA_KEY");
+    if (!accessToken) faltantes.push("AFIPSDK_ACCESS_TOKEN");
+
+    if (faltantes.length > 0) {
+      throw new Error(
+        `Faltan variables requeridas para ARCA en producción: ${faltantes.join(", ")}`,
+      );
+    }
+  }
 
   const params: any = {
     CUIT: cuit,
