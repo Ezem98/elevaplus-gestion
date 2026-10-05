@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(38);
+select plan(44);
 
 -- Constantes del seed
 \set admin_id 'a0000000-0000-0000-0000-000000000001'
@@ -847,5 +847,171 @@ select results_eq(
   'Traslado desvinculado queda sin vinculo, traslado_incluido=false, monto null y no_facturable false'
 );
 
+-- ----------------------------------------------------------------------------
+-- 6. Herencia atómica de dirección y trabajo a realizar (0034)
+-- ----------------------------------------------------------------------------
+
+-- Test 35: crear_traslado_vinculado copia direccion_trabajo, localidad_trabajo y trabajo_a_realizar del principal
+do $$
+declare
+  v_t servicios%rowtype;
+begin
+  v_t := public.crear_traslado_vinculado(
+    (select valor from ids_test where clave = 'alquiler_principal'),
+    jsonb_build_object('origen', 'Galpón Central'),
+    false
+  );
+  insert into ids_test (clave, valor) values ('traslado_hereda_campos', v_t.id);
+end $$;
+
+select results_eq(
+  $$
+    select direccion_trabajo, localidad_trabajo, trabajo_a_realizar
+    from servicios
+    where id = (select valor from ids_test where clave = 'traslado_hereda_campos')
+  $$,
+  $$
+    values (
+      'Av. Mitre 1234'::text,
+      'Avellaneda'::text,
+      'Descarga de contenedor'::text
+    )
+  $$,
+  'crear_traslado_vinculado hereda direccion, localidad y trabajo del principal'
+);
+
+-- Test 36: crear_traslado_vinculado permite que p_datos pise los tres campos
+do $$
+declare
+  v_t servicios%rowtype;
+begin
+  v_t := public.crear_traslado_vinculado(
+    (select valor from ids_test where clave = 'alquiler_principal'),
+    jsonb_build_object(
+      'origen', 'Galpón Central',
+      'direccion_trabajo', 'Calle Pisada 999',
+      'localidad_trabajo', 'Quilmes',
+      'trabajo_a_realizar', 'Carga de mercadería'
+    ),
+    false
+  );
+  insert into ids_test (clave, valor) values ('traslado_pisa_campos', v_t.id);
+end $$;
+
+select results_eq(
+  $$
+    select direccion_trabajo, localidad_trabajo, trabajo_a_realizar
+    from servicios
+    where id = (select valor from ids_test where clave = 'traslado_pisa_campos')
+  $$,
+  $$
+    values (
+      'Calle Pisada 999'::text,
+      'Quilmes'::text,
+      'Carga de mercadería'::text
+    )
+  $$,
+  'crear_traslado_vinculado permite que p_datos pise direccion, localidad y trabajo'
+);
+
+-- Test 37: vincular_servicio copia direccion, localidad y trabajo si en el traslado están vacíos (null o '')
+do $$
+declare
+  v_tv uuid;
+begin
+  insert into servicios (
+    cliente_id, tipo, estado, descripcion, monto, direccion_trabajo, localidad_trabajo, trabajo_a_realizar, creado_por
+  ) values (
+    'c0000000-0000-0000-0000-000000000001'::uuid,
+    'traslado',
+    'consulta',
+    'Traslado campos vacíos',
+    40000,
+    null,
+    '',
+    null,
+    'a0000000-0000-0000-0000-000000000002'::uuid
+  ) returning id into v_tv;
+  insert into ids_test (clave, valor) values ('traslado_vacio', v_tv);
+end $$;
+
+select lives_ok(
+  $$
+    select public.vincular_servicio(
+      (select valor from ids_test where clave = 'traslado_vacio'),
+      (select valor from ids_test where clave = 'alquiler_principal'),
+      'traslado_maquina',
+      false
+    )
+  $$,
+  'vincular_servicio vincula traslado con campos vacíos'
+);
+
+select results_eq(
+  $$
+    select direccion_trabajo, localidad_trabajo, trabajo_a_realizar
+    from servicios
+    where id = (select valor from ids_test where clave = 'traslado_vacio')
+  $$,
+  $$
+    values (
+      'Av. Mitre 1234'::text,
+      'Avellaneda'::text,
+      'Descarga de contenedor'::text
+    )
+  $$,
+  'vincular_servicio copia direccion, localidad y trabajo si el traslado los tenía vacíos'
+);
+
+-- Test 38: vincular_servicio no pisa direccion, localidad ni trabajo si el traslado ya los tenía
+do $$
+declare
+  v_tcd uuid;
+begin
+  insert into servicios (
+    cliente_id, tipo, estado, descripcion, monto, direccion_trabajo, localidad_trabajo, trabajo_a_realizar, creado_por
+  ) values (
+    'c0000000-0000-0000-0000-000000000001'::uuid,
+    'traslado',
+    'consulta',
+    'Traslado campos propios',
+    50000,
+    'Ruta 2 Km 40',
+    'Berazategui',
+    'Movimiento interno de stock',
+    'a0000000-0000-0000-0000-000000000002'::uuid
+  ) returning id into v_tcd;
+  insert into ids_test (clave, valor) values ('traslado_con_datos', v_tcd);
+end $$;
+
+select lives_ok(
+  $$
+    select public.vincular_servicio(
+      (select valor from ids_test where clave = 'traslado_con_datos'),
+      (select valor from ids_test where clave = 'alquiler_principal'),
+      'traslado_maquina',
+      false
+    )
+  $$,
+  'vincular_servicio vincula traslado con datos propios'
+);
+
+select results_eq(
+  $$
+    select direccion_trabajo, localidad_trabajo, trabajo_a_realizar
+    from servicios
+    where id = (select valor from ids_test where clave = 'traslado_con_datos')
+  $$,
+  $$
+    values (
+      'Ruta 2 Km 40'::text,
+      'Berazategui'::text,
+      'Movimiento interno de stock'::text
+    )
+  $$,
+  'vincular_servicio no pisa direccion, localidad ni trabajo si el traslado ya los tenía'
+);
+
 select * from finish();
 rollback;
+

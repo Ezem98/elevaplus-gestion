@@ -74,7 +74,7 @@ export function PaginaChoferHoy() {
     // RLS filtra: el chofer solo ve los servicios asignados a él o creados por él
     const { data: servs, error: servsError } = await supabase
       .from("servicios")
-      .select("*, clientes!servicios_cliente_id_fkey(nombre), paradas!paradas_servicio_id_fkey(*)")
+      .select("*, clientes!servicios_cliente_id_fkey(nombre), paradas!paradas_servicio_id_fkey(*), maquinas!servicios_maquina_id_fkey(codigo_interno, tipo)")
       .in("estado", ["programado", "en_curso", "terminado"])
       .order("fecha_programada")
       .order("hora_programada");
@@ -95,7 +95,7 @@ export function PaginaChoferHoy() {
 
     const { data: hist, error: histError } = await supabase
       .from("servicios")
-      .select("*, clientes!servicios_cliente_id_fkey(nombre), paradas!paradas_servicio_id_fkey(*)")
+      .select("*, clientes!servicios_cliente_id_fkey(nombre), paradas!paradas_servicio_id_fkey(*), maquinas!servicios_maquina_id_fkey(codigo_interno, tipo)")
       .in("estado", ["terminado", "cobrado", "facturado"])
       .gte("fecha_programada", hace7Dias)
       .order("fecha_programada", { ascending: false })
@@ -526,9 +526,19 @@ export function PaginaChoferHoy() {
                       {s.paradas.length === 1 ? "parada" : "paradas"}
                     </span>
                   </div>
-                ) : (s.origen || s.destino) && (
+                ) : (s.origen || s.destino) ? (
                   <div className="text-xs text-tinta-suave">
                     {s.origen ?? "—"} → {s.destino ?? "—"}
+                  </div>
+                ) : (s.direccion_trabajo || s.localidad_trabajo) ? (
+                  <div className="text-xs text-tinta-suave">
+                    {s.direccion_trabajo}{s.localidad_trabajo ? `, ${s.localidad_trabajo}` : ""}
+                  </div>
+                ) : null}
+
+                {s.trabajo_a_realizar && (
+                  <div className="text-xs text-tinta-suave">
+                    <span className="font-medium text-tinta">Trabajo:</span> {s.trabajo_a_realizar}
                   </div>
                 )}
               </Tarjeta>
@@ -593,8 +603,16 @@ function TarjetaServicioItem({
             {s.clientes?.nombre ?? "Sin cliente"}
           </div>
           <div className="mt-0.5 text-sm text-tinta-suave">
-            {s.hora_programada?.slice(0, 5) ?? ""} · {ETIQUETA_TIPO[s.tipo]}
+            {s.hora_programada?.slice(0, 5) ?? ""}{s.hora_programada ? " · " : ""}
+            {s.rol_vinculo === "traslado_maquina"
+              ? "Traslado de máquina"
+              : ETIQUETA_TIPO[s.tipo]}
           </div>
+          {s.rol_vinculo === "traslado_maquina" && s.maquinas?.codigo_interno && (
+            <div className="text-xs font-semibold text-marca mt-0.5">
+              Traslado de la máquina {s.maquinas.codigo_interno}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {s.tipo === "traslado" && s.seguro_importe != null && (
@@ -653,7 +671,7 @@ function TarjetaServicioItem({
             ))}
           </div>
         </div>
-      ) : (s.origen || s.destino) && (
+      ) : (s.origen || s.destino) ? (
         <div className="flex flex-col gap-2 rounded-lg bg-fondo p-3 text-sm">
           <div>
             <span className="block text-xs font-medium text-tinta-suave">
@@ -663,9 +681,31 @@ function TarjetaServicioItem({
           </div>
           <div>
             <span className="block text-xs font-medium text-tinta-suave">
-              Hasta
+              {s.rol_vinculo === "traslado_maquina" ? "Dirección" : "Hasta"}
             </span>
             <span className="font-medium text-tinta">{s.destino ?? "—"}</span>
+          </div>
+        </div>
+      ) : (s.direccion_trabajo || s.localidad_trabajo) ? (
+        <div className="flex flex-col gap-2 rounded-lg bg-fondo p-3 text-sm">
+          <div>
+            <span className="block text-xs font-medium text-tinta-suave">
+              Dirección
+            </span>
+            <span className="font-medium text-tinta">
+              {s.direccion_trabajo}
+              {s.localidad_trabajo ? `, ${s.localidad_trabajo}` : ""}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Trabajo a realizar si existe */}
+      {s.trabajo_a_realizar && (
+        <div className="flex items-center gap-2 rounded-lg bg-marca-suave/40 px-3 py-2">
+          <div className="min-w-0">
+            <span className="block text-xs text-tinta-suave">Trabajo a realizar</span>
+            <p className="text-sm font-medium text-tinta">{s.trabajo_a_realizar}</p>
           </div>
         </div>
       )}
