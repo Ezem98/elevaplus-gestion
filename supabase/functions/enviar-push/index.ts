@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 import webpush from "npm:web-push@3.6.7";
+import { autorizar } from "./auth.ts";
 
 interface WebhookPayload {
   type: "INSERT" | "UPDATE" | "DELETE";
@@ -16,20 +17,29 @@ Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get("Authorization");
   const apiKeyHeader = req.headers.get("apikey");
 
-  if (webhookSecret || serviceRoleKey) {
-    const esWebhookValido =
-      webhookSecret && authHeader === `Bearer ${webhookSecret}`;
-    const esServiceRoleValido =
-      serviceRoleKey &&
-      (authHeader === `Bearer ${serviceRoleKey}` ||
-        apiKeyHeader === serviceRoleKey);
+  const estadoAuth = autorizar({
+    webhookSecret,
+    serviceRoleKey,
+    authHeader,
+    apiKeyHeader,
+  });
 
-    if (!esWebhookValido && !esServiceRoleValido) {
-      return new Response(JSON.stringify({ error: "No autorizado" }), {
-        status: 401,
+  if (estadoAuth === "sin_credenciales") {
+    console.error("Función sin credenciales configuradas en el entorno");
+    return new Response(
+      JSON.stringify({ error: "Función sin credenciales configuradas" }),
+      {
+        status: 500,
         headers: { "Content-Type": "application/json" },
-      });
-    }
+      },
+    );
+  }
+
+  if (estadoAuth === "no_autorizado") {
+    return new Response(JSON.stringify({ error: "No autorizado" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   let notificacionId: string | null = null;
