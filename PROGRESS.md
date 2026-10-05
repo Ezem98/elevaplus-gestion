@@ -4,17 +4,18 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 
 ## Último estado (05/10/2026)
 
-- Rama: `hito/vinculos-alquileres` (trae sin commitear el trabajo del hito 1 y estos dos archivos).
-- Job de agy activo: ninguno (último: `muvd9g6o_3h58u1`, terminado).
+- Rama: `hito/datos-fiscales-empresa` (sale de `hito/vinculos-alquileres` para que la 0035 vaya después de la 0034).
+- Job de agy activo: ninguno (último: `muvidaei_9u468m`, terminado).
 - Orden de hitos validado por el usuario.
-- Hito 1 listo para checkpoint: `npm run verificar` en verde (05/10 12:10). Esperando OK del usuario a la migración 0034 y al commit.
+- Hito 2 hecho y pusheado en `hito/datos-fiscales-empresa` (apilado sobre hito 1). Siguiente: hito 3 cuando el usuario dé el OK.
+- Hito 1 hecho y pusheado en `hito/vinculos-alquileres`; PR a abrir (`gh` instalado el 05/10 pero falta `gh auth login`).
 
 ## Hitos
 
 | # | Hito | Estado |
 | --- | --- | --- |
-| 1 | Cerrar vínculos y alquileres (UI + migraciones 0033 y 0034) | en curso, esperando OK |
-| 2 | Datos fiscales de la empresa para el PDF de factura (migración 0035 + Configuración) | pendiente |
+| 1 | Cerrar vínculos y alquileres (UI + migraciones 0033 y 0034) | hecho, pusheado, PR pendiente de merge |
+| 2 | Datos fiscales de la empresa para el PDF de factura (migración 0035 + Configuración) | hecho, pusheado, PR pendiente de merge |
 | 3 | ARCA a producción | pendiente |
 | 4 | Fase 7: auditoría de seguridad (H-2 a H-4 + auditoría completa) | pendiente |
 | 5 | Fase 6: asistente Chimuelo en la app | pendiente |
@@ -32,7 +33,7 @@ Corregido (05/10, agy `muvd9g6o_3h58u1`): migración 0034 `traslado_vinculado_he
 Nota: `npm run verificar` no es repetible sin `npm run db:local` antes (los E2E dejan datos que rompen pgTAP 03 y 04).
 
 ### 2. Datos fiscales de la empresa
-El worker lee `empresa.iibb` y `empresa.inicio_actividades` (`worker/src/pdf/generar.ts:163`) pero ninguna migración las crea. Migración 0035 con columnas y grants + campos en Configuración. Pausa de revisión de la migración.
+El worker lee `empresa.iibb` y `empresa.inicio_actividades` (`worker/src/pdf/generar.ts:163`) pero ninguna migración las crea. Migración 0035 con columnas y grants + campos en Configuración. Pausa de revisión de la migración. Los valores los carga el usuario en Configuración (no van en la migración). Ojo: `generar.ts` tiene un CUIT de respaldo `27-22651487-8` distinto del default de `ARCA_CUIT`: revisarlo en el hito 3.
 
 ### 3. ARCA a producción
 En Railway (worker) ya están `ARCA_CUIT` y `ARCA_KEY` (dato del usuario, 05/10/2026). Falta que el usuario descargue el `.crt` desde ARCA y lo cargue como `ARCA_CERT`. En código: quitar el CUIT por defecto de `worker/src/config.ts:22` para que falle si falta.
@@ -56,6 +57,7 @@ Fase 1 (MVP), Fase 2 (facturación ARCA en homologación, caja, cheques, agenda)
 | --- | --- |
 | 05/10/2026 | Claude orquesta y delega la implementación en agy (MCP `antigravity`). Ver `CLAUDE.md`. |
 | 05/10/2026 | Un hito por vez, con checkpoint y OK del usuario antes de seguir. |
+| 05/10/2026 | Hito 2: `iibb` texto libre, `inicio_actividades` date; los valores los carga el usuario. |
 | 05/10/2026 | Hito 1, opción A: migración 0034 hace que las RPC de traslado vinculado copien dirección y trabajo del alquiler. Datos fiscales pasa a 0035. |
 
 ## A confirmar con el usuario
