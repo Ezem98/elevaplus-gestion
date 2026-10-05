@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
 import { config } from "../config";
 import { supabaseAdmin } from "../supabase";
@@ -14,6 +15,29 @@ declare global {
       usuario?: UsuarioAutenticado;
     }
   }
+}
+
+/**
+ * Compara dos secretos en tiempo constante usando crypto.timingSafeEqual de node:crypto.
+ * Realiza un chequeo previo de longitud para evitar excepciones de Buffer.
+ * Devuelve false de inmediato si las longitudes difieren o si alguno está vacío o indefinido.
+ */
+export function compararSecretSeguro(
+  secretRecibido: string | undefined,
+  secretEsperado: string | undefined,
+): boolean {
+  if (!secretEsperado || !secretRecibido) {
+    return false;
+  }
+
+  const bufRecibido = Buffer.from(secretRecibido);
+  const bufEsperado = Buffer.from(secretEsperado);
+
+  if (bufRecibido.length !== bufEsperado.length) {
+    return false;
+  }
+
+  return timingSafeEqual(bufRecibido, bufEsperado);
 }
 
 /**
@@ -83,11 +107,16 @@ export async function requerirWorkerSecretOAdmin(
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  const rawSecret = req.headers["x-worker-secret"];
   const secretHeader =
-    (req.headers["x-worker-secret"] as string) ||
+    (typeof rawSecret === "string"
+      ? rawSecret
+      : Array.isArray(rawSecret)
+        ? rawSecret[0]
+        : undefined) ||
     req.headers.authorization?.replace(/^Bearer\s+/i, "");
 
-  if (config.WORKER_SECRET && secretHeader === config.WORKER_SECRET) {
+  if (compararSecretSeguro(secretHeader, config.WORKER_SECRET)) {
     req.usuario = {
       id: "worker_secret",
       rol: "admin",
@@ -97,4 +126,5 @@ export async function requerirWorkerSecretOAdmin(
 
   return requerirAdminUOficina(req, res, next);
 }
+
 

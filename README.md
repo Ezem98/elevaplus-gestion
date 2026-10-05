@@ -192,6 +192,9 @@ Para habilitar las notificaciones push en segundo plano cuando choferes inician 
    - **Webhook 1**: Tabla `servicio_eventos`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
    - **Webhook 2**: Tabla `servicios`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
 
+4. **Rotación de `WEBHOOK_SECRET`**:
+   Para rotar el secret, debe actualizarse en tres lugares sincronizados: en los secrets de la Edge Function (`npx supabase secrets set WEBHOOK_SECRET=...`), en el header `Authorization` de los dos webhooks en Supabase Dashboard, y en la variable de entorno `WEBHOOK_SECRET` del servicio `elevaplus-worker` en Railway.
+
 ## Ingreso con huella / Passkeys (Supabase Auth)
 
 Para habilitar el inicio de sesión con huella dactilar, Face ID o llave de seguridad (WebAuthn / Passkeys):
