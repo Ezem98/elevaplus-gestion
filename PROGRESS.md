@@ -4,9 +4,10 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 
 ## Último estado (05/10/2026)
 
-- Rama: `hito/seguridad-h2` (desde `origin/main`, ya con PR #3 mergeado).
-- Job de agy activo: ninguno (último: `muvnost8_s1qb1m`, H-2, terminado).
-- Hito 4a (H-2) commiteado y en PR. Después del merge: redeploy manual de enviar-push y rotar WEBHOOK_SECRET (usuario). Siguiente: compartir PDF como archivo (presupuestos, después facturas).
+- Rama: `hito/compartir-pdf-presupuesto`.
+- Job de agy activo: ninguno (último: `muvs1i9i_srcvf7`, compartir PDF presupuesto, terminado).
+- H-3 presupuestos commiteado y en PR. Facturas: pendiente de definir con el usuario.
+- Hito 4a (H-2) mergeado (PR #4). Después del merge: redeploy manual de enviar-push y rotar WEBHOOK_SECRET (usuario). Siguiente: compartir PDF como archivo (presupuestos, después facturas).
 - Hito 4 partido en 4a (H-2..H-4), 4b (skill + pasada 1 + triage), 4c (correcciones con test), 4d (controles permanentes + SEGURIDAD.md). Usuario eligió H-2 opción A.
 - Hito 3 commiteado y pusheado en `hito/arca-produccion`, PR #3 abierto para merge. Del lado del usuario: `AFIPSDK_ACCESS_TOKEN` ya está; falta cargar `ARCA_CERT` en Railway, punto de venta WS y pasar ambiente a producción.
 - Orden de hitos validado por el usuario.
