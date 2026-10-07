@@ -111,7 +111,47 @@ test.describe("Presupuestos (E2E)", () => {
     expect(resPdf.status()).toBe(200);
     expect(resPdf.headers()["content-type"]).toContain("application/pdf");
 
-    // Probar click en Descargar PDF
+    // 11. Probar "Compartir PDF": en Chromium sin canShare de files dispara descarga directa y fallback
+    const botonCompartirPdf = page.getByRole("button", {
+      name: "Compartir PDF",
+    });
+    await expect(botonCompartirPdf).toBeVisible();
+
+    const [descargaCompartir] = await Promise.all([
+      page.waitForEvent("download"),
+      botonCompartirPdf.click(),
+    ]);
+
+    expect(descargaCompartir.suggestedFilename()).toMatch(/\.pdf$/i);
+
+    // Aparece el aviso de descarga info
+    await expect(
+      page.getByText("Se descargó el PDF. Adjuntalo en WhatsApp o en el mail."),
+    ).toBeVisible();
+
+    // Como hay teléfono del prospecto ("11 3344 5566"), aparece el enlace "Abrir WhatsApp"
+    const linkAbrirWhatsApp = page.getByRole("link", {
+      name: "Abrir WhatsApp",
+    });
+    await expect(linkAbrirWhatsApp).toBeVisible();
+    const hrefWa = await linkAbrirWhatsApp.getAttribute("href");
+    expect(hrefWa).toBeTruthy();
+    expect(hrefWa).toContain("wa.me");
+    expect(hrefWa).not.toContain("supabase");
+    expect(hrefWa).not.toContain("token=");
+
+    // También como hay email ("contacto@metalurgicadelsur.com.ar"), aparece "Abrir mail"
+    const linkAbrirMail = page.getByRole("link", {
+      name: "Abrir mail",
+    });
+    await expect(linkAbrirMail).toBeVisible();
+    const hrefMail = await linkAbrirMail.getAttribute("href");
+    expect(hrefMail).toBeTruthy();
+    expect(hrefMail).toContain("mailto:");
+    expect(hrefMail).not.toContain("supabase");
+    expect(hrefMail).not.toContain("token=");
+
+    // Probar click en Descargar PDF adicionalmente
     await botonDescargarPdf.click();
     await expect(botonDescargarPdf).toBeEnabled();
 
@@ -264,4 +304,83 @@ test.describe("Presupuestos (E2E)", () => {
     await expect(page.getByText("Movimiento de zorra eléctrica")).toBeVisible();
     await expect(page.getByText(/Traslado cotizado —.*40 km/i)).toBeVisible();
   });
+
+  test("Compartir PDF en navegador móvil con Web Share API invoca navigator.share con File .pdf y sin URL", async ({
+    page,
+  }) => {
+    // 1. Mockear navigator.canShare y navigator.share antes de cargar la app
+    await page.addInitScript(() => {
+      (window as any).__shareCalls = [];
+      (navigator as any).canShare = (data?: any) => {
+        return Boolean(data && data.files && data.files.length > 0);
+      };
+      (navigator as any).share = async (data?: any) => {
+        (window as any).__shareCalls.push({
+          title: data?.title,
+          text: data?.text,
+          files: data?.files
+            ? Array.from(data.files).map((f: any) => ({
+                name: f.name,
+                type: f.type,
+                size: f.size,
+              }))
+            : [],
+        });
+        return Promise.resolve();
+      };
+    });
+
+    const nombreProspectoMovil = `${PREFIJO}Móvil Compartir`;
+
+    // 2. Crear presupuesto en borrador
+    await page.goto("/presupuestos/nuevo");
+    await page
+      .getByRole("button", { name: "No es cliente todavía (prospecto)" })
+      .click();
+    await page.locator("#prospecto_nombre").fill(nombreProspectoMovil);
+    await page.locator("#prospecto_tel").fill("11 2233 4455");
+
+    await page.getByRole("button", { name: "Agregar ítem" }).click();
+    await page.locator("#item_orig").fill("Llavallol");
+    await page.locator("#item_dest").fill("Temperley");
+    await page.locator("#item_desc").fill("Flete autoelevador");
+    await page.locator("#item_monto").fill("75000");
+    await page.getByRole("button", { name: "Confirmar ítem" }).click();
+
+    await page.getByRole("button", { name: "Guardar borrador" }).click();
+    await page.waitForURL(/\/presupuestos\/[a-f0-9-]+$/);
+
+    // 3. Click en "Compartir PDF"
+    const botonCompartir = page.getByRole("button", { name: "Compartir PDF" });
+    await expect(botonCompartir).toBeVisible();
+    await botonCompartir.click();
+
+    // 4. Verificar que navigator.share fue llamado con el archivo .pdf y texto sin URL
+    await expect
+      .poll(async () => {
+        return await page.evaluate(() => (window as any).__shareCalls?.length ?? 0);
+      })
+      .toBe(1);
+
+    const shareCalls = await page.evaluate(() => (window as any).__shareCalls);
+    expect(shareCalls).toHaveLength(1);
+    const llamada = shareCalls[0];
+
+    expect(llamada.files).toHaveLength(1);
+    expect(llamada.files[0].name).toMatch(/^Presupuesto-.*\.pdf$/i);
+    expect(llamada.files[0].type).toBe("application/pdf");
+
+    // Verificar que el texto de compartir NO contiene URLs de storage ni tokens ni links
+    expect(llamada.text).toContain("Hola, te paso el presupuesto");
+    expect(llamada.text).toContain("de ELEVAPLUS");
+    expect(llamada.text).not.toContain("http");
+    expect(llamada.text).not.toContain("supabase");
+    expect(llamada.text).not.toContain("token=");
+
+    // Como fue compartido exitosamente por Web Share API, no debe aparecer el aviso de descarga de compu
+    await expect(
+      page.getByText("Se descargó el PDF. Adjuntalo en WhatsApp o en el mail."),
+    ).not.toBeVisible();
+  });
 });
+

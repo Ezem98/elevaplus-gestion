@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  Share2,
   Download,
   Mail,
   MessageCircle,
@@ -21,6 +22,7 @@ import {
 import { pdf } from "@react-pdf/renderer";
 import { supabase } from "@/lib/supabase";
 import { consultarPadronArca } from "@/lib/worker";
+import { compartirArchivo, descargarBlob } from "@/lib/compartir";
 import type {
   Cliente,
   CondicionIva,
@@ -75,6 +77,9 @@ export function PaginaPresupuesto() {
   const [procesando, setProcesando] = useState(false);
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
   const [urlFirmada, setUrlFirmada] = useState<string | null>(null);
+  const [ultimoBlob, setUltimoBlob] = useState<Blob | null>(null);
+  const [compartirNoSoportado, setCompartirNoSoportado] = useState(false);
+  const [compartirReintentar, setCompartirReintentar] = useState(false);
 
   // Edición de condiciones y validez
   const [validezDias, setValidezDias] = useState<number>(15);
@@ -256,11 +261,11 @@ export function PaginaPresupuesto() {
       setValidezDias(presData.validez_dias ?? 15);
       setCondiciones(presData.condiciones ?? "");
 
-      // Si tiene PDF generado, obtener URL firmada
+      // Si tiene PDF generado, obtener URL firmada (solo para ver en la app)
       if (presData.pdf_path) {
         supabase.storage
           .from("adjuntos")
-          .createSignedUrl(presData.pdf_path, 7 * 24 * 60 * 60)
+          .createSignedUrl(presData.pdf_path, 3600)
           .then(({ data }) => {
             if (data?.signedUrl) {
               setUrlFirmada(data.signedUrl);
@@ -401,14 +406,60 @@ export function PaginaPresupuesto() {
 
     const { data: signedData, error: signedError } = await supabase.storage
       .from("adjuntos")
-      .createSignedUrl(storagePath, 7 * 24 * 60 * 60);
+      .createSignedUrl(storagePath, 3600);
 
     if (signedError || !signedData?.signedUrl) {
       throw new Error("Error al generar la URL de descarga del PDF.");
     }
 
     setUrlFirmada(signedData.signedUrl);
+    setUltimoBlob(blob);
     return { url: signedData.signedUrl, blob };
+  };
+
+  // Obtener blob del PDF (reutiliza en memoria si no cambiaron los ítems, o genera y sube a Storage)
+  const obtenerBlobPDF = async (): Promise<Blob> => {
+    if (ultimoBlob && !itemsModificadosDespuesDeGenerar) {
+      return ultimoBlob;
+    }
+    const { blob } = await generarYSubirPDF();
+    setUltimoBlob(blob);
+    await cargarDatos();
+    return blob;
+  };
+
+  // Manejador: Compartir PDF (Web Share API con archivos, o descarga + botones secundarios si no está soportado)
+  const handleCompartirPDF = async () => {
+    try {
+      setProcesando(true);
+      setErrorGlobal(null);
+
+      const blob = await obtenerBlobPDF();
+      const nombreArchivo = armarNombreArchivo();
+      const archivo = new File([blob], nombreArchivo, {
+        type: "application/pdf",
+      });
+
+      const numFormateado = formatearNumeroPresupuesto(presupuesto.numero);
+      const texto = `Hola, te paso el presupuesto ${numFormateado} de ELEVAPLUS. Cualquier duda, escribime. ¡Gracias!`;
+      const titulo = `Presupuesto ${numFormateado} - ELEVAPLUS`;
+
+      const resultado = await compartirArchivo({
+        archivo,
+        titulo,
+        texto,
+      });
+
+      setCompartirReintentar(resultado === "sin_activacion");
+      if (resultado === "no_soportado") {
+        descargarBlob(blob, nombreArchivo);
+        setCompartirNoSoportado(true);
+      }
+    } catch (err: any) {
+      setErrorGlobal(err.message || "Error al compartir el presupuesto.");
+    } finally {
+      setProcesando(false);
+    }
   };
 
   // Manejador: Descargar PDF
@@ -417,74 +468,10 @@ export function PaginaPresupuesto() {
       setProcesando(true);
       setErrorGlobal(null);
 
-      const { blob } = await generarYSubirPDF();
-
-      // Disparar descarga local usando el blob generado
-      const urlBlob = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = urlBlob;
-      a.download = armarNombreArchivo();
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(urlBlob), 5000);
-
-      await cargarDatos();
+      const blob = await obtenerBlobPDF();
+      descargarBlob(blob, armarNombreArchivo());
     } catch (err: any) {
       setErrorGlobal(err.message || "No se pudo generar el PDF.");
-    } finally {
-      setProcesando(false);
-    }
-  };
-
-  // Manejador: Enviar por WhatsApp
-  const handleEnviarWhatsApp = async () => {
-    try {
-      if (!telefonoNormalizado) return;
-      setProcesando(true);
-      setErrorGlobal(null);
-
-      const url =
-        urlFirmada && !itemsModificadosDespuesDeGenerar
-          ? urlFirmada
-          : (await generarYSubirPDF()).url;
-
-      const numFormateado = formatearNumeroPresupuesto(presupuesto.numero);
-      const texto = `Hola, te paso el presupuesto ${numFormateado} de ELEVAPLUS: ${url}. Cualquier duda, escribime. ¡Gracias!`;
-      const urlWa = `https://wa.me/${telefonoNormalizado}?text=${encodeURIComponent(texto)}`;
-
-      window.open(urlWa, "_blank");
-
-      await cargarDatos();
-    } catch (err: any) {
-      setErrorGlobal(err.message || "Error al preparar envío por WhatsApp.");
-    } finally {
-      setProcesando(false);
-    }
-  };
-
-  // Manejador: Enviar por Mail
-  const handleEnviarMail = async () => {
-    try {
-      if (!emailDestinatario) return;
-      setProcesando(true);
-      setErrorGlobal(null);
-
-      const url =
-        urlFirmada && !itemsModificadosDespuesDeGenerar
-          ? urlFirmada
-          : (await generarYSubirPDF()).url;
-
-      const numFormateado = formatearNumeroPresupuesto(presupuesto.numero);
-      const asunto = `Presupuesto ${numFormateado} - ELEVAPLUS`;
-      const cuerpo = `Hola, te paso el presupuesto ${numFormateado} de ELEVAPLUS: ${url}.\n\nCualquier duda, estamos a disposición.\n\n¡Gracias!`;
-      const mailto = `mailto:${emailDestinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
-
-      window.location.href = mailto;
-
-      await cargarDatos();
-    } catch (err: any) {
-      setErrorGlobal(err.message || "Error al preparar envío por email.");
     } finally {
       setProcesando(false);
     }
@@ -1841,16 +1828,73 @@ export function PaginaPresupuesto() {
       <Tarjeta className="p-5 space-y-4">
         <h2 className="text-base font-semibold text-tinta">Acciones</h2>
 
+        {compartirReintentar && (
+          <Aviso variante="info">
+            El PDF ya está listo. Tocá Compartir PDF otra vez para enviarlo.
+          </Aviso>
+        )}
+
+        {compartirNoSoportado && (
+          <Aviso variante="info">
+            Se descargó el PDF. Adjuntalo en WhatsApp o en el mail.
+          </Aviso>
+        )}
+
         <div className="flex flex-wrap items-center gap-3">
           <Boton
             type="button"
+            onClick={handleCompartirPDF}
+            disabled={procesando}
+            className="gap-1.5"
+          >
+            <Share2 className="size-4" />
+            Compartir PDF
+          </Boton>
+
+          <Boton
+            type="button"
+            variante="secundario"
             onClick={handleDescargarPDF}
             disabled={procesando}
             className="gap-1.5"
           >
             <Download className="size-4" />
-            {presupuesto.pdf_path ? "Descargar PDF" : "Generar PDF"}
+            Descargar PDF
           </Boton>
+
+          {compartirNoSoportado && telefonoNormalizado && (
+            <a
+              href={`https://wa.me/${telefonoNormalizado}?text=${encodeURIComponent(
+                `Hola, te paso el presupuesto ${formatearNumeroPresupuesto(
+                  presupuesto.numero,
+                )} de ELEVAPLUS. Cualquier duda, escribime. ¡Gracias!`,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors bg-superficie text-tinta border border-borde hover:bg-fondo h-10 px-4 text-sm"
+            >
+              <MessageCircle className="size-4" />
+              Abrir WhatsApp
+            </a>
+          )}
+
+          {compartirNoSoportado && emailDestinatario && (
+            <a
+              href={`mailto:${emailDestinatario}?subject=${encodeURIComponent(
+                `Presupuesto ${formatearNumeroPresupuesto(
+                  presupuesto.numero,
+                )} - ELEVAPLUS`,
+              )}&body=${encodeURIComponent(
+                `Hola, te paso el presupuesto ${formatearNumeroPresupuesto(
+                  presupuesto.numero,
+                )} de ELEVAPLUS. Cualquier duda, escribime. ¡Gracias!`,
+              )}`}
+              className="inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors bg-superficie text-tinta border border-borde hover:bg-fondo h-10 px-4 text-sm"
+            >
+              <Mail className="size-4" />
+              Abrir mail
+            </a>
+          )}
 
           {urlFirmada && (
             <a
@@ -1862,32 +1906,6 @@ export function PaginaPresupuesto() {
               <FileText className="size-4" />
               Ver PDF actual
             </a>
-          )}
-
-          {telefonoNormalizado && (
-            <Boton
-              type="button"
-              variante="secundario"
-              onClick={handleEnviarWhatsApp}
-              disabled={procesando}
-              className="gap-1.5"
-            >
-              <MessageCircle className="size-4" />
-              Enviar por WhatsApp
-            </Boton>
-          )}
-
-          {emailDestinatario && (
-            <Boton
-              type="button"
-              variante="secundario"
-              onClick={handleEnviarMail}
-              disabled={procesando}
-              className="gap-1.5"
-            >
-              <Mail className="size-4" />
-              Enviar por mail
-            </Boton>
           )}
 
           {["borrador", "enviado"].includes(presupuesto.estado) && (
