@@ -26,6 +26,8 @@ Servicio en segundo plano para tareas asíncronas, emisión de comprobantes en A
 | `HEARTBEAT_LOTE`            | URL de heartbeat para lote nocturno de facturación                       | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
 | `HEARTBEAT_SEMANAL`         | URL de heartbeat para resumen semanal por correo                         | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
 | `HEARTBEAT_CALENDARIO`      | URL de heartbeat para sincronización con Google Calendar (preparada)     | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
+| `HEARTBEAT_STORAGE`         | URL de heartbeat para la limpieza semanal de Storage (opcional)          | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
+| `STORAGE_LIMPIEZA_BORRAR`   | Si vale exactamente `true`, la limpieza de Storage borra los huérfanos (tope 200 por corrida). Cualquier otro valor: solo informe | `true`                                          |
 
 > **Facturación electrónica en producción:** Cuando `empresa.arca_ambiente = 'produccion'`, las variables `ARCA_CUIT`, `ARCA_CERT`, `ARCA_KEY` y `AFIPSDK_ACCESS_TOKEN` son obligatorias y no admiten valores por defecto. Si alguna falta o si el CUIT configurado no coincide con el CUIT de la empresa, el worker rechaza la emisión con un error explícito. En homologación, ante la ausencia de `ARCA_CUIT` se utiliza el CUIT genérico de prueba de Afip SDK (`20409378472`).
 
@@ -53,6 +55,7 @@ Todas las tareas se ejecutan en la zona horaria `America/Argentina/Buenos_Aires`
 - **07:00 hs lunes (`0 7 * * 1`)** — `resumenSemanal()`: Envía por email a `empresa.email` el resumen de compromisos de la semana, cheques a cobrar/cubrir, proyección de caja a 7 días y alerta de descubierto si algún día queda negativo.
 - **08:00 hs diaria (`0 8 * * *`)** — `recordatoriosHoy()`: Notificación push agregada a roles `admin` y `oficina` con los compromisos del día (hasta 3 títulos + "y N más", tag `agenda-hoy:YYYY-MM-DD`). Además, evalúa **alerta de fondos**: si un cheque a cubrir vence en ≤ 3 días y la cuenta bancaria no cubre según `proyeccion_caja`, envía un push de alerta específico (tag `fondos:<cheque_id>`).
 - **09:00 hs diaria (`0 9 * * *`)** — `recordatoriosManana()`: Notificación push agregada para los compromisos de mañana (tag `agenda-manana:YYYY-MM-DD`).
+- **04:00 hs domingo (`0 4 * * 0`)** — `limpiarStorageHuerfanos()`: Busca en el bucket `adjuntos` archivos huérfanos (sin referencia en ninguna columna conocida, de un servicio/presupuesto/movimiento que ya no existe y con más de 7 días). Por defecto solo informa en el log; borra (máx. 200 por corrida) solo con `STORAGE_LIMPIEZA_BORRAR=true`. Nunca toca el bucket `facturas`. También se dispara con `POST /tareas/limpiar-storage`.
 - **21:30 hs diaria (`30 21 * * *`)** — `correrLote('cron')`: Facturación nocturna automática de servicios pendientes en ARCA.
 
 ## Endpoints HTTP
