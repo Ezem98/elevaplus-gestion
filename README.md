@@ -176,9 +176,14 @@ Para habilitar las notificaciones push en segundo plano cuando choferes inician 
    ```
 
    - Clave pública: agregar a `.env.local` y a las variables de entorno en Railway como `VITE_VAPID_PUBLIC_KEY`.
-   - Ambas claves, asunto y secret del webhook a los secrets de Supabase:
+   - Generar el secret del webhook sin dejarlo en el historial de la terminal y cargarlo en Supabase:
      ```bash
-     npx supabase secrets set VAPID_PUBLIC_KEY="<clave_publica>" VAPID_PRIVATE_KEY="<clave_privada>" VAPID_SUBJECT="mailto:elevaplus.one@gmail.com" WEBHOOK_SECRET="<uuid_aleatorio>"
+     S=$(openssl rand -hex 32)
+     npx supabase secrets set WEBHOOK_SECRET="$S"
+     ```
+   - Claves VAPID y asunto a los secrets de Supabase:
+     ```bash
+     npx supabase secrets set VAPID_PUBLIC_KEY="<clave_publica>" VAPID_PRIVATE_KEY="<clave_privada>" VAPID_SUBJECT="mailto:elevaplus.one@gmail.com"
      ```
 
 2. **Desplegar la Edge Function**:
@@ -188,12 +193,20 @@ Para habilitar las notificaciones push en segundo plano cuando choferes inician 
    ```
 
 3. **Crear los Database Webhooks en Supabase**:
-   En Supabase Dashboard → **Database** → **Webhooks** → crear dos webhooks de tipo **Supabase Edge Function** apuntando a `enviar-push`:
-   - **Webhook 1**: Tabla `servicio_eventos`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
-   - **Webhook 2**: Tabla `servicios`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
+   En Supabase Dashboard → **Database** → **Webhooks** → crear tres webhooks de tipo **Supabase Edge Function** apuntando a `enviar-push`, todos con evento `INSERT` y header `Authorization: Bearer <WEBHOOK_SECRET>`:
+   - **`push-servicio-no-planificado`**: Tabla `servicios`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
+   - **`push-servicio-eventos`**: Tabla `servicio_eventos`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
+   - **`push-notificaciones`**: Tabla `notificaciones`, evento `INSERT`, con header `Authorization: Bearer <WEBHOOK_SECRET>`.
 
 4. **Rotación de `WEBHOOK_SECRET`**:
-   Para rotar el secret, debe actualizarse en tres lugares sincronizados: en los secrets de la Edge Function (`npx supabase secrets set WEBHOOK_SECRET=...`), en el header `Authorization` de los dos webhooks en Supabase Dashboard, y en la variable de entorno `WEBHOOK_SECRET` del servicio `elevaplus-worker` en Railway.
+   Para rotar el secret, debe actualizarse en tres lugares sincronizados:
+   - En los secrets de la Edge Function (generándolo sin dejarlo en el historial):
+     ```bash
+     S=$(openssl rand -hex 32)
+     npx supabase secrets set WEBHOOK_SECRET="$S"
+     ```
+   - En el header `Authorization` de los tres webhooks en Supabase Dashboard (`push-servicio-no-planificado`, `push-servicio-eventos` y `push-notificaciones`).
+   - En la variable de entorno `WEBHOOK_SECRET` del servicio `elevaplus-worker` en Railway.
 
 ## Ingreso con huella / Passkeys (Supabase Auth)
 
