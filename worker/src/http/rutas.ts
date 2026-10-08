@@ -11,6 +11,7 @@ import { enviarFacturaEmail } from "../mail/enviar";
 import { requerirAdminUOficina, requerirWorkerSecretOAdmin } from "./auth";
 import { gcalRouter } from "./gcal";
 import { sincronizarCalendario } from "../gcal/sincronizar";
+import { limpiarStorageHuerfanos } from "../storage/limpiarHuerfanos";
 
 export const enrutador = Router();
 
@@ -209,10 +210,13 @@ enrutador.post(
         case "resumen-choferes":
           resultado = await resumenChoferesHoy({ forzar });
           break;
+        case "limpiar-storage":
+          resultado = await limpiarStorageHuerfanos();
+          break;
         default:
           res.status(400).json({
             ok: false,
-            error: `Tarea desconocida: '${nombre}'. Tareas válidas: instancias, recordatorios-hoy, recordatorios-manana, resumen-semanal, calendario, resumen-choferes.`,
+            error: `Tarea desconocida: '${nombre}'. Tareas válidas: instancias, recordatorios-hoy, recordatorios-manana, resumen-semanal, calendario, resumen-choferes, limpiar-storage.`,
           });
           return;
       }

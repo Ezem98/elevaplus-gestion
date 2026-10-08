@@ -10,6 +10,7 @@ import { correrLote } from "./emision/lote";
 import { recuperarFacturasColgadas } from "./emision/recuperar";
 import { sincronizarCalendario } from "./gcal/sincronizar";
 import { enrutador } from "./http/rutas";
+import { limpiarStorageHuerfanos } from "./storage/limpiarHuerfanos";
 
 const app = express();
 const port = config.PORT;
@@ -161,6 +162,22 @@ app.listen(port, () => {
     { timezone: tz },
   );
 
+  // 8. Cron domingo 04:00 hs - Limpieza de archivos huérfanos en Storage (solo informe salvo STORAGE_LIMPIEZA_BORRAR=true)
+  cron.schedule(
+    "0 4 * * 0",
+    async () => {
+      console.log(
+        `[CRON] Disparando limpieza de Storage (${new Date().toISOString()})...`,
+      );
+      try {
+        await limpiarStorageHuerfanos();
+      } catch (err) {
+        console.error("[CRON] Error en la limpieza de Storage:", err);
+      }
+    },
+    { timezone: tz },
+  );
+
   console.log(`[CRON] Crons programados en zona horaria ${tz}:`);
   console.log(`  - Facturación nocturna: 21:30 hs (30 21 * * *)`);
   console.log(`  - Generación de instancias: 00:30 hs (30 0 * * *)`);
@@ -169,4 +186,5 @@ app.listen(port, () => {
   console.log(`  - Resumen semanal lunes: 07:00 hs (0 7 * * 1)`);
   console.log(`  - Recordatorios de hoy: 08:00 hs (0 8 * * *)`);
   console.log(`  - Recordatorios de mañana: 09:00 hs (0 9 * * *)`);
+  console.log(`  - Limpieza de Storage: domingo 04:00 hs (0 4 * * 0)`);
 });

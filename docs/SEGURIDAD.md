@@ -19,6 +19,7 @@ Documento operativo de ELEVAPLUS Gestión. No contiene valores de secrets ni det
 | Dependabot | PRs semanales (npm app, npm worker, GitHub Actions), máx. 5 abiertas por ecosistema | `.github/dependabot.yml` |
 | Permisos mínimos en Actions | `permissions: contents: read` en cada workflow | `.github/workflows/` |
 | Dependencias nuevas justificadas | Regla en `AGENTS.md` | `AGENTS.md` |
+| Limpieza de archivos huérfanos en Storage (Q12) | Cron semanal (domingo 04:00) y tarea `limpiar-storage`: busca en el bucket `adjuntos` archivos sin referencia, de una entidad (servicio, presupuesto, movimiento) que ya no existe y con más de 7 días. Por defecto solo informa en el log. Borra (hasta 200 por corrida) únicamente con `STORAGE_LIMPIEZA_BORRAR=true` en Railway worker. Nunca toca el bucket `facturas` ni carpetas de convención desconocida | `worker/src/storage/` |
 
 ## 2. Decisiones tomadas
 

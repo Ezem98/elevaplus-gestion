@@ -6,7 +6,8 @@ export type NombreHeartbeat =
   | "lote"
   | "semanal"
   | "calendario"
-  | "choferes";
+  | "choferes"
+  | "storage";
 
 const MAPA_HEARTBEATS: Record<NombreHeartbeat, string> = {
   instancias: "HEARTBEAT_INSTANCIAS",
@@ -15,6 +16,7 @@ const MAPA_HEARTBEATS: Record<NombreHeartbeat, string> = {
   semanal: "HEARTBEAT_SEMANAL",
   calendario: "HEARTBEAT_CALENDARIO",
   choferes: "HEARTBEAT_CHOFERES",
+  storage: "HEARTBEAT_STORAGE",
 };
 
 export const logger = {
