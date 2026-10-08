@@ -118,7 +118,7 @@ jobs:
         shell: bash
 
       - name: Subir artefacto de logs de Supabase
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: supabase-logs
@@ -126,7 +126,7 @@ jobs:
           retention-days: 7
 
       - name: Subir artefacto de reporte de Playwright
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: playwright-report
