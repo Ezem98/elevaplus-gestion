@@ -2,9 +2,12 @@
  * Utilidades para exportación de datos a CSV con soporte de BOM UTF-8 y caracteres en español.
  */
 
-function escaparCampo(val: any): string {
+export function escaparCampo(val: unknown): string {
   if (val == null) return "";
-  const str = String(val);
+  let str = String(val);
+  if (typeof val !== "number" && /^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
   if (
     str.includes(",") ||
     str.includes('"') ||
