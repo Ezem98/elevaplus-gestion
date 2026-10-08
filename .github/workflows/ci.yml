@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   verificar:
     name: Verificación integral y tests
@@ -15,6 +18,8 @@ jobs:
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Configurar Node.js (v22 LTS) y cache de npm
         uses: actions/setup-node@v4
@@ -40,6 +45,18 @@ jobs:
       - name: Instalar dependencias del worker
         working-directory: worker
         run: npm ci --legacy-peer-deps
+
+      # Seguridad
+      - name: Escanear secrets en el código y el historial (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auditar dependencias del frontend (npm audit)
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Auditar dependencias del worker (npm audit)
+        run: npm audit --prefix worker --audit-level=high --omit=dev
 
       # Calidad estática
       - name: Verificar codificación de archivos (UTF-8 sin BOM)
