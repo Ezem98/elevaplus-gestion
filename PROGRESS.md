@@ -2,14 +2,18 @@
 
 Actualizar al cerrar cada hito y al lanzar un job de agy.
 
-## Último estado (05/10/2026)
+## Último estado (07/10/2026)
 
-- Rama: `hito/compartir-pdf-presupuesto`.
-- Job de agy activo: ninguno (último: `muvs1i9i_srcvf7`, compartir PDF presupuesto, terminado).
-- H-3 presupuestos commiteado y en PR. Facturas: pendiente de definir con el usuario.
-- Hito 4a (H-2) mergeado (PR #4). Después del merge: redeploy manual de enviar-push y rotar WEBHOOK_SECRET (usuario). Siguiente: compartir PDF como archivo (presupuestos, después facturas).
-- Hito 4 partido en 4a (H-2..H-4), 4b (skill + pasada 1 + triage), 4c (correcciones con test), 4d (controles permanentes + SEGURIDAD.md). Usuario eligió H-2 opción A.
-- Hito 3 commiteado y pusheado en `hito/arca-produccion`, PR #3 abierto para merge. Del lado del usuario: `AFIPSDK_ACCESS_TOKEN` ya está; falta cargar `ARCA_CERT` en Railway, punto de venta WS y pasar ambiente a producción.
+- Rama: ninguna nueva (última: `hito/compartir-pdf-presupuesto`, mergeada).
+- 4c en curso en `hito/seguridad-anon` (desde main con PR #5 mergeado). Job `muy98gwg_rql5gb` terminado: migración 0036 + pgTAP 15. `npm run verificar` en verde (07/10); el ataque como anon ahora da "permission denied". Usuario aprobó la 0036 (07/10); commit y PR. Después: CSV y escape HTML de mails.
+- Pasada 1: (último job: `muy5czqo_1bozam`, pasada 1 terminada, 17 de 40 invocaciones; reporte en `~/security-audit/elevaplus/run-1`, fuera del repo).
+- 4b triage (07/10): 0 confirmed por la skill, 3 needs_validation. Yo validé el de `cambiar_estado` contra la base local (transacción con rollback): anon sin login cambia el estado de cualquier servicio si conoce su UUID (`auth.uid() is null` = service role, 0018:18, sin revoke a anon). Además anon tiene EXECUTE en 13 funciones security definer (incluye `cambiar_estado_cheque`, `recalcular_*`). Corregir ahora. CSV sin neutralizar fórmulas (`src/lib/csv.ts:16`) y HTML de mails sin escape (`worker/src/mail/plantillas.ts:18`): corregir ahora, chicos. Storage huérfano al borrar: después.
+- Facturas: se quedan como están (mail del worker + Descargar), opción B por defecto.
+- 4a cerrado: H-2 mergeado (PR #4), función redeployada y WEBHOOK_SECRET rotado por el usuario (función + 3 webhooks + worker, 07/10). H-3 presupuestos mergeado (PR #5). H-4 sin cambios.
+- Pendiente de definir con el usuario: si facturas también llevan "Compartir PDF" (hoy solo Descargar + mail del worker).
+- Siguiente: 4b (skill + pasada 1 + triage), cuando el usuario dé el OK.
+- Hito 4 partido en 4a (H-2..H-4), 4b (skill + pasada 1 + triage), 4c (correcciones con test), 4d (controles permanentes + SEGURIDAD.md).
+- Hito 3: código mergeado (PR #3). Del lado del usuario: falta cargar `ARCA_CERT` en Railway, punto de venta WS y pasar ambiente a producción.
 - Orden de hitos validado por el usuario.
 - Hito 2 mergeado a `main` (PR #2); migración 0035 aplicada por la integración.
 - Hito 1 mergeado a `main` (PR #1, 05/10 17:19 UTC); migraciones 0033 y 0034 aplicadas por la integración.
@@ -21,7 +25,7 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 | 1 | Cerrar vínculos y alquileres (UI + migraciones 0033 y 0034) | hecho, mergeado (PR #1) |
 | 2 | Datos fiscales de la empresa para el PDF de factura (migración 0035 + Configuración) | hecho, mergeado (PR #2) |
 | 3 | ARCA a producción | código mergeado (PR #3); falta ARCA_CERT (usuario) |
-| 4 | Fase 7: auditoría de seguridad (H-2 a H-4 + auditoría completa) | en curso: 4a (H-2) en PR |
+| 4 | Fase 7: auditoría de seguridad (H-2 a H-4 + auditoría completa) | en curso: 4a hecho (PR #4 y #5); sigue 4b |
 | 5 | Fase 6: asistente Chimuelo en la app | pendiente |
 | 6 | Fase 6: asistente por WhatsApp | pendiente |
 | 7 | Fase 4: automatizaciones (recordatorios, alertas, indicadores) | pendiente, a confirmar alcance |
@@ -59,6 +63,10 @@ Docs: `docs/ASISTENTE-EN-LA-APP.md` (primero en la app) y `docs/FASE-6-ASISTENTE
 ## Hecho antes de este archivo
 
 Fase 1 (MVP), Fase 2 (facturación ARCA en homologación, caja, cheques, agenda), Fase 3 (flota), Fase 5 (tests, CI, `npm run verificar`), presupuestos/recorridos/moneda (0020 a 0031), vínculos en base (0032), Fase 7 H-1.
+
+## Pendientes chicos
+
+- README §push: falta el webhook `push-notificaciones` (tabla `notificaciones`, INSERT) y los nombres reales de los otros dos (`push-servicio-no-planificado`, `push-servicio-eventos`). Son 3 webhooks a rotar, no 2 (visto en el Dashboard el 07/10).
 
 ## Decisiones
 
