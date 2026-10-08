@@ -2,11 +2,11 @@
 
 Actualizar al cerrar cada hito y al lanzar un job de agy.
 
-## Último estado (07/10/2026)
+## Último estado (08/10/2026)
 
-- Rama: `hito/seguridad-csv-mails` (apilada sobre `hito/seguridad-anon`).
-- 4c parte 1: migración 0036 (anon sin EXECUTE) en PR #6, `hito/seguridad-anon`.
-- 4c parte 2: job `muyem2s4_50qjtx` terminado (fórmulas en CSV, escape HTML en mails, README con los 3 webhooks). `npm run verificar` en verde (07/10). Esperando OK para commit/push/PR.
+- Rama: `hito/seguridad-controles` (desde main con PR #7 mergeado).
+- 4d listo para checkpoint: gitleaks + npm audit en CI, permisos mínimos, Dependabot, docs/SEGURIDAD.md, regla de dependencias. `.env.test` (claves locales) y `.env.staging` (anon key) verificados por el usuario como públicos: allowlist en `.gitleaks.toml`; gitleaks local sin hallazgos en 99 commits. `npm audit fix` en app y worker + override `compression@1.8.2` (serve 14.2.6 fijaba 1.8.1); ambos audits en 0. `npm run verificar` en verde (08/10). Usuario aprobó (08/10); commit y PR.
+- 4c cerrado: migración 0036 (PR #6) y CSV/mails/README (PR #7), mergeados.
 - Pasada 1: (último job: `muy5czqo_1bozam`, pasada 1 terminada, 17 de 40 invocaciones; reporte en `~/security-audit/elevaplus/run-1`, fuera del repo).
 - 4b triage (07/10): 0 confirmed por la skill, 3 needs_validation. Yo validé el de `cambiar_estado` contra la base local (transacción con rollback): anon sin login cambia el estado de cualquier servicio si conoce su UUID (`auth.uid() is null` = service role, 0018:18, sin revoke a anon). Además anon tiene EXECUTE en 13 funciones security definer (incluye `cambiar_estado_cheque`, `recalcular_*`). Corregir ahora. CSV sin neutralizar fórmulas (`src/lib/csv.ts:16`) y HTML de mails sin escape (`worker/src/mail/plantillas.ts:18`): corregir ahora, chicos. Storage huérfano al borrar: después.
 - Facturas: se quedan como están (mail del worker + Descargar), opción B por defecto.
