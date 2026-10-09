@@ -49,8 +49,13 @@ Regla general: generar el valor nuevo sin dejarlo en el historial de la terminal
 
 1. **Cortar acceso.** En Supabase: revocar sesiones (cerrar sesión de todos los usuarios) y rotar las keys (publishable, service role y, si hace falta, JWT secret). Al rotar el JWT secret todos los usuarios deben volver a ingresar y hay que actualizar las keys en Railway app y worker. Si el problema es el worker, pausar el servicio en Railway.
 2. **Rotar secrets.** Orden sugerido para no dejar el sistema caído: primero `SUPABASE_SERVICE_ROLE_KEY` y claves de Supabase, después `WEBHOOK_SECRET` y `WORKER_SECRET`, luego `RESEND_API_KEY`, `AFIPSDK_ACCESS_TOKEN`, `ARCA_CERT`/`ARCA_KEY`, `GOOGLE_OAUTH_CLIENT_SECRET` y VAPID. Seguir la tabla de la sección 3 y redeployar app y worker al final.
-3. **Restaurar.** Volver a un backup desde el Dashboard de Supabase (Database, Backups). Se pierde todo lo escrito entre el backup y el momento de restaurar; hay que revisar servicios, cobros y facturas de ese intervalo.
-4. **Backups.** Verificar que existan y su retención. **Pendiente: probar una restauración completa** en un proyecto aparte. Si la retención del plan no alcanza, definir un dump periódico desde el worker.
+3. **Restaurar.** El proyecto está en el plan Free de Supabase: **no hay backups automáticos** en el Dashboard. Se restaura desde el último dump manual (punto 4) en un proyecto nuevo de Supabase, con `psql --single-transaction -v ON_ERROR_STOP=1 -f roles.sql -f schema.sql -c 'SET session_replication_role = replica' -f data.sql "<url de la base nueva>"`, y después se apuntan app y worker al proyecto nuevo. Se pierde todo lo escrito después del dump; hay que revisar servicios, cobros y facturas de ese intervalo. Los archivos de Storage (PDF, fotos) no están en el dump.
+4. **Backups (decisión del 08/10/2026: dump manual mensual).**
+   - Primer día hábil de cada mes: `node scripts/backup-produccion.mjs`. Pide la contraseña de la base y deja `roles.sql`, `schema.sql` y `data.sql` en `~/backups/elevaplus/AAAA-MM-DD`, fuera del repo. Solo lee producción.
+   - Probarlo: `node scripts/probar-restauracion.mjs ~/backups/elevaplus/AAAA-MM-DD`. Resetea la base **local** sin seed, carga el dump y compara filas por tabla. Después, `npm run db:local` para volver a la base de tests.
+   - Guardar una copia del dump fuera de la PC (disco externo o nube privada): tiene datos de clientes, no subirlo a ningún repo.
+   - Último backup: sin registrar. Última restauración probada: sin registrar.
+   - Si el negocio no tolera perder hasta un mes de datos, pasar a Supabase Pro (backups diarios).
 5. **Obligaciones.** Si se filtran datos de clientes, puede corresponder informar según la Ley 25.326 de protección de datos personales. Consultar con el contador o un abogado y dejar la referencia escrita acá.
 
 ## 5. Cómo correr la auditoría
