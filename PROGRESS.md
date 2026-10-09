@@ -4,8 +4,9 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 
 ## Último estado (08/10/2026)
 
-- Rama: `hito/storage-huerfanos` (desde main con PR #8 mergeado). Tarea `limpiar-storage` lista (worker, cron domingo 04:00): solo informe por defecto; borra con STORAGE_LIMPIEZA_BORRAR=true, tope 200, nunca `facturas`. Yo bajé la página a 500 y ordené la lectura de referencias. `npm run verificar` en verde (08/10). Usuario aprobó (08/10); commit y PR.
-- Backups: la org de Supabase está en plan FREE (verificado 08/10 vía MCP, solo lectura): no hay backups automáticos descargables ni PITR. Esperando decisión del usuario sobre cómo respaldar.
+- Rama: `hito/backups` (desde main con PR #23 mergeado).
+- Storage huérfano: mergeado (PR #23). Tarea `limpiar-storage` solo informa hasta que el usuario ponga STORAGE_LIMPIEZA_BORRAR=true.
+- Backups: org de Supabase en plan FREE (sin backups automáticos). Usuario eligió opción A (dump manual mensual). Escritos `scripts/backup-produccion.mjs`, `scripts/probar-restauracion.mjs`, `scripts/lib/backup.mjs` y la sección 4 de docs/SEGURIDAD.md. Restauración probada con un dump de la base local: OK, todas las tablas de public coinciden (09/10). `npm run verificar` en verde. Usuario aprobó (09/10); commit y PR. Pendiente usuario: correr el primer backup real.
 - Chimuelo (hito 5) queda para cuando vuelva la cuota de agy (decisión del usuario 08/10).
 - 4d mergeado (PR #8): hito 4 cerrado en código.
 - 4d listo para checkpoint: gitleaks + npm audit en CI, permisos mínimos, Dependabot, docs/SEGURIDAD.md, regla de dependencias. `.env.test` (claves locales) y `.env.staging` (anon key) verificados por el usuario como públicos: allowlist en `.gitleaks.toml`; gitleaks local sin hallazgos en 99 commits. `npm audit fix` en app y worker + override `compression@1.8.2` (serve 14.2.6 fijaba 1.8.1); ambos audits en 0. `npm run verificar` en verde (08/10). Usuario aprobó (08/10); commit y PR.
