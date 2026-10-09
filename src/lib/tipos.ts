@@ -880,3 +880,63 @@ export const ETIQUETA_ESTADO_INSTANCIA: Record<EstadoInstancia, string> = {
   pagado: "Pagado",
   omitido: "Omitido",
 };
+
+// Asistente Chimuelo (tablas y enums)
+export type RolMensajeAsistente = "usuario" | "asistente";
+
+export type EstadoPropuesta =
+  | "pendiente"
+  | "confirmada"
+  | "descartada"
+  | "vencida"
+  | "fallida";
+
+export type AccionPropuesta = "crear_servicio";
+
+export interface AsistenteConversacion {
+  id: string;
+  usuario_id: string;
+  titulo: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AsistenteHerramientaUso {
+  nombre: string;
+  argumentos: Record<string, unknown>;
+  resultado: unknown;
+}
+
+export interface AsistenteMensaje {
+  id: string;
+  conversacion_id: string;
+  rol: RolMensajeAsistente;
+  contenido: string;
+  fue_audio: boolean;
+  audio_segundos: number | null;
+  herramientas: AsistenteHerramientaUso[] | null;
+  propuesta_id: string | null;
+  modelo: string | null;
+  prompt_version: string | null;
+  tokens_entrada: number | null;
+  tokens_salida: number | null;
+  costo_usd: number | null;
+  error: string | null;
+  created_at: string;
+}
+
+export interface AsistentePropuesta {
+  id: string;
+  conversacion_id: string;
+  usuario_id: string;
+  accion: AccionPropuesta;
+  datos: Record<string, unknown>;
+  resumen: string;
+  estado: EstadoPropuesta;
+  resultado_id: string | null;
+  error: string | null;
+  expira_at: string;
+  resuelta_at: string | null;
+  created_at: string;
+}
+
