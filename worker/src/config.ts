@@ -18,6 +18,13 @@ const esquemaConfig = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z
     .string()
     .default(process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy_service_role_key"),
+  SUPABASE_ANON_KEY: z
+    .string()
+    .default(
+      process.env.SUPABASE_ANON_KEY ||
+        process.env.VITE_SUPABASE_ANON_KEY ||
+        "dummy_anon_key",
+    ),
   AFIPSDK_ACCESS_TOKEN: z.string().optional().default(""),
   ARCA_CUIT: z.coerce.number().optional(),
   ARCA_CERT: z.string().optional(),
@@ -54,6 +61,12 @@ const esquemaConfig = z.object({
     .default(
       process.env.APP_URL || "https://gestion.eleva-plus.com.ar",
     ),
+  OPENAI_API_KEY: z.string().optional().default(""),
+  OPENAI_MODELO: z.string().optional().default("gpt-5.6-luna"),
+  OPENAI_PROMPT_ID: z.string().optional(),
+  OPENAI_PROMPT_VERSION: z.string().optional(),
+  ASISTENTE_TOPE_DIARIO_USD: z.coerce.number().optional().default(1),
+  ASISTENTE_MODELO: z.enum(["openai", "falso"]).optional().default("openai"),
 });
 
 export const config = esquemaConfig.parse(process.env);

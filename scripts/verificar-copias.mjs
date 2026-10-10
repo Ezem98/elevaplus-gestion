@@ -6,6 +6,10 @@ const copias = [
     origen: "src/lib/vencimientos.ts",
     destino: "worker/src/lib/vencimientos.ts",
   },
+  {
+    origen: "src/lib/cotizador.ts",
+    destino: "worker/src/lib/cotizador.ts",
+  },
 ];
 
 let errores = 0;

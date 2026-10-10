@@ -4,9 +4,9 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 
 ## Último estado (09/10/2026)
 
-- Rama: `hito/chimuelo-1-migracion` (desde main con PR #24 mergeado).
+- Rama: `hito/chimuelo-2-worker` (desde main con PR #25 mergeado).
 - Hito 5 (Chimuelo en la app) en curso, en 5 partes según `docs/ASISTENTE-EN-LA-APP.md` §7: 1 migración (tablas + crear_servicio/crear_propuesta/confirmar_propuesta/descartar_propuesta), 2 worker, 3 audio, 4 interfaz, 5 evaluación con la dueña.
-- Parte 1 lista: job `mv1baa3b_dv4fs4` terminado (migración 0037 + pgTAP 16 + tipos). Yo cambié `confirmar_propuesta` para que una vencida quede marcada y devuelva estado en vez de lanzar error. `npm run verificar` en verde (09/10). Usuario aprobó la 0037 (09/10); commit y PR. Siguiente: parte 2 (worker).
+- Parte 1 mergeada (PR #25, migración 0037). Parte 2 lista: job `mv1qm0wn_ayg01p` terminado (worker: /asistente/mensaje, herramientas con sesión del usuario, loop, topes, modelo falso; OpenAI vía fetch sin dependencias nuevas). `npm run verificar` en verde (10/10). Usuario eligió el SDK oficial `openai@7.32.0` en vez de fetch (10/10, job `mv1s47uj_5tfqc6`); verificar en verde; commit y PR. Siguiente: parte 3 (audio). Pendiente usuario para la parte 5: cargar OPENAI_API_KEY, OPENAI_MODELO y SUPABASE_ANON_KEY en el worker.
 - Hito 4 (Fase 7) cerrado: PR #4, #5, #6, #7, #8, #23 (Storage huérfano) y #24 (backups) mergeados. Reporte de la pasada 1 en `~/security-audit/elevaplus/run-1`.
 - Pendiente del usuario: correr el primer backup real (`node scripts/backup-produccion.mjs`); activar `STORAGE_LIMPIEZA_BORRAR` después de revisar un informe; hito 3: cargar `ARCA_CERT` en Railway, punto de venta WS y pasar ambiente a producción.
 
@@ -18,7 +18,7 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 | 2 | Datos fiscales de la empresa para el PDF de factura (migración 0035 + Configuración) | hecho, mergeado (PR #2) |
 | 3 | ARCA a producción | código mergeado (PR #3); falta ARCA_CERT (usuario) |
 | 4 | Fase 7: auditoría de seguridad (H-2 a H-4 + auditoría completa) | hecho (PR #4–#8, #23, #24); pasada 2 (landing) pendiente |
-| 5 | Fase 6: asistente Chimuelo en la app | en curso: parte 1 (migración) |
+| 5 | Fase 6: asistente Chimuelo en la app | en curso: parte 1 mergeada, parte 2 (worker) |
 | 6 | Fase 6: asistente por WhatsApp | pendiente |
 | 7 | Fase 4: automatizaciones (recordatorios, alertas, indicadores) | pendiente, a confirmar alcance |
 
