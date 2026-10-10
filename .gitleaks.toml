@@ -6,9 +6,7 @@ useDefault = true
 # Solo falsos positivos verificados: valores de prueba o públicos por diseño.
 # No agregar nada que pueda contener un secreto real.
 
-[[allowlists]]
-description = "Commit b9a89d3: clave ficticia en el test del proveedor de OpenAI (corregida en el commit siguiente por un valor de baja entropía)."
-commits = ["b9a89d36da9db9703708e2fa8d00792ccae903fa"]
+# Hallazgos puntuales de commits viejos (por fingerprint) van en .gitleaksignore.
 
 [[allowlists]]
 description = "Claves por defecto del stack local de Supabase (127.0.0.1); las usan los E2E y la integración. Verificado por el usuario el 08/10/2026."
