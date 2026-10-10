@@ -28,6 +28,13 @@ Servicio en segundo plano para tareas asíncronas, emisión de comprobantes en A
 | `HEARTBEAT_CALENDARIO`      | URL de heartbeat para sincronización con Google Calendar (preparada)     | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
 | `HEARTBEAT_STORAGE`         | URL de heartbeat para la limpieza semanal de Storage (opcional)          | `https://uptime.betterstack.com/api/v1/heartbeat/...`                 |
 | `STORAGE_LIMPIEZA_BORRAR`   | Si vale exactamente `true`, la limpieza de Storage borra los huérfanos (tope 200 por corrida). Cualquier otro valor: solo informe | `true`                                          |
+| `SUPABASE_ANON_KEY`         | Publishable / anon key para ejecutar las herramientas con la sesión del usuario (RLS) | `ey...`                                                               |
+| `OPENAI_API_KEY`            | API key de OpenAI para el asistente Chimuelo                             | `sk-...`                                                              |
+| `OPENAI_MODELO`             | Modelo a invocar en la Responses API (default: `gpt-5.6-luna`)           | `gpt-5.6-luna`                                                        |
+| `OPENAI_PROMPT_ID`          | ID de prompt versionado en la plataforma de OpenAI (opcional)            | `pmpt_...`                                                            |
+| `OPENAI_PROMPT_VERSION`      | Versión del prompt en OpenAI (opcional)                                  | `1`                                                                   |
+| `ASISTENTE_TOPE_DIARIO_USD` | Tope diario de gasto en dólares por usuario (default: `1`)               | `1`                                                                   |
+| `ASISTENTE_MODELO`          | Proveedor de modelo: `openai` o `falso` para pruebas y E2E sin red       | `openai`                                                              |
 
 > **Facturación electrónica en producción:** Cuando `empresa.arca_ambiente = 'produccion'`, las variables `ARCA_CUIT`, `ARCA_CERT`, `ARCA_KEY` y `AFIPSDK_ACCESS_TOKEN` son obligatorias y no admiten valores por defecto. Si alguna falta o si el CUIT configurado no coincide con el CUIT de la empresa, el worker rechaza la emisión con un error explícito. En homologación, ante la ausencia de `ARCA_CUIT` se utiliza el CUIT genérico de prueba de Afip SDK (`20409378472`).
 
@@ -76,6 +83,15 @@ Todas las tareas se ejecutan en la zona horaria `America/Argentina/Buenos_Aires`
 - `POST /tareas/:nombre`: Disparo manual o forzado de una tarea específica (requiere `WORKER_SECRET` o admin).
   - Tareas válidas: `instancias`, `recordatorios-hoy`, `recordatorios-manana`, `resumen-semanal`.
   - Parámetro de query `?forzar=1`: Omite el control de idempotencia y vuelve a ejecutar la tarea para la fecha/semana actual.
+
+### Asistente Chimuelo
+
+- `POST /asistente/mensaje`: Envío de mensajes al asistente (requiere Bearer JWT de admin/oficina).
+  - Body: `{ conversacion_id?: string, texto: string }` (máx. 2000 caracteres).
+  - Crea la conversación si no se indica `conversacion_id`.
+  - Devuelve `{ conversacion_id, mensaje_usuario, mensaje_asistente, propuesta? }`.
+  - Rechaza usuarios con rol `chofer` con 403.
+  - Aplica tope diario (60 msgs, `ASISTENTE_TOPE_DIARIO_USD`) y rate limit en memoria (10 msgs/min).
 
 ## Idempotencia
 

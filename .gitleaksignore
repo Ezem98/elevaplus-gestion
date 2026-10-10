@@ -1,0 +1,3 @@
+# Hallazgos revisados que no son secretos reales (ver .gitleaks.toml para el criterio).
+# Clave ficticia en el test del proveedor de OpenAI; corregida en el commit siguiente.
+b9a89d36da9db9703708e2fa8d00792ccae903fa:worker/src/asistente/proveedor/openai.test.ts:generic-api-key:231

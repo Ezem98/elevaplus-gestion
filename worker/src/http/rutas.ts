@@ -13,7 +13,12 @@ import { gcalRouter } from "./gcal";
 import { sincronizarCalendario } from "../gcal/sincronizar";
 import { limpiarStorageHuerfanos } from "../storage/limpiarHuerfanos";
 
+import { asistenteRouter } from "./asistente";
+
 export const enrutador = Router();
+
+// Sub-rutas del Asistente Chimuelo
+enrutador.use("/asistente", asistenteRouter);
 
 // Sub-rutas de Google Calendar
 enrutador.use("/gcal", gcalRouter);
