@@ -221,14 +221,16 @@ describe("ProveedorOpenAI (Responses API con SDK oficial)", () => {
   });
 
   it("sanitiza errores del SDK sin exponer la API key", async () => {
+    // Clave ficticia de baja entropía para que el escaneo de secrets no la marque.
+    const CLAVE_FALSA = "sk-" + "a".repeat(32);
     const errorApi = new (OpenAI as any).APIError(
       401,
-      "Invalid authentication for key sk-secreta-123456789",
+      `Invalid authentication for key ${CLAVE_FALSA}`,
     );
     mockCreate.mockRejectedValueOnce(errorApi);
 
     const proveedor = new ProveedorOpenAI({
-      apiKey: "sk-secreta-123456789",
+      apiKey: CLAVE_FALSA,
     });
 
     await expect(
