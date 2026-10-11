@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Boton } from "@/components/ui/Boton";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { Aviso } from "@/components/ui/Aviso";
-import type { AsistentePropuesta } from "@/lib/tipos";
+import { ChipEstado } from "@/components/ui/Chip";
+import type { AsistentePropuesta, EstadoServicio } from "@/lib/tipos";
 import { formatearPesos, formatearDolares, formatearFecha } from "@/lib/formato";
 import { confirmarPropuesta, descartarPropuesta } from "./rpc";
 import { Check, ExternalLink, Trash2, Edit3, AlertCircle } from "lucide-react";
@@ -24,11 +25,13 @@ export function TarjetaPropuesta({
 
   const datos = (prop.datos || {}) as Record<string, any>;
   const estado = prop.estado;
+  const esCambioEstado = prop.accion === "cambiar_estado";
 
   const sinChofer =
-    !datos.choferes ||
-    !Array.isArray(datos.choferes) ||
-    datos.choferes.length === 0;
+    !esCambioEstado &&
+    (!datos.choferes ||
+      !Array.isArray(datos.choferes) ||
+      datos.choferes.length === 0);
 
   const handleConfirmar = async () => {
     if (procesando || estado !== "pendiente") return;
@@ -104,12 +107,14 @@ export function TarjetaPropuesta({
     });
   };
 
-  // Precio a mostrar
+  // Precio a mostrar (solo para alta de servicio)
   let precioTexto: string | null = null;
-  if (datos.moneda === "USD" && (datos.monto_moneda != null || datos.monto != null)) {
-    precioTexto = formatearDolares(datos.monto_moneda ?? datos.monto);
-  } else if (datos.monto != null) {
-    precioTexto = formatearPesos(datos.monto);
+  if (!esCambioEstado) {
+    if (datos.moneda === "USD" && (datos.monto_moneda != null || datos.monto != null)) {
+      precioTexto = formatearDolares(datos.monto_moneda ?? datos.monto);
+    } else if (datos.monto != null) {
+      precioTexto = formatearPesos(datos.monto);
+    }
   }
 
   return (
@@ -120,7 +125,7 @@ export function TarjetaPropuesta({
       {/* Encabezado de la tarjeta */}
       <div className="border-b border-borde bg-marca-suave/40 px-3.5 py-2 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-marca">
-          Propuesta de servicio
+          {esCambioEstado ? "Cambio de estado" : "Propuesta de servicio"}
         </span>
         <span
           className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
@@ -148,66 +153,99 @@ export function TarjetaPropuesta({
       </div>
 
       <div className="p-3.5 space-y-3 text-sm">
-        {/* Pares etiqueta/valor */}
-        <div className="grid grid-cols-1 gap-1.5 text-xs">
-          {datos.tipo && (
+        {/* Pares etiqueta/valor según tipo de propuesta */}
+        {esCambioEstado ? (
+          <div className="grid grid-cols-1 gap-1.5 text-xs">
             <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
-              <span className="text-tinta-suave">Tipo:</span>
-              <span className="font-medium text-tinta capitalize">
-                {String(datos.tipo).replace("_", " ")}
-              </span>
-            </div>
-          )}
-
-          {datos.fecha_programada && (
-            <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
-              <span className="text-tinta-suave">Fecha y hora:</span>
-              <span className="font-medium text-tinta">
-                {formatearFecha(datos.fecha_programada)}
-                {datos.hora_programada ? ` · ${datos.hora_programada} hs` : ""}
-              </span>
-            </div>
-          )}
-
-          {datos.tipo === "traslado" && (datos.origen || datos.destino) && (
-            <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
-              <span className="text-tinta-suave">Recorrido:</span>
+              <span className="text-tinta-suave">Servicio:</span>
               <span className="font-medium text-tinta text-right">
-                {datos.origen || "—"} → {datos.destino || "—"}
-                {datos.ida_y_vuelta ? " (ida y vuelta)" : " (solo ida)"}
-                {datos.km ? `, ${datos.km} km` : ""}
+                {datos.numero ? `#${datos.numero} · ` : ""}
+                {datos.cliente || "Sin cliente"}
+                {datos.fecha ? ` · ${formatearFecha(datos.fecha)}` : ""}
               </span>
             </div>
-          )}
 
-          {(datos.direccion_trabajo || datos.localidad_trabajo) && (
-            <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
-              <span className="text-tinta-suave">Dirección:</span>
-              <span className="font-medium text-tinta text-right">
-                {datos.direccion_trabajo || ""}
-                {datos.localidad_trabajo ? ` (${datos.localidad_trabajo})` : ""}
-              </span>
+            <div className="flex justify-between items-center py-1 border-b border-borde/40">
+              <span className="text-tinta-suave">Estado:</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {datos.estado_actual && (
+                  <ChipEstado estado={datos.estado_actual as EstadoServicio} />
+                )}
+                <span className="text-tinta-suave text-xs">→</span>
+                {datos.nuevo_estado && (
+                  <ChipEstado estado={datos.nuevo_estado as EstadoServicio} />
+                )}
+              </div>
             </div>
-          )}
 
-          {datos.trabajo_a_realizar && (
-            <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
-              <span className="text-tinta-suave">Trabajo:</span>
-              <span className="font-medium text-tinta text-right">
-                {datos.trabajo_a_realizar}
-              </span>
-            </div>
-          )}
+            {datos.nota && (
+              <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
+                <span className="text-tinta-suave">Nota:</span>
+                <span className="font-medium text-tinta text-right">{datos.nota}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-1.5 text-xs">
+            {datos.tipo && (
+              <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
+                <span className="text-tinta-suave">Tipo:</span>
+                <span className="font-medium text-tinta capitalize">
+                  {String(datos.tipo).replace("_", " ")}
+                </span>
+              </div>
+            )}
 
-          {precioTexto && (
-            <div className="flex justify-between items-baseline pt-1">
-              <span className="font-medium text-tinta-suave">Precio sugerido:</span>
-              <span className="text-sm font-semibold text-marca">
-                {precioTexto}
-              </span>
-            </div>
-          )}
-        </div>
+            {datos.fecha_programada && (
+              <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
+                <span className="text-tinta-suave">Fecha y hora:</span>
+                <span className="font-medium text-tinta">
+                  {formatearFecha(datos.fecha_programada)}
+                  {datos.hora_programada ? ` · ${datos.hora_programada} hs` : ""}
+                </span>
+              </div>
+            )}
+
+            {datos.tipo === "traslado" && (datos.origen || datos.destino) && (
+              <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
+                <span className="text-tinta-suave">Recorrido:</span>
+                <span className="font-medium text-tinta text-right">
+                  {datos.origen || "—"} → {datos.destino || "—"}
+                  {datos.ida_y_vuelta ? " (ida y vuelta)" : " (solo ida)"}
+                  {datos.km ? `, ${datos.km} km` : ""}
+                </span>
+              </div>
+            )}
+
+            {(datos.direccion_trabajo || datos.localidad_trabajo) && (
+              <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
+                <span className="text-tinta-suave">Dirección:</span>
+                <span className="font-medium text-tinta text-right">
+                  {datos.direccion_trabajo || ""}
+                  {datos.localidad_trabajo ? ` (${datos.localidad_trabajo})` : ""}
+                </span>
+              </div>
+            )}
+
+            {datos.trabajo_a_realizar && (
+              <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
+                <span className="text-tinta-suave">Trabajo:</span>
+                <span className="font-medium text-tinta text-right">
+                  {datos.trabajo_a_realizar}
+                </span>
+              </div>
+            )}
+
+            {precioTexto && (
+              <div className="flex justify-between items-baseline pt-1">
+                <span className="font-medium text-tinta-suave">Precio sugerido:</span>
+                <span className="text-sm font-semibold text-marca">
+                  {precioTexto}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Resumen textual si existe */}
         {prop.resumen && (
@@ -227,10 +265,14 @@ export function TarjetaPropuesta({
         {/* Mensajes según estado */}
         {estado === "confirmada" && (
           <Aviso variante="exito" className="flex items-center justify-between text-xs">
-            <span>¡Servicio creado con éxito!</span>
-            {prop.resultado_id && (
+            <span>
+              {esCambioEstado
+                ? "¡Estado actualizado con éxito!"
+                : "¡Servicio creado con éxito!"}
+            </span>
+            {(prop.resultado_id || datos.servicio_id) && (
               <Link
-                to={`/servicios/${prop.resultado_id}`}
+                to={`/servicios/${prop.resultado_id || datos.servicio_id}`}
                 className="inline-flex items-center gap-1 font-semibold text-ok underline hover:opacity-80"
               >
                 Ver servicio <ExternalLink className="size-3.5" />
@@ -247,7 +289,11 @@ export function TarjetaPropuesta({
 
         {estado === "fallida" && (
           <Aviso variante="peligro" className="text-xs">
-            {errorLocal || prop.error || "Ocurrió un error al crear el servicio."}
+            {errorLocal ||
+              prop.error ||
+              (esCambioEstado
+                ? "Ocurrió un error al cambiar el estado del servicio."
+                : "Ocurrió un error al crear el servicio.")}
           </Aviso>
         )}
 
@@ -272,17 +318,29 @@ export function TarjetaPropuesta({
               {procesando ? "Confirmando…" : "Confirmar"}
             </Boton>
 
-            <Boton
-              type="button"
-              variante="secundario"
-              tamano="md"
-              className="flex-1 text-xs"
-              onClick={handleRevisar}
-              disabled={procesando}
-            >
-              <Edit3 className="size-4" />
-              Revisar en el formulario
-            </Boton>
+            {esCambioEstado ? (
+              datos.servicio_id && (
+                <Link
+                  to={`/servicios/${datos.servicio_id}`}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md border border-borde bg-superficie px-3 py-2 text-xs font-medium text-tinta hover:bg-fondo transition-colors flex-1"
+                >
+                  <ExternalLink className="size-4" />
+                  Ver servicio
+                </Link>
+              )
+            ) : (
+              <Boton
+                type="button"
+                variante="secundario"
+                tamano="md"
+                className="flex-1 text-xs"
+                onClick={handleRevisar}
+                disabled={procesando}
+              >
+                <Edit3 className="size-4" />
+                Revisar en el formulario
+              </Boton>
+            )}
 
             <Boton
               type="button"

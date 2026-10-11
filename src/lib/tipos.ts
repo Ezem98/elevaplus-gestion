@@ -891,7 +891,7 @@ export type EstadoPropuesta =
   | "vencida"
   | "fallida";
 
-export type AccionPropuesta = "crear_servicio";
+export type AccionPropuesta = "crear_servicio" | "cambiar_estado";
 
 export interface AsistenteConversacion {
   id: string;
