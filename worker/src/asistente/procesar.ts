@@ -22,6 +22,9 @@ export interface ParametrosProcesarTurno {
   texto: string;
   supabase: SupabaseClient; // Cliente con sesión del usuario (RLS)
   proveedor?: ProveedorModelo; // Permite inyectar proveedor en tests
+  fue_audio?: boolean;
+  audio_segundos?: number;
+  costo_transcripcion_usd?: number;
 }
 
 /**
@@ -45,7 +48,13 @@ export async function procesarTurno(
       conversacion_id: conversacionId,
       rol: "usuario",
       contenido: texto,
-      fue_audio: false,
+      fue_audio: Boolean(params.fue_audio),
+      audio_segundos:
+        params.audio_segundos != null ? Number(params.audio_segundos) : null,
+      costo_usd:
+        params.costo_transcripcion_usd != null
+          ? Number(params.costo_transcripcion_usd.toFixed(6))
+          : null,
     })
     .select()
     .single();

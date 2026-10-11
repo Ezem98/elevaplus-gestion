@@ -182,4 +182,53 @@ describe("Asistente Chimuelo — Integración contra Supabase local (ASISTENTE_M
     expect(resDoble.ya_confirmada).toBe(true);
     expect(resDoble.resultado_id).toBe(resPropio.resultado_id);
   });
+
+  it("4. Persistencia de audio: procesarTurno con fue_audio=true guarda audio_segundos y costo_usd en asistente_mensajes", async () => {
+    const oficina = await comoOficina();
+    const proveedorFalso = new ProveedorFalso();
+
+    // 1. Crear conversación
+    const { data: conv, error: errConv } = await oficina
+      .from("asistente_conversaciones")
+      .insert({
+        usuario_id: USUARIOS.oficina.id,
+        titulo: `${PREFIJO}Conversación Audio`,
+      })
+      .select()
+      .single();
+
+    expect(errConv).toBeNull();
+    expect(conv).toBeDefined();
+
+    // 2. Procesar turno simulando audio transcripto
+    const turnoAudio = await procesarTurno({
+      conversacionId: conv.id,
+      usuarioId: USUARIOS.oficina.id,
+      rol: "oficina",
+      texto: "Cargame un traslado para mañana",
+      supabase: oficina,
+      proveedor: proveedorFalso,
+      fue_audio: true,
+      audio_segundos: 28.5,
+      costo_transcripcion_usd: 0.001425,
+    });
+
+    expect(turnoAudio.mensaje_usuario).toBeDefined();
+    expect(turnoAudio.mensaje_usuario.fue_audio).toBe(true);
+    expect(Number(turnoAudio.mensaje_usuario.audio_segundos)).toBe(28.5);
+
+    // 3. Consultar directamente desde Supabase para verificar almacenamiento en la tabla
+    const { data: msgDb, error: errDb } = await oficina
+      .from("asistente_mensajes")
+      .select("id, contenido, fue_audio, audio_segundos, costo_usd")
+      .eq("id", turnoAudio.mensaje_usuario.id)
+      .single();
+
+    expect(errDb).toBeNull();
+    expect(msgDb).toBeDefined();
+    expect(msgDb.fue_audio).toBe(true);
+    expect(Number(msgDb.audio_segundos)).toBe(28.5);
+    expect(Number(msgDb.costo_usd)).toBe(0.001425);
+    expect(msgDb.contenido).toBe("Cargame un traslado para mañana");
+  });
 });
