@@ -4,9 +4,9 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 
 ## Último estado (09/10/2026)
 
-- Rama: `hito/chimuelo-3-audio` (desde main con PR #26 mergeado).
+- Rama: `hito/chimuelo-4-interfaz` (apilada sobre `hito/chimuelo-3-audio`, PR #27).
 - Hito 5 (Chimuelo en la app) en curso, en 5 partes según `docs/ASISTENTE-EN-LA-APP.md` §7: 1 migración (tablas + crear_servicio/crear_propuesta/confirmar_propuesta/descartar_propuesta), 2 worker, 3 audio, 4 interfaz, 5 evaluación con la dueña.
-- Partes 1 y 2 mergeadas (PR #25 migración 0037; PR #26 worker con SDK `openai@7.32.0`). El CI de #26 falló por gitleaks: la 8.24.3 del CI no aplica `[[allowlists]]`; se pasó a `[allowlist]` y `.gitleaksignore` (probado con 8.24.3 y latest). Parte 3 lista: job `mv2mqzl2_ibi387` terminado (POST /asistente/audio con cuerpo crudo, Content-Type audio/*, query conversacion_id, header X-Duracion-Segundos; transcripción con el SDK, proveedor falso). `npm run verificar` y gitleaks en verde (10/10). Usuario aprobó (11/10); commit y PR. Parte 4: avatar original en SVG (no el personaje de DreamWorks), decisión del usuario 11/10. Pendiente usuario para la parte 5: OPENAI_API_KEY, OPENAI_MODELO y SUPABASE_ANON_KEY en el worker.
+- Partes 1 y 2 mergeadas (PR #25 migración 0037; PR #26 worker con SDK `openai@7.32.0`). El CI de #26 falló por gitleaks: la 8.24.3 del CI no aplica `[[allowlists]]`; se pasó a `[allowlist]` y `.gitleaksignore` (probado con 8.24.3 y latest). Parte 3 mergeada (PR #27, audio). Parte 4 lista: job `mv41ou6x_pmsbv7` terminado (interfaz: panel/página, chat, micrófono, tarjeta de propuesta, precarga del formulario, avatar SVG original —no el personaje de DreamWorks, decisión del usuario 11/10—, E2E con el worker falso). `npm run verificar` en verde con 30 E2E (11/10). Falta en el E2E: verificar que el chofer ve el servicio programado (el seed no tiene chofer "Mauro"). Usuario aprobó (11/10); commit y PR. Siguiente: parte 5 (evaluación con la dueña; requiere OPENAI_API_KEY, OPENAI_MODELO y SUPABASE_ANON_KEY en el worker). Pendiente usuario para la parte 5: OPENAI_API_KEY, OPENAI_MODELO y SUPABASE_ANON_KEY en el worker.
 - Hito 4 (Fase 7) cerrado: PR #4, #5, #6, #7, #8, #23 (Storage huérfano) y #24 (backups) mergeados. Reporte de la pasada 1 en `~/security-audit/elevaplus/run-1`.
 - Pendiente del usuario: correr el primer backup real (`node scripts/backup-produccion.mjs`); activar `STORAGE_LIMPIEZA_BORRAR` después de revisar un informe; hito 3: cargar `ARCA_CERT` en Railway, punto de venta WS y pasar ambiente a producción.
 
@@ -18,7 +18,7 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 | 2 | Datos fiscales de la empresa para el PDF de factura (migración 0035 + Configuración) | hecho, mergeado (PR #2) |
 | 3 | ARCA a producción | código mergeado (PR #3); falta ARCA_CERT (usuario) |
 | 4 | Fase 7: auditoría de seguridad (H-2 a H-4 + auditoría completa) | hecho (PR #4–#8, #23, #24); pasada 2 (landing) pendiente |
-| 5 | Fase 6: asistente Chimuelo en la app | en curso: partes 1 y 2 mergeadas, parte 3 (audio) |
+| 5 | Fase 6: asistente Chimuelo en la app | en curso: partes 1-3 mergeadas, 4 (interfaz) en PR |
 | 6 | Fase 6: asistente por WhatsApp | pendiente |
 | 7 | Fase 4: automatizaciones (recordatorios, alertas, indicadores) | pendiente, a confirmar alcance |
 

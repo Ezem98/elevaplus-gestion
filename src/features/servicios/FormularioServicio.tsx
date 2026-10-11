@@ -36,7 +36,7 @@ import {
 } from "@/lib/tipos";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useBorrador } from "@/hooks/useBorrador";
 
 interface ClienteOpcion {
@@ -70,8 +70,12 @@ import { esHorarioNocturno } from "@/lib/cotizador";
 
 export function FormularioServicio() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const clienteParam = searchParams.get("cliente");
+  const datosPropuesta =
+    ((location.state as any)?.propuesta as Record<string, any> | undefined) ||
+    ((location.state as any) as Record<string, any> | undefined);
   const { session } = useAuth();
 
   // Opciones de base de datos
@@ -84,14 +88,18 @@ export function FormularioServicio() {
   const [costoTercero, setCostoTercero] = useState<number | null>(null);
 
   // 1. Tipo
-  const tipoParam = searchParams.get("tipo") as TipoServicio | null;
+  const tipoParam =
+    (searchParams.get("tipo") as TipoServicio | null) ||
+    (datosPropuesta?.tipo as TipoServicio | null);
   const [tipo, setTipo] = useState<TipoServicio>(() =>
     tipoParam && TIPOS.includes(tipoParam) ? tipoParam : "traslado",
   );
 
   // Moneda y cotización (USD solo para alquiler_periodo)
   const [moneda, setMoneda] = useState<"ARS" | "USD">(() =>
-    tipoParam === "alquiler_periodo" ? "USD" : "ARS",
+    tipoParam === "alquiler_periodo" || datosPropuesta?.moneda === "USD"
+      ? "USD"
+      : "ARS",
   );
   const [montoMoneda, setMontoMoneda] = useState<number | null>(null);
   const [cotizacion, setCotizacion] = useState<number | null>(null);
@@ -581,8 +589,24 @@ export function FormularioServicio() {
       .then(({ data }) => {
         const lista = (data as ClienteOpcion[]) ?? [];
         setClientes(lista);
-        if (clienteParam && lista.some((c) => c.id === clienteParam)) {
-          setClienteId(clienteParam);
+        const cliIdPre =
+          clienteParam ||
+          datosPropuesta?.cliente_id ||
+          datosPropuesta?.clienteId;
+        if (cliIdPre && lista.some((c) => c.id === cliIdPre)) {
+          setClienteId(cliIdPre);
+        } else if (
+          datosPropuesta?.cliente &&
+          typeof datosPropuesta.cliente === "string"
+        ) {
+          const cliPorNombre = lista.find((c) =>
+            c.nombre
+              .toLowerCase()
+              .includes(datosPropuesta.cliente.toLowerCase()),
+          );
+          if (cliPorNombre) {
+            setClienteId(cliPorNombre.id);
+          }
         }
       });
 
@@ -679,7 +703,93 @@ export function FormularioServicio() {
         setEmpresaGalpon(galpon);
         setOrigenTraslado(galpon);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clienteParam]);
+
+  // Precarga desde propuesta del asistente (location.state)
+  useEffect(() => {
+    if (!datosPropuesta || typeof datosPropuesta !== "object") return;
+
+    if (datosPropuesta.tipo && TIPOS.includes(datosPropuesta.tipo)) {
+      setTipo(datosPropuesta.tipo);
+    }
+    if (datosPropuesta.fecha_programada || datosPropuesta.fecha) {
+      setFechaProgramada(
+        datosPropuesta.fecha_programada || datosPropuesta.fecha,
+      );
+    }
+    if (datosPropuesta.hora_programada || datosPropuesta.hora) {
+      setHoraProgramada(datosPropuesta.hora_programada || datosPropuesta.hora);
+    }
+    if (datosPropuesta.origen !== undefined) {
+      setOrigen(datosPropuesta.origen || "");
+    }
+    if (datosPropuesta.destino !== undefined) {
+      setDestino(datosPropuesta.destino || "");
+    }
+    if (datosPropuesta.km !== undefined) {
+      setKm(datosPropuesta.km);
+    }
+    if (datosPropuesta.ida_y_vuelta !== undefined) {
+      setIdaYVuelta(Boolean(datosPropuesta.ida_y_vuelta));
+    }
+    if (datosPropuesta.nocturno !== undefined) {
+      setNocturno(Boolean(datosPropuesta.nocturno));
+    }
+    if (datosPropuesta.vehiculo_id || datosPropuesta.vehiculoId) {
+      setVehiculoId(datosPropuesta.vehiculo_id || datosPropuesta.vehiculoId);
+    }
+    if (datosPropuesta.maquina_id || datosPropuesta.maquinaId) {
+      setMaquinaId(datosPropuesta.maquina_id || datosPropuesta.maquinaId);
+    }
+    if (datosPropuesta.direccion_trabajo || datosPropuesta.direccion) {
+      setDireccionTrabajo(
+        datosPropuesta.direccion_trabajo || datosPropuesta.direccion,
+      );
+    }
+    if (datosPropuesta.localidad_trabajo || datosPropuesta.localidad) {
+      setLocalidadTrabajo(
+        datosPropuesta.localidad_trabajo || datosPropuesta.localidad,
+      );
+    }
+    if (datosPropuesta.trabajo_a_realizar || datosPropuesta.trabajo) {
+      setTrabajoARealizar(
+        datosPropuesta.trabajo_a_realizar || datosPropuesta.trabajo,
+      );
+    }
+    if (datosPropuesta.descripcion) {
+      setDescripcion(datosPropuesta.descripcion);
+    }
+    if (datosPropuesta.monto !== undefined && datosPropuesta.monto !== null) {
+      setMonto(datosPropuesta.monto);
+      setMontoEditadoManualmente(true);
+    }
+    if (datosPropuesta.moneda) {
+      setMoneda(datosPropuesta.moneda);
+    }
+    if (
+      Array.isArray(datosPropuesta.choferes) &&
+      datosPropuesta.choferes.length > 0
+    ) {
+      setChoferesSeleccionados(datosPropuesta.choferes);
+    }
+    if (
+      Array.isArray(datosPropuesta.paradas) &&
+      datosPropuesta.paradas.length > 0
+    ) {
+      setParadas(
+        datosPropuesta.paradas.map((p: any) => ({
+          id: p.id || crypto.randomUUID(),
+          direccion: p.direccion || "",
+          localidad: p.localidad || "",
+          carga: p.carga || "",
+          carga_desde: (p.carga_desde || "origen") as CargaDesde,
+          notas: p.notas || "",
+        })),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Cargar candidatos de traslado para vincular
   useEffect(() => {

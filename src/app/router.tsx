@@ -19,6 +19,7 @@ import { PaginaServicio } from "@/features/servicios/PaginaServicio";
 import { PaginaServicios } from "@/features/servicios/PaginaServicios";
 import { PaginaNuevoPresupuesto } from "@/features/presupuestos/PaginaNuevoPresupuesto";
 import { PaginaPresupuesto } from "@/features/presupuestos/PaginaPresupuesto";
+import { PaginaAsistente } from "@/features/asistente/PaginaAsistente";
 import { createBrowserRouter } from "react-router-dom";
 import { LayoutChofer } from "./LayoutChofer";
 import { LayoutOficina } from "./LayoutOficina";
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
   {
     element: <RutaProtegida roles={["admin", "oficina"]} />,
     children: [
+      { path: "/asistente", element: <PaginaAsistente /> },
       {
         element: <LayoutOficina />,
         children: [
