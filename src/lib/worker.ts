@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import type { AsistenteMensaje, AsistentePropuesta } from "./tipos";
 
 export interface EstadoWorker {
   online: boolean;
@@ -367,5 +368,122 @@ export function dispararSyncGcalDebounced(): void {
       console.warn("[GCAL-DEBOUNCE] Error en sincronización en background:", err);
     });
   }, 1500);
+}
+
+export interface RespuestaMensajeAsistente {
+  conversacion_id: string;
+  mensaje_usuario: AsistenteMensaje;
+  mensaje_asistente: AsistenteMensaje;
+  propuesta?: AsistentePropuesta;
+  error?: string;
+}
+
+export interface RespuestaAudioAsistente {
+  conversacion_id: string;
+  transcripcion: string;
+  mensaje_usuario: AsistenteMensaje;
+  mensaje_asistente: AsistenteMensaje;
+  propuesta?: AsistentePropuesta;
+  error?: string;
+}
+
+/**
+ * Envía un mensaje de texto al asistente Chimuelo en el worker.
+ * Endpoint: POST /asistente/mensaje
+ */
+export async function enviarMensajeAsistente(params: {
+  conversacionId?: string;
+  texto: string;
+}): Promise<RespuestaMensajeAsistente> {
+  const workerUrl = obtenerWorkerUrl();
+  const headers = await obtenerHeadersAuth();
+
+  try {
+    const res = await fetch(`${workerUrl}/asistente/mensaje`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        conversacion_id: params.conversacionId,
+        texto: params.texto,
+      }),
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      const mensajeError =
+        json?.error || `Error ${res.status}: no se pudo procesar el mensaje.`;
+      throw new Error(mensajeError);
+    }
+
+    if (json.error) {
+      throw new Error(json.error);
+    }
+
+    return json;
+  } catch (err: any) {
+    throw new Error(
+      err?.message || "No se pudo conectar con el asistente Chimuelo.",
+    );
+  }
+}
+
+/**
+ * Envía un archivo de audio crudo al asistente Chimuelo en el worker para transcribir y responder.
+ * Endpoint: POST /asistente/audio
+ */
+export async function enviarAudioAsistente(params: {
+  blob: Blob;
+  duracionSegundos?: number;
+  conversacionId?: string;
+  headerTranscripcionFalsa?: string;
+}): Promise<RespuestaAudioAsistente> {
+  const workerUrl = obtenerWorkerUrl();
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  const headers: Record<string, string> = {
+    "Content-Type": params.blob.type || "audio/webm",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  if (params.duracionSegundos != null) {
+    headers["X-Duracion-Segundos"] = Math.round(
+      params.duracionSegundos,
+    ).toString();
+  }
+  if (params.headerTranscripcionFalsa) {
+    headers["X-Transcripcion-Falsa"] = params.headerTranscripcionFalsa;
+  }
+
+  const query = params.conversacionId
+    ? `?conversacion_id=${encodeURIComponent(params.conversacionId)}`
+    : "";
+
+  try {
+    const res = await fetch(`${workerUrl}/asistente/audio${query}`, {
+      method: "POST",
+      headers,
+      body: params.blob,
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      const mensajeError =
+        json?.error || `Error ${res.status}: no se pudo procesar el audio.`;
+      throw new Error(mensajeError);
+    }
+
+    if (json.error) {
+      throw new Error(json.error);
+    }
+
+    return json;
+  } catch (err: any) {
+    throw new Error(
+      err?.message ||
+        "No se pudo conectar con el servicio de audio del asistente.",
+    );
+  }
 }
 

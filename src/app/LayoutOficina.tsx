@@ -27,6 +27,8 @@ import {
 } from "react-router-dom";
 
 import type { Rol } from "@/lib/tipos";
+import { ChatAsistente } from "@/features/asistente/ChatAsistente";
+import { NOMBRE_ASISTENTE } from "@/features/asistente/constantes";
 
 const etiquetasRol: Record<Rol, string> = {
   admin: "Administración",
@@ -55,6 +57,7 @@ const enlacesMovil = [
 
 export function LayoutOficina() {
   const { perfil, salir } = useAuth();
+  const [panelAsistenteAbierto, setPanelAsistenteAbierto] = useState(false);
   const primerNombre = perfil?.nombre
     ? perfil.nombre.trim().split(/\s+/)[0]
     : "";
@@ -181,6 +184,21 @@ export function LayoutOficina() {
           )}
         </nav>
         <div className="flex items-center justify-between gap-3 text-sm md:mt-auto md:border-t md:border-borde md:px-2 md:pt-4">
+          {/* Botón de Chimuelo en encabezado móvil */}
+          <button
+            type="button"
+            onClick={() => navigate("/asistente")}
+            className="flex items-center gap-1.5 rounded-full p-0.5 text-tinta hover:bg-fondo transition-colors md:hidden focus-visible:outline-2 cursor-pointer"
+            aria-label="Abrir asistente Chimuelo"
+            title="Asistente Chimuelo"
+          >
+            <img
+              src="/chimuelo.svg"
+              alt="Chimuelo"
+              className="h-8 w-8 rounded-full border border-borde object-cover bg-superficie shadow-2xs"
+            />
+          </button>
+
           {primerNombre && (
             <Link
               to="/mi-cuenta"
@@ -213,9 +231,41 @@ export function LayoutOficina() {
         </div>
       </aside>
 
-      <main className="flex-1 p-4 pb-[76px] md:p-8 md:pb-8">
-        <Outlet />
-      </main>
+      <div className="flex flex-1 flex-col min-w-0">
+        {/* Encabezado de escritorio con botón de Chimuelo */}
+        <header className="hidden md:flex h-14 items-center justify-end border-b border-borde bg-superficie px-8 gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setPanelAsistenteAbierto((prev) => !prev)}
+            className="flex items-center gap-2 rounded-full border border-borde bg-fondo px-3 py-1.5 text-xs font-medium text-tinta transition-all hover:border-marca/40 hover:bg-marca-suave/30 focus-visible:outline-2 cursor-pointer shadow-2xs"
+            aria-label="Abrir asistente Chimuelo"
+            title="Asistente Chimuelo"
+          >
+            <img
+              src="/chimuelo.svg"
+              alt={NOMBRE_ASISTENTE}
+              className="h-7 w-7 rounded-full border border-borde/60 object-cover bg-superficie"
+            />
+            <span className="font-semibold text-marca">{NOMBRE_ASISTENTE}</span>
+          </button>
+        </header>
+
+        <div className="flex flex-1 min-w-0 relative">
+          <main className="flex-1 p-4 pb-[76px] md:p-8 md:pb-8 min-w-0">
+            <Outlet />
+          </main>
+
+          {/* Panel lateral fijo a la derecha en escritorio que convive con la pantalla */}
+          {panelAsistenteAbierto && (
+            <aside
+              className="hidden md:flex w-[400px] lg:w-[420px] shrink-0 border-l border-borde bg-superficie flex-col sticky top-0 h-[calc(100vh-3.5rem)] z-20 shadow-xs"
+              aria-label="Panel asistente Chimuelo"
+            >
+              <ChatAsistente onCerrar={() => setPanelAsistenteAbierto(false)} />
+            </aside>
+          )}
+        </div>
+      </div>
 
       {/* Botón flotante solo en listas de celular */}
       {mostrarFab && (
