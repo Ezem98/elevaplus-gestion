@@ -63,6 +63,10 @@ const esquemaConfig = z.object({
     ),
   OPENAI_API_KEY: z.string().optional().default(""),
   OPENAI_MODELO: z.string().optional().default("gpt-5.6-luna"),
+  OPENAI_MODELO_TRANSCRIPCION: z
+    .string()
+    .optional()
+    .default("gpt-4o-mini-transcribe"),
   OPENAI_PROMPT_ID: z.string().optional(),
   OPENAI_PROMPT_VERSION: z.string().optional(),
   ASISTENTE_TOPE_DIARIO_USD: z.coerce.number().optional().default(1),

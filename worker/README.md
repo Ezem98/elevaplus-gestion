@@ -31,6 +31,7 @@ Servicio en segundo plano para tareas asíncronas, emisión de comprobantes en A
 | `SUPABASE_ANON_KEY`         | Publishable / anon key para ejecutar las herramientas con la sesión del usuario (RLS) | `ey...`                                                               |
 | `OPENAI_API_KEY`            | API key de OpenAI para el asistente Chimuelo                             | `sk-...`                                                              |
 | `OPENAI_MODELO`             | Modelo a invocar en la Responses API (default: `gpt-5.6-luna`)           | `gpt-5.6-luna`                                                        |
+| `OPENAI_MODELO_TRANSCRIPCION` | Modelo de OpenAI para transcripción de audio (default: `gpt-4o-mini-transcribe`) | `gpt-4o-mini-transcribe`                                             |
 | `OPENAI_PROMPT_ID`          | ID de prompt versionado en la plataforma de OpenAI (opcional)            | `pmpt_...`                                                            |
 | `OPENAI_PROMPT_VERSION`      | Versión del prompt en OpenAI (opcional)                                  | `1`                                                                   |
 | `ASISTENTE_TOPE_DIARIO_USD` | Tope diario de gasto en dólares por usuario (default: `1`)               | `1`                                                                   |
@@ -86,12 +87,24 @@ Todas las tareas se ejecutan en la zona horaria `America/Argentina/Buenos_Aires`
 
 ### Asistente Chimuelo
 
-- `POST /asistente/mensaje`: Envío de mensajes al asistente (requiere Bearer JWT de admin/oficina).
+- `POST /asistente/mensaje`: Envío de mensajes de texto al asistente (requiere Bearer JWT de admin/oficina).
   - Body: `{ conversacion_id?: string, texto: string }` (máx. 2000 caracteres).
   - Crea la conversación si no se indica `conversacion_id`.
   - Devuelve `{ conversacion_id, mensaje_usuario, mensaje_asistente, propuesta? }`.
   - Rechaza usuarios con rol `chofer` con 403.
   - Aplica tope diario (60 msgs, `ASISTENTE_TOPE_DIARIO_USD`) y rate limit en memoria (10 msgs/min).
+
+- `POST /asistente/audio`: Envío de audio de voz de la dueña/oficina para transcripción y procesamiento con Chimuelo.
+  - **Diferencia con §4.1 de ASISTENTE-EN-LA-APP.md**: Para no incorporar dependencias externas (como `multer`), el endpoint recibe el audio como cuerpo crudo (`express.raw`) en lugar de multipart.
+  - **Headers**:
+    - `Authorization: Bearer <JWT del usuario>` (admin u oficina; rechaza choferes con 403).
+    - `Content-Type`: `audio/webm`, `audio/mp4`, `audio/mpeg`, `audio/ogg`, `audio/wav` (cualquier otro tipo devuelve 415). Límite de tamaño: 5 MB (si supera devuelve 413).
+    - `X-Duracion-Segundos`: header opcional con la duración estimada por el navegador. Si supera los 120 segundos devuelve 400.
+    - `X-Transcripcion-Falsa`: header opcional utilizado cuando `ASISTENTE_MODELO=falso` para simular el texto transcripto en pruebas E2E sin llamadas a la API de OpenAI.
+  - **Query string**: `?conversacion_id=<uuid>` (opcional, validado como UUID). Si no se provee, crea automáticamente la conversación con el título derivado de la transcripción.
+  - **Privacidad y descarte de audio**: El Buffer de audio se mantiene únicamente en memoria para la llamada a OpenAI; **nunca se persiste a disco ni se envía a Supabase**.
+  - **Respuesta**: `{ conversacion_id, transcripcion, mensaje_usuario, mensaje_asistente, propuesta? }`.
+  - **Topes y persistencia**: El audio cuenta como 1 mensaje del usuario en la conversación (`fue_audio = true`, `audio_segundos`) y el costo de transcripción suma al tope diario de gasto (`ASISTENTE_TOPE_DIARIO_USD`). Si no está configurada la `OPENAI_API_KEY` y no es el proveedor falso, responde 503 claro.
 
 ## Idempotencia
 
