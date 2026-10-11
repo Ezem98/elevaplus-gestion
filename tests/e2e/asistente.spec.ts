@@ -3,7 +3,7 @@ import { comoAdmin, CLIENTES } from "../integracion/setup";
 
 test.describe("Asistente Chimuelo (E2E)", () => {
   test.afterEach(async () => {
-    // Limpiar servicios creados durante el test para el cliente Deza
+    // Limpiar servicios y datos de asistente creados durante el test
     try {
       const admin = await comoAdmin();
       await admin
@@ -12,6 +12,9 @@ test.describe("Asistente Chimuelo (E2E)", () => {
         .eq("cliente_id", CLIENTES.deza.id)
         .eq("origen", "Burzaco")
         .eq("destino", "Avellaneda");
+      await admin.from("asistente_mensajes").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await admin.from("asistente_propuestas").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await admin.from("asistente_conversaciones").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     } catch (e) {
       console.warn("Error al limpiar datos del test de asistente:", e);
     }
@@ -168,4 +171,87 @@ test.describe("Asistente Chimuelo (E2E)", () => {
 
     await context.close();
   });
+
+  test("Pedir cambio de estado a Chimuelo ('el de Deza de hoy ya terminó') -> tarjeta de cambio de estado -> Confirmar -> estado terminado en la base y evento registrado", async ({
+    page,
+  }) => {
+    // 1. Crear como admin un servicio programado de prueba para hoy
+    const admin = await comoAdmin();
+    const hoyStr = new Date().toISOString().slice(0, 10);
+    const { data: servCreado, error: errCrea } = await admin
+      .from("servicios")
+      .insert({
+        cliente_id: CLIENTES.deza.id,
+        tipo: "traslado",
+        estado: "programado",
+        fecha_programada: hoyStr,
+        hora_programada: "10:00",
+        origen: "Burzaco",
+        destino: "Avellaneda",
+        descripcion: "Servicio prueba cambio estado Chimuelo",
+        monto: 150000,
+      })
+      .select()
+      .single();
+
+    expect(errCrea).toBeNull();
+    expect(servCreado).toBeDefined();
+
+    try {
+      // 2. Navegar a /asistente
+      await page.goto("/asistente");
+      const inputChat = page.getByPlaceholder(/Hablá con Chimuelo/i);
+      await expect(inputChat).toBeVisible();
+
+      // 3. Pedir a Chimuelo que lo marque como terminado
+      await inputChat.fill("El de Deza de hoy ya terminó");
+      await page.getByRole("button", { name: "Enviar mensaje" }).click();
+
+      // 4. Aparece la tarjeta de propuesta con el cambio de estado
+      const tarjeta = page.getByTestId("tarjeta-propuesta");
+      await expect(tarjeta).toBeVisible({ timeout: 15000 });
+      await expect(tarjeta.getByText("Cambio de estado")).toBeVisible();
+      await expect(tarjeta.getByText("Terminado", { exact: true })).toBeVisible();
+
+      const botonConfirmar = tarjeta.getByRole("button", {
+        name: "Confirmar",
+        exact: true,
+      });
+      await expect(botonConfirmar).toBeVisible();
+
+      // 5. Tocar Confirmar
+      await botonConfirmar.click();
+
+      // 6. Verificar mensaje de éxito
+      await expect(
+        page.getByText("¡Estado actualizado con éxito!"),
+      ).toBeVisible({ timeout: 15000 });
+
+      // 7. Verificar con cliente admin que el estado cambió a 'terminado'
+      const { data: servActualizado, error: errGet } = await admin
+        .from("servicios")
+        .select("id, estado")
+        .eq("id", servCreado.id)
+        .single();
+
+      expect(errGet).toBeNull();
+      expect(servActualizado.estado).toBe("terminado");
+
+      // 8. Verificar que hay un evento en servicio_eventos
+      const { data: eventos, error: errEvt } = await admin
+        .from("servicio_eventos")
+        .select("*")
+        .eq("servicio_id", servCreado.id)
+        .eq("estado_nuevo", "terminado");
+
+      expect(errEvt).toBeNull();
+      expect(eventos).not.toBeNull();
+      expect(eventos!.length).toBeGreaterThan(0);
+      expect(eventos![0].estado_anterior).toBe("programado");
+      expect(eventos![0].estado_nuevo).toBe("terminado");
+    } finally {
+      await admin.from("servicios").delete().eq("id", servCreado.id);
+    }
+  });
 });
+

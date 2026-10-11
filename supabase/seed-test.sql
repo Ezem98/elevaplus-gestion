@@ -4,6 +4,9 @@
 -- =============================================================================
 
 -- 1. Limpieza en orden de dependencias para permitir reejecuciones idempotentes
+delete from asistente_mensajes;
+delete from asistente_propuestas;
+delete from asistente_conversaciones;
 delete from cobro_aplicaciones;
 delete from adjuntos;
 delete from servicio_choferes;

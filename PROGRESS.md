@@ -4,7 +4,9 @@ Actualizar al cerrar cada hito y al lanzar un job de agy.
 
 ## Último estado (09/10/2026)
 
-- Rama: `hito/chimuelo-4-interfaz` (apilada sobre `hito/chimuelo-3-audio`, PR #27).
+- Rama: `hito/chimuelo-6a-estados` (desde main con PR #28 mergeado).
+- Hito 5: partes 1-4 mergeadas (PR #25-#28). Parte 5 (evaluación con la dueña) pendiente del usuario: cargar OPENAI_API_KEY, OPENAI_MODELO y SUPABASE_ANON_KEY en el worker y grabar ~15 pedidos reales.
+- Hito 6 (Chimuelo v2, aprobado 11/10) en 4 partes: 6a cambiar estado, 6b servicios realizados/fecha pasada, 6c presupuestos, 6d cobros/gastos/cheques. 6a lista: job `mv458vfr_gf82zg` terminado (migración 0038 + proponer_cambio_estado + tarjeta + tests). `npm run verificar` corrido por mí en verde (11/10). Usuario aprobó la 0038 (11/10); commit y PR. Siguiente: 6b.
 - Hito 5 (Chimuelo en la app) en curso, en 5 partes según `docs/ASISTENTE-EN-LA-APP.md` §7: 1 migración (tablas + crear_servicio/crear_propuesta/confirmar_propuesta/descartar_propuesta), 2 worker, 3 audio, 4 interfaz, 5 evaluación con la dueña.
 - Partes 1 y 2 mergeadas (PR #25 migración 0037; PR #26 worker con SDK `openai@7.32.0`). El CI de #26 falló por gitleaks: la 8.24.3 del CI no aplica `[[allowlists]]`; se pasó a `[allowlist]` y `.gitleaksignore` (probado con 8.24.3 y latest). Parte 3 mergeada (PR #27, audio). Parte 4 lista: job `mv41ou6x_pmsbv7` terminado (interfaz: panel/página, chat, micrófono, tarjeta de propuesta, precarga del formulario, avatar SVG original —no el personaje de DreamWorks, decisión del usuario 11/10—, E2E con el worker falso). `npm run verificar` en verde con 30 E2E (11/10). Falta en el E2E: verificar que el chofer ve el servicio programado (el seed no tiene chofer "Mauro"). Usuario aprobó (11/10); commit y PR. Siguiente: parte 5 (evaluación con la dueña; requiere OPENAI_API_KEY, OPENAI_MODELO y SUPABASE_ANON_KEY en el worker). Pendiente usuario para la parte 5: OPENAI_API_KEY, OPENAI_MODELO y SUPABASE_ANON_KEY en el worker.
 - Hito 4 (Fase 7) cerrado: PR #4, #5, #6, #7, #8, #23 (Storage huérfano) y #24 (backups) mergeados. Reporte de la pasada 1 en `~/security-audit/elevaplus/run-1`.
@@ -64,6 +66,8 @@ Fase 1 (MVP), Fase 2 (facturación ARCA en homologación, caja, cheques, agenda)
 
 | Fecha | Decisión |
 | --- | --- |
+| 11/10/2026 | Presupuestos NO se atan al cotizador (ni en el asistente ni en el resto del software): el cotizador solo aproxima traslados de camión, trailer o camioneta; en presupuestos los precios los pone el usuario. |
+| 11/10/2026 | Chimuelo v2: cada escritura nueva (estado, servicio realizado, presupuesto, cobro/gasto/cheque) va como propuesta + botón Confirmar; plata al final y con más controles. |
 | 05/10/2026 | Claude orquesta y delega la implementación en agy (MCP `antigravity`). Ver `CLAUDE.md`. |
 | 05/10/2026 | Un hito por vez, con checkpoint y OK del usuario antes de seguir. |
 | 05/10/2026 | H-2: se mantiene `--no-verify-jwt`; la función rechaza por defecto y compara en tiempo constante; el usuario rota WEBHOOK_SECRET. H-4: no es vulnerabilidad. H-3: en vez de bajar la duración del link, compartir presupuesto y factura como archivo PDF (un cliente desconfió del link firmado). |

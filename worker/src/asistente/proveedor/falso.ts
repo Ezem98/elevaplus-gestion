@@ -277,7 +277,58 @@ export class ProveedorFalso implements ProveedorModelo {
       };
     }
 
-    // Caso J: Alta / propuesta de servicio (§1 y §6: diálogo de traslado)
+    // Caso J: Cambio de estado de un servicio ("ya terminó", "el de Deza de hoy ya terminó", "cancelá el traslado #1087")
+    if (
+      limpio.includes("terminó") ||
+      limpio.includes("termino") ||
+      limpio.includes("terminado") ||
+      limpio.includes("cancelá") ||
+      limpio.includes("cancela") ||
+      limpio.includes("cancelar") ||
+      limpio.includes("en curso")
+    ) {
+      let nuevoEstado = "terminó";
+      if (limpio.includes("cancel")) {
+        nuevoEstado = "cancelado";
+      } else if (limpio.includes("en curso")) {
+        nuevoEstado = "en curso";
+      }
+
+      let cliente: string | undefined = undefined;
+      if (limpio.includes("deza")) cliente = "Deza";
+      else if (limpio.includes("huma")) cliente = "Huma";
+      else if (limpio.includes("almatec")) cliente = "Almatec";
+
+      let fecha: string | undefined = undefined;
+      if (limpio.includes("hoy") || limpio.includes("de hoy")) fecha = "hoy";
+      else if (limpio.includes("mañana") || limpio.includes("manana")) fecha = "mañana";
+
+      const matchNum = limpio.match(/#?(\d+)/);
+      const numero = matchNum ? Number(matchNum[1]) : undefined;
+
+      return {
+        llamadasHerramientas: [
+          {
+            id: `call_cambio_estado_${Date.now()}`,
+            nombre: "proponer_cambio_estado",
+            argumentos: {
+              numero,
+              cliente,
+              fecha,
+              nuevo_estado: nuevoEstado,
+              referencia: limpio,
+            },
+          },
+        ],
+        tokensEntrada: 50,
+        tokensSalida: 30,
+        costoUsd: 0.000045,
+        modelo: "falso",
+        promptVersion: "guion-test",
+      };
+    }
+
+    // Caso K: Alta / propuesta de servicio (§1 y §6: diálogo de traslado)
     // "Cargame un traslado para mañana, de Burzaco a Avellaneda, para Deza, a las 9"
     // -> "¿Lo hace Mauro o Federico? ¿Y es ida y vuelta?"
     // User responde: "Mauro, solo ida"
