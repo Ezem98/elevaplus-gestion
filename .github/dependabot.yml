@@ -8,6 +8,12 @@ updates:
     groups:
       minor-y-patch:
         update-types: ["minor", "patch"]
+      mayores:
+        update-types: ["major"]
+    ignore:
+      # Los tipos de Node van con la versión de Node que usamos (22).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: "/worker"
@@ -17,6 +23,11 @@ updates:
     groups:
       minor-y-patch:
         update-types: ["minor", "patch"]
+      mayores:
+        update-types: ["major"]
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -24,5 +35,5 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      minor-y-patch:
-        update-types: ["minor", "patch"]
+      acciones:
+        patterns: ["*"]
