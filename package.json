@@ -24,12 +24,12 @@
     "@radix-ui/react-context-menu": "^2.3.7",
     "@radix-ui/react-dropdown-menu": "^2.1.24",
     "@react-pdf/renderer": "^4.9.0",
-    "@supabase/supabase-js": "^2.115.0",
+    "@supabase/supabase-js": "^2.117.2",
     "@tailwindcss/vite": "^4.3.3",
-    "lucide-react": "^1.41.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.3",
+    "lucide-react": "^1.52.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4",
     "serve": "^14.2.6",
     "tailwindcss": "^4.3.3",
     "vite-plugin-pwa": "^1.3.0"
@@ -37,14 +37,14 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.13.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.1.0",
-    "oxlint": "^1.79.0",
-    "supabase": "^2.116.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "oxlint": "^1.87.0",
+    "supabase": "^2.119.0",
     "typescript": "~6.0.2",
-    "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
   },
   "overrides": {
     "compression": "1.8.2"
