@@ -37,7 +37,7 @@ jobs:
       - name: Configurar CLI de Supabase
         uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 2.116.0
 
       - name: Instalar dependencias del frontend
         run: npm ci
