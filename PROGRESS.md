@@ -60,7 +60,8 @@ Fase 1 (MVP), Fase 2 (facturación ARCA en homologación, caja, cheques, agenda)
 
 ## Pendientes chicos
 
-- README §push: falta el webhook `push-notificaciones` (tabla `notificaciones`, INSERT) y los nombres reales de los otros dos (`push-servicio-no-planificado`, `push-servicio-eventos`). Son 3 webhooks a rotar, no 2 (visto en el Dashboard el 07/10).
+- ~~README §push: 3 webhooks~~ hecho en PR #7.
+- Migrar el worker a express 5, zod 4 y dotenv 18 (piden adaptar código; express 5 rompía el CI). Mientras tanto Dependabot los ignora (PR #38, 13/10).
 
 ## Decisiones
 
