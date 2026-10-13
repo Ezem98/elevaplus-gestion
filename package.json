@@ -21,12 +21,12 @@
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans": "^5.3.0",
-    "@radix-ui/react-context-menu": "^2.3.7",
-    "@radix-ui/react-dropdown-menu": "^2.1.24",
+    "@radix-ui/react-context-menu": "^2.3.8",
+    "@radix-ui/react-dropdown-menu": "^2.1.25",
     "@react-pdf/renderer": "^4.9.0",
-    "@supabase/supabase-js": "^2.117.2",
+    "@supabase/supabase-js": "^2.117.3",
     "@tailwindcss/vite": "^4.3.3",
-    "lucide-react": "^1.52.0",
+    "lucide-react": "^1.55.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4",
@@ -35,15 +35,15 @@
     "vite-plugin-pwa": "^2.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
-    "@types/node": "^24.13.3",
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.87.0",
-    "supabase": "^2.119.0",
+    "supabase": "^2.120.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2",
+    "vite": "^8.3.4",
     "vitest": "^5.0.3"
   },
   "overrides": {
