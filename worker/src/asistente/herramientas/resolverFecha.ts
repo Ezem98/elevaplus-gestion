@@ -70,7 +70,7 @@ function obtenerDiaSemanaIndex(iso: string): number {
 /**
  * Suma N días a una fecha ISO
  */
-function sumarDiasISO(iso: string, dias: number): string {
+export function sumarDiasISO(iso: string, dias: number): string {
   const [a, m, d] = parsearFechaISO(iso);
   const fecha = new Date(Date.UTC(a, m - 1, d, 12, 0, 0));
   fecha.setUTCDate(fecha.getUTCDate() + dias);
@@ -122,7 +122,33 @@ export function resolverFechaLogica(
     };
   }
 
-  // 2. "mañana" / "manana"
+  // 2. "ayer"
+  if (limpio === "ayer") {
+    const ayerISO = sumarDiasISO(hoyISO, -1);
+    const [, mAyer, dAyer] = parsearFechaISO(ayerISO);
+    const diaSem = NOMBRES_DIAS[obtenerDiaSemanaIndex(ayerISO)];
+    return {
+      fecha: ayerISO,
+      dia_semana: diaSem,
+      formato_humano: `${diaSem} ${dAyer}/${mAyer}`,
+      ambiguo: false,
+    };
+  }
+
+  // 3. "anteayer" / "antier"
+  if (limpio === "anteayer" || limpio === "antier") {
+    const anteayerISO = sumarDiasISO(hoyISO, -2);
+    const [, mAnte, dAnte] = parsearFechaISO(anteayerISO);
+    const diaSem = NOMBRES_DIAS[obtenerDiaSemanaIndex(anteayerISO)];
+    return {
+      fecha: anteayerISO,
+      dia_semana: diaSem,
+      formato_humano: `${diaSem} ${dAnte}/${mAnte}`,
+      ambiguo: false,
+    };
+  }
+
+  // 4. "mañana" / "manana"
   if (limpio === "manana" || limpio === "de manana") {
     const mananaISO = sumarDiasISO(hoyISO, 1);
     const [, mMan, dMan] = parsearFechaISO(mananaISO);
@@ -135,7 +161,7 @@ export function resolverFechaLogica(
     };
   }
 
-  // 3. "pasado" / "pasado mañana"
+  // 5. "pasado" / "pasado mañana"
   if (limpio === "pasado" || limpio === "pasado manana") {
     const pasadoISO = sumarDiasISO(hoyISO, 2);
     const [, mPas, dPas] = parsearFechaISO(pasadoISO);
@@ -144,6 +170,26 @@ export function resolverFechaLogica(
       fecha: pasadoISO,
       dia_semana: diaSem,
       formato_humano: `${diaSem} ${dPas}/${mPas}`,
+      ambiguo: false,
+    };
+  }
+
+  // 6. Días de la semana pasados ("el lunes pasado", "martes pasado", etc.)
+  const regexDiaPasado =
+    /^(?:el\s+)?(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\s+pasado$/;
+  const matchDiaPasado = limpio.match(regexDiaPasado);
+  if (matchDiaPasado) {
+    const nombreDia = matchDiaPasado[1];
+    const diaDestinoIdx = MAPA_DIAS[nombreDia];
+    let delta = (diaDestinoIdx - diaSemanaHoy - 7) % 7;
+    if (delta === 0) delta = -7;
+    const fechaPasada = sumarDiasISO(hoyISO, delta);
+    const [, mP, dP] = parsearFechaISO(fechaPasada);
+    const diaSem = NOMBRES_DIAS[diaDestinoIdx];
+    return {
+      fecha: fechaPasada,
+      dia_semana: diaSem,
+      formato_humano: `${diaSem} ${dP}/${mP}`,
       ambiguo: false,
     };
   }

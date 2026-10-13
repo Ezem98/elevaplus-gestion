@@ -231,4 +231,99 @@ describe("Asistente Chimuelo — Integración contra Supabase local (ASISTENTE_M
     expect(Number(msgDb.costo_usd)).toBe(0.001425);
     expect(msgDb.contenido).toBe("Cargame un traslado para mañana");
   });
+
+  it("5. Servicio ya realizado: procesarTurno genera propuesta 'crear_servicio_realizado' y confirmar deja el servicio terminado con chofer y eventos", async () => {
+    const oficina = await comoOficina();
+    const admin = await comoAdmin();
+    const proveedorFalso = new ProveedorFalso();
+
+    // 1. Crear conversación
+    const { data: conv, error: errConv } = await oficina
+      .from("asistente_conversaciones")
+      .insert({
+        usuario_id: USUARIOS.oficina.id,
+        titulo: `${PREFIJO}Conversación Servicio Realizado`,
+      })
+      .select()
+      .single();
+
+    expect(errConv).toBeNull();
+    expect(conv).toBeDefined();
+
+    // 2. Procesar turno con pedido de servicio realizado ayer
+    const turno = await procesarTurno({
+      conversacionId: conv.id,
+      usuarioId: USUARIOS.oficina.id,
+      rol: "oficina",
+      texto: "Ayer hicimos un traslado para Deza de Burzaco a Avellaneda, lo hizo Mauro",
+      supabase: oficina,
+      proveedor: proveedorFalso,
+    });
+
+    expect(turno.propuesta).toBeDefined();
+    expect(turno.propuesta.accion).toBe("crear_servicio_realizado");
+    expect(turno.propuesta.estado).toBe("pendiente");
+    expect(turno.propuesta.resumen).toContain("Servicio ya realizado");
+    expect(turno.propuesta.resumen).toContain("Deza");
+    expect(turno.propuesta.resumen).toMatch(/Chofer 1 Test|Mauro/);
+
+    const propuestaId = turno.propuesta.id;
+
+    // 3. Confirmar la propuesta como oficina
+    const { data: resConf, error: errConf } = await oficina.rpc(
+      "confirmar_propuesta",
+      {
+        p_propuesta_id: propuestaId,
+      },
+    );
+
+    expect(errConf).toBeNull();
+    expect(resConf).toBeDefined();
+    expect(resConf.ok).toBe(true);
+    expect(resConf.estado).toBe("confirmada");
+    expect(resConf.resultado_id).toBeDefined();
+
+    const servicioId = resConf.resultado_id;
+
+    // 4. Verificar servicio creado en Supabase con cliente admin
+    const { data: serv, error: errServ } = await admin
+      .from("servicios")
+      .select("id, tipo, cliente_id, estado, fecha_programada, origen, destino")
+      .eq("id", servicioId)
+      .single();
+
+    expect(errServ).toBeNull();
+    expect(serv).toBeDefined();
+    expect(serv.estado).toBe("terminado");
+    expect(serv.tipo).toBe("traslado");
+    expect(serv.cliente_id).toBe(CLIENTES.deza.id);
+    expect(serv.origen).toBe("Burzaco");
+    expect(serv.destino).toBe("Avellaneda");
+
+    // 5. Verificar chofer asignado en servicio_choferes
+    const { data: choferes, error: errCh } = await admin
+      .from("servicio_choferes")
+      .select("chofer_id")
+      .eq("servicio_id", servicioId);
+
+    expect(errCh).toBeNull();
+    expect(choferes).toBeDefined();
+    expect(choferes!.length).toBe(1);
+
+    // 6. Verificar eventos en servicio_eventos (programado, en_curso, terminado)
+    const { data: evts, error: errEvts } = await admin
+      .from("servicio_eventos")
+      .select("estado_nuevo")
+      .eq("servicio_id", servicioId)
+      .order("created_at", { ascending: true });
+
+    expect(errEvts).toBeNull();
+    expect(evts).toBeDefined();
+    expect(evts!.length).toBe(3);
+    expect(evts!.map((e) => e.estado_nuevo)).toEqual([
+      "programado",
+      "en_curso",
+      "terminado",
+    ]);
+  });
 });

@@ -28,6 +28,33 @@ describe("resolver_fecha", () => {
     expect(res.dia_semana).toBe("sábado");
   });
 
+  it("resuelve 'ayer' y 'anteayer' correctamente", () => {
+    const resAyer = resolverFechaLogica("ayer", HOY_JUEVES);
+    expect(resAyer.ambiguo).toBe(false);
+    expect(resAyer.fecha).toBe("2026-10-14");
+    expect(resAyer.dia_semana).toBe("miércoles");
+    expect(resAyer.formato_humano).toContain("14/10");
+
+    const resAnte = resolverFechaLogica("anteayer", HOY_JUEVES);
+    expect(resAnte.ambiguo).toBe(false);
+    expect(resAnte.fecha).toBe("2026-10-13");
+    expect(resAnte.dia_semana).toBe("martes");
+  });
+
+  it("resuelve días de la semana pasados (ej: 'el lunes pasado', 'martes pasado')", () => {
+    // Si hoy es jueves 15, el lunes pasado fue 12 de octubre
+    const resLunesPasado = resolverFechaLogica("el lunes pasado", HOY_JUEVES);
+    expect(resLunesPasado.ambiguo).toBe(false);
+    expect(resLunesPasado.fecha).toBe("2026-10-12");
+    expect(resLunesPasado.dia_semana).toBe("lunes");
+
+    // Si hoy es jueves 15, el jueves pasado fue 8 de octubre
+    const resJuevesPasado = resolverFechaLogica("jueves pasado", HOY_JUEVES);
+    expect(resJuevesPasado.ambiguo).toBe(false);
+    expect(resJuevesPasado.fecha).toBe("2026-10-08");
+    expect(resJuevesPasado.dia_semana).toBe("jueves");
+  });
+
   it("resuelve días de la semana a futuro (ej: el viernes, el lunes)", () => {
     // Si hoy es jueves 15, el viernes es mañana 16
     const resViernes = resolverFechaLogica("el viernes", HOY_JUEVES);
