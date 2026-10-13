@@ -788,6 +788,25 @@ export function FormularioServicio() {
         })),
       );
     }
+
+    const tipoFinal =
+      datosPropuesta.tipo && TIPOS.includes(datosPropuesta.tipo)
+        ? datosPropuesta.tipo
+        : tipo;
+    const fProg = datosPropuesta.fecha_programada || datosPropuesta.fecha || "";
+    const fDesde = datosPropuesta.fecha_desde || "";
+    const fHasta = datosPropuesta.fecha_hasta || "";
+
+    if (datosPropuesta.estadoInicial) {
+      setEstadoInicial(datosPropuesta.estadoInicial);
+      if (datosPropuesta.estadoInicial === "realizado") {
+        setAvisoFechaPasada(
+          "La fecha es pasada: se carga como servicio ya realizado",
+        );
+      }
+    } else if (fProg || fDesde) {
+      verificarFechasPasadas(tipoFinal, fProg, fDesde, fHasta);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -8,6 +8,7 @@ import { herramientaCotizarTraslado } from "./cotizarTraslado";
 import { herramientaEstadoMaquina } from "./maquinas";
 import { herramientaProponerCambioEstado } from "./proponerCambioEstado";
 import { herramientaProponerServicio } from "./proponerServicio";
+import { herramientaProponerServicioRealizado } from "./proponerServicioRealizado";
 import { herramientaResolverFecha } from "./resolverFecha";
 import {
   herramientaBuscarServicio,
@@ -25,6 +26,7 @@ export {
   herramientaPendientesFacturar,
   herramientaProponerCambioEstado,
   herramientaProponerServicio,
+  herramientaProponerServicioRealizado,
   herramientaResolverFecha,
   herramientaResumenCobranzas,
   herramientaSaldoCliente,
@@ -47,6 +49,7 @@ export const TODAS_LAS_HERRAMIENTAS: HerramientaAsistente[] = [
   herramientaBuscarServicio,
   herramientaChoferesDisponibles,
   herramientaProponerServicio,
+  herramientaProponerServicioRealizado,
   herramientaProponerCambioEstado,
 ];
 

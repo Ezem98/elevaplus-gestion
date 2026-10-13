@@ -26,6 +26,7 @@ export function TarjetaPropuesta({
   const datos = (prop.datos || {}) as Record<string, any>;
   const estado = prop.estado;
   const esCambioEstado = prop.accion === "cambiar_estado";
+  const esServicioRealizado = prop.accion === "crear_servicio_realizado";
 
   const sinChofer =
     !esCambioEstado &&
@@ -103,7 +104,12 @@ export function TarjetaPropuesta({
 
   const handleRevisar = () => {
     navigate("/servicios/nuevo", {
-      state: { propuesta: datos },
+      state: {
+        propuesta: {
+          ...datos,
+          ...(esServicioRealizado ? { estadoInicial: "realizado" } : {}),
+        },
+      },
     });
   };
 
@@ -124,9 +130,23 @@ export function TarjetaPropuesta({
     >
       {/* Encabezado de la tarjeta */}
       <div className="border-b border-borde bg-marca-suave/40 px-3.5 py-2 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-marca">
-          {esCambioEstado ? "Cambio de estado" : "Propuesta de servicio"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-marca">
+            {esCambioEstado
+              ? "Cambio de estado"
+              : esServicioRealizado
+                ? "Servicio ya realizado"
+                : "Propuesta de servicio"}
+          </span>
+          {esServicioRealizado && (
+            <span
+              data-testid="badge-ya-realizado"
+              className="text-[10px] font-bold uppercase tracking-wider bg-alerta-suave text-alerta px-2 py-0.5 rounded border border-alerta/30"
+            >
+              Ya realizado
+            </span>
+          )}
+        </div>
         <span
           className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
             estado === "confirmada"
@@ -197,11 +217,36 @@ export function TarjetaPropuesta({
             )}
 
             {datos.fecha_programada && (
-              <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
-                <span className="text-tinta-suave">Fecha y hora:</span>
-                <span className="font-medium text-tinta">
+              <div
+                className={`flex justify-between items-baseline py-0.5 border-b border-borde/40 ${
+                  esServicioRealizado
+                    ? "bg-alerta-suave/40 px-2 py-1 rounded"
+                    : ""
+                }`}
+              >
+                <span
+                  className={
+                    esServicioRealizado
+                      ? "font-semibold text-alerta"
+                      : "text-tinta-suave"
+                  }
+                >
+                  {esServicioRealizado ? "Fecha (ya ejecutado):" : "Fecha y hora:"}
+                </span>
+                <span
+                  className={
+                    esServicioRealizado
+                      ? "font-bold text-tinta"
+                      : "font-medium text-tinta"
+                  }
+                >
                   {formatearFecha(datos.fecha_programada)}
                   {datos.hora_programada ? ` · ${datos.hora_programada} hs` : ""}
+                  {esServicioRealizado && (
+                    <span className="ml-1 text-[11px] font-medium text-alerta">
+                      (pasada)
+                    </span>
+                  )}
                 </span>
               </div>
             )}
@@ -238,7 +283,9 @@ export function TarjetaPropuesta({
 
             {precioTexto && (
               <div className="flex justify-between items-baseline pt-1">
-                <span className="font-medium text-tinta-suave">Precio sugerido:</span>
+                <span className="font-medium text-tinta-suave">
+                  {esServicioRealizado ? "Precio:" : "Precio sugerido:"}
+                </span>
                 <span className="text-sm font-semibold text-marca">
                   {precioTexto}
                 </span>
@@ -255,7 +302,7 @@ export function TarjetaPropuesta({
         )}
 
         {/* Advertencias */}
-        {sinChofer && estado === "pendiente" && (
+        {sinChofer && estado === "pendiente" && !esServicioRealizado && (
           <div className="flex items-center gap-1.5 rounded-md bg-alerta-suave px-2.5 py-1.5 text-xs text-alerta">
             <AlertCircle className="size-4 shrink-0" />
             <span>Sin chofer asignado (los choferes no lo van a ver hasta asignarlo).</span>
@@ -268,7 +315,9 @@ export function TarjetaPropuesta({
             <span>
               {esCambioEstado
                 ? "¡Estado actualizado con éxito!"
-                : "¡Servicio creado con éxito!"}
+                : esServicioRealizado
+                  ? "¡Servicio realizado registrado con éxito!"
+                  : "¡Servicio creado con éxito!"}
             </span>
             {(prop.resultado_id || datos.servicio_id) && (
               <Link
@@ -293,7 +342,9 @@ export function TarjetaPropuesta({
               prop.error ||
               (esCambioEstado
                 ? "Ocurrió un error al cambiar el estado del servicio."
-                : "Ocurrió un error al crear el servicio.")}
+                : esServicioRealizado
+                  ? "Ocurrió un error al registrar el servicio realizado."
+                  : "Ocurrió un error al crear el servicio.")}
           </Aviso>
         )}
 

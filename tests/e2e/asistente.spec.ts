@@ -253,5 +253,73 @@ test.describe("Asistente Chimuelo (E2E)", () => {
       await admin.from("servicios").delete().eq("id", servCreado.id);
     }
   });
+
+  test("Pedir servicio ya realizado a Chimuelo ('ayer hicimos un traslado para Deza de Burzaco a Avellaneda, lo hizo Mauro') -> tarjeta 'Ya realizado' -> Confirmar -> servicio en estado terminado con fecha de ayer", async ({
+    page,
+  }) => {
+    // 1. Navegar a /asistente
+    await page.goto("/asistente");
+    const inputChat = page.getByPlaceholder(/Hablá con Chimuelo/i);
+    await expect(inputChat).toBeVisible();
+
+    // 2. Pedir a Chimuelo el servicio ya realizado
+    await inputChat.fill(
+      "Ayer hicimos un traslado para Deza de Burzaco a Avellaneda, lo hizo Mauro",
+    );
+    await page.getByRole("button", { name: "Enviar mensaje" }).click();
+
+    // 3. Aparece la tarjeta de propuesta con el rótulo "Ya realizado"
+    const tarjeta = page.getByTestId("tarjeta-propuesta");
+    await expect(tarjeta).toBeVisible({ timeout: 15000 });
+    await expect(tarjeta.getByTestId("badge-ya-realizado")).toBeVisible();
+    await expect(tarjeta.getByTestId("badge-ya-realizado")).toHaveText("Ya realizado");
+    await expect(tarjeta.getByText(/Burzaco → Avellaneda/).first()).toBeVisible();
+
+    const botonConfirmar = tarjeta.getByRole("button", {
+      name: "Confirmar",
+      exact: true,
+    });
+    await expect(botonConfirmar).toBeVisible();
+
+    // 4. Tocar Confirmar
+    await botonConfirmar.click();
+
+    // 5. Verificar mensaje de éxito
+    await expect(
+      page.getByText("¡Servicio realizado registrado con éxito!"),
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("link", { name: /Ver servicio/i })).toBeVisible();
+
+    // 6. Verificar con cliente admin que el servicio existe con fecha de ayer y estado terminado
+    const admin = await comoAdmin();
+    const hoyDate = new Date(Date.now() - 3 * 3600 * 1000);
+    const ayerDate = new Date(hoyDate.getTime() - 86400000);
+    const fechaAyerStr = ayerDate.toISOString().slice(0, 10);
+
+    const { data: servs, error: errServs } = await admin
+      .from("servicios")
+      .select("id, tipo, origen, destino, cliente_id, estado, fecha_programada")
+      .eq("cliente_id", CLIENTES.deza.id)
+      .eq("tipo", "traslado")
+      .eq("origen", "Burzaco")
+      .eq("destino", "Avellaneda")
+      .order("created_at", { ascending: false });
+
+    expect(errServs).toBeNull();
+    expect(servs).not.toBeNull();
+    expect(servs!.length).toBeGreaterThan(0);
+    const servCreado = servs![0];
+    expect(servCreado.estado).toBe("terminado");
+    expect(servCreado.fecha_programada).toBe(fechaAyerStr);
+
+    // 7. Verificar que tiene chofer asignado (Mauro)
+    const { data: choferesAsignados, error: errCh } = await admin
+      .from("servicio_choferes")
+      .select("chofer_id")
+      .eq("servicio_id", servCreado.id);
+    expect(errCh).toBeNull();
+    expect(choferesAsignados).not.toBeNull();
+    expect(choferesAsignados!.length).toBeGreaterThan(0);
+  });
 });
 

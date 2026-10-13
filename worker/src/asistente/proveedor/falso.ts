@@ -328,7 +328,86 @@ export class ProveedorFalso implements ProveedorModelo {
       };
     }
 
-    // Caso K: Alta / propuesta de servicio (§1 y §6: diálogo de traslado)
+    // Caso K1: Servicio ya realizado ("ayer hicimos un traslado...", "el lunes pasado alquilamos...")
+    if (
+      (limpio.includes("ayer") || limpio.includes("pasado") || limpio.includes("hicimos")) &&
+      (limpio.includes("traslado") || todoElTexto.includes("traslado"))
+    ) {
+      let cliente = "Deza";
+      if (limpio.includes("huma")) cliente = "Huma";
+      else if (limpio.includes("almatec")) cliente = "Almatec";
+
+      let chofer = "Mauro";
+      if (todoElTexto.includes("federico")) chofer = "Federico";
+
+      let origen = "Burzaco";
+      let destino = "Avellaneda";
+      if (limpio.includes("temperley")) origen = "Temperley";
+      if (limpio.includes("lomas")) destino = "Lomas";
+
+      let fecha = "ayer";
+      if (limpio.includes("lunes pasado")) fecha = "el lunes pasado";
+
+      return {
+        llamadasHerramientas: [
+          {
+            id: `call_proponer_realizado_${Date.now()}`,
+            nombre: "proponer_servicio_realizado",
+            argumentos: {
+              tipo: "traslado",
+              cliente,
+              fecha,
+              hora: "10:00",
+              origen,
+              destino,
+              km: 30,
+              ida_y_vuelta: false,
+              chofer,
+              vehiculo: "Ford Cargo",
+            },
+          },
+        ],
+        tokensEntrada: 70,
+        tokensSalida: 60,
+        costoUsd: 0.000086,
+        modelo: "falso",
+        promptVersion: "guion-test",
+      };
+    }
+
+    if (
+      (limpio.includes("ayer") || limpio.includes("pasado") || limpio.includes("alquilamos")) &&
+      limpio.includes("alquil")
+    ) {
+      let cliente = "Techint";
+      if (limpio.includes("deza")) cliente = "Deza";
+      else if (limpio.includes("almatec")) cliente = "Almatec";
+
+      return {
+        llamadasHerramientas: [
+          {
+            id: `call_proponer_realizado_alq_${Date.now()}`,
+            nombre: "proponer_servicio_realizado",
+            argumentos: {
+              tipo: "alquiler_hora",
+              cliente,
+              fecha: limpio.includes("ayer") ? "ayer" : "el lunes pasado",
+              maquina: "AE-01",
+              direccion: "Planta Techint",
+              descripcion: "Alquiler AE-01 4 horas",
+              monto: 120000,
+            },
+          },
+        ],
+        tokensEntrada: 70,
+        tokensSalida: 60,
+        costoUsd: 0.000086,
+        modelo: "falso",
+        promptVersion: "guion-test",
+      };
+    }
+
+    // Caso K2: Alta / propuesta de servicio futuro (§1 y §6: diálogo de traslado)
     // "Cargame un traslado para mañana, de Burzaco a Avellaneda, para Deza, a las 9"
     // -> "¿Lo hace Mauro o Federico? ¿Y es ida y vuelta?"
     // User responde: "Mauro, solo ida"
