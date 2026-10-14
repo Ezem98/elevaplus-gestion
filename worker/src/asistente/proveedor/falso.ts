@@ -407,6 +407,70 @@ export class ProveedorFalso implements ProveedorModelo {
       };
     }
 
+    // Caso L: Presupuesto ("haceme un presupuesto para...", "presupuesto para...")
+    if (limpio.includes("presupuesto") || todoElTexto.includes("presupuesto")) {
+      const tienePrecios =
+        todoElTexto.includes("350") ||
+        todoElTexto.includes("180") ||
+        todoElTexto.includes("$") ||
+        todoElTexto.includes("pesos");
+
+      if (!tienePrecios) {
+        return {
+          texto: "¿Qué precio le ponemos al traslado y cuánto por día el alquiler?",
+          tokensEntrada: 45,
+          tokensSalida: 25,
+          costoUsd: 0.000039,
+          modelo: "falso",
+          promptVersion: "guion-test",
+        };
+      }
+
+      let cliente = "Techint";
+      if (todoElTexto.includes("deza")) cliente = "Deza";
+      else if (todoElTexto.includes("almatec")) cliente = "Almatec";
+      else if (todoElTexto.includes("huma")) cliente = "Huma";
+
+      return {
+        llamadasHerramientas: [
+          {
+            id: `call_proponer_presupuesto_${Date.now()}`,
+            nombre: "proponer_presupuesto",
+            argumentos: {
+              cliente,
+              items: [
+                {
+                  tipo: "traslado",
+                  descripcion: "Traslado de la AE-01 de Burzaco a Campana",
+                  origen: "Burzaco",
+                  destino: "Campana",
+                  maquina: "AE-01",
+                  precio: 350000,
+                  moneda: "ARS",
+                },
+                {
+                  tipo: "alquiler_periodo",
+                  descripcion: "3 días de alquiler AE-01",
+                  maquina: "AE-01",
+                  cantidad: 3,
+                  unidad: "dia",
+                  precio_unitario: 180000,
+                  precio: 540000,
+                  moneda: "ARS",
+                },
+              ],
+              validez_dias: 15,
+            },
+          },
+        ],
+        tokensEntrada: 75,
+        tokensSalida: 65,
+        costoUsd: 0.000095,
+        modelo: "falso",
+        promptVersion: "guion-test",
+      };
+    }
+
     // Caso K2: Alta / propuesta de servicio futuro (§1 y §6: diálogo de traslado)
     // "Cargame un traslado para mañana, de Burzaco a Avellaneda, para Deza, a las 9"
     // -> "¿Lo hace Mauro o Federico? ¿Y es ida y vuelta?"
