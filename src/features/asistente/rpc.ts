@@ -6,6 +6,7 @@ export interface ResultadoConfirmarPropuesta {
   estado: "confirmada" | "vencida" | "fallida" | string;
   resultado_id?: string;
   servicio?: Record<string, unknown>;
+  presupuesto?: Record<string, unknown>;
   error?: string;
 }
 

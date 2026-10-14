@@ -12,6 +12,25 @@ test.describe("Asistente Chimuelo (E2E)", () => {
         .eq("cliente_id", CLIENTES.deza.id)
         .eq("origen", "Burzaco")
         .eq("destino", "Avellaneda");
+
+      const { data: presusTechint } = await admin
+        .from("presupuestos")
+        .select("id")
+        .eq("prospecto_nombre", "Techint");
+      if (presusTechint && presusTechint.length > 0) {
+        const pids = presusTechint.map((p) => p.id);
+        const { data: servsPres } = await admin
+          .from("servicios")
+          .select("id")
+          .in("presupuesto_id", pids);
+        if (servsPres && servsPres.length > 0) {
+          const sids = servsPres.map((s) => s.id);
+          await admin.from("alquileres").delete().in("servicio_id", sids);
+          await admin.from("servicios").delete().in("id", sids);
+        }
+        await admin.from("presupuestos").delete().in("id", pids);
+      }
+
       await admin.from("asistente_mensajes").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await admin.from("asistente_propuestas").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       await admin.from("asistente_conversaciones").delete().neq("id", "00000000-0000-0000-0000-000000000000");
@@ -320,6 +339,113 @@ test.describe("Asistente Chimuelo (E2E)", () => {
     expect(errCh).toBeNull();
     expect(choferesAsignados).not.toBeNull();
     expect(choferesAsignados!.length).toBeGreaterThan(0);
+  });
+
+  test("Pedir presupuesto sin precio -> Chimuelo pregunta el precio -> responder -> tarjeta -> Confirmar -> el presupuesto existe con sus ítems y montos exactos y 'Ver presupuesto' abre su página", async ({
+    page,
+  }) => {
+    // 1. Navegar a /asistente
+    await page.goto("/asistente");
+    const inputChat = page.getByPlaceholder(/Hablá con Chimuelo/i);
+    await expect(inputChat).toBeVisible();
+
+    // 2. Pedir presupuesto sin precio
+    await inputChat.fill(
+      "Haceme un presupuesto para Techint: traslado de la AE-01 de Burzaco a Campana y 3 días de alquiler",
+    );
+    await page.getByRole("button", { name: "Enviar mensaje" }).click();
+
+    // 3. Chimuelo responde preguntando el precio
+    await expect(
+      page.getByText("¿Qué precio le ponemos al traslado y cuánto por día el alquiler?"),
+    ).toBeVisible({ timeout: 15000 });
+
+    // 4. Responder con los precios
+    await inputChat.fill(
+      "El traslado $ 350.000 y el alquiler a $ 180.000 por día",
+    );
+    await page.getByRole("button", { name: "Enviar mensaje" }).click();
+
+    // 5. Aparece la tarjeta de propuesta de presupuesto
+    const tarjeta = page.getByTestId("tarjeta-propuesta");
+    await expect(tarjeta).toBeVisible({ timeout: 15000 });
+    await expect(tarjeta.getByText("Presupuesto", { exact: true })).toBeVisible();
+    await expect(tarjeta.getByText("Techint").first()).toBeVisible();
+    await expect(tarjeta.getByText(/Campana/).first()).toBeVisible();
+    await expect(tarjeta.getByText(/350\.000/).first()).toBeVisible();
+    await expect(tarjeta.getByText(/540\.000/).first()).toBeVisible();
+    await expect(tarjeta.getByText(/890\.000/).first()).toBeVisible();
+
+    const botonConfirmar = tarjeta.getByRole("button", {
+      name: "Confirmar",
+      exact: true,
+    });
+    await expect(botonConfirmar).toBeVisible();
+    await expect(
+      tarjeta.getByRole("button", { name: "Descartar", exact: true }),
+    ).toBeVisible();
+
+    // 6. Confirmar la propuesta
+    await botonConfirmar.click();
+
+    // 7. Aparece mensaje de éxito y enlace para ver el presupuesto
+    await expect(
+      page.getByText("¡Presupuesto creado con éxito!"),
+    ).toBeVisible({ timeout: 15000 });
+    const linkVerPresupuesto = page.getByRole("link", {
+      name: /Ver presupuesto/i,
+    });
+    await expect(linkVerPresupuesto).toBeVisible();
+
+    // 8. Verificar con el cliente admin que el presupuesto y sus ítems existen en la base
+    const admin = await comoAdmin();
+    const { data: presus, error: errPres } = await admin
+      .from("presupuestos")
+      .select("id, prospecto_nombre, estado, validez_dias")
+      .eq("prospecto_nombre", "Techint")
+      .order("created_at", { ascending: false });
+
+    expect(errPres).toBeNull();
+    expect(presus).not.toBeNull();
+    expect(presus!.length).toBeGreaterThan(0);
+    const presCreado = presus![0];
+    expect(presCreado.prospecto_nombre).toBe("Techint");
+    expect(presCreado.estado).toBe("borrador");
+
+    const { data: items, error: errItems } = await admin
+      .from("servicios")
+      .select("id, tipo, descripcion, monto, moneda, origen, destino")
+      .eq("presupuesto_id", presCreado.id)
+      .order("monto", { ascending: true });
+
+    expect(errItems).toBeNull();
+    expect(items).not.toBeNull();
+    expect(items!.length).toBe(2);
+
+    const itemTraslado = items!.find((it) => it.tipo === "traslado");
+    expect(itemTraslado).toBeDefined();
+    expect(Number(itemTraslado!.monto)).toBe(350000);
+    expect(itemTraslado!.origen).toBe("Burzaco");
+    expect(itemTraslado!.destino).toBe("Campana");
+
+    const itemAlquiler = items!.find((it) => it.tipo === "alquiler_periodo");
+    expect(itemAlquiler).toBeDefined();
+    expect(Number(itemAlquiler!.monto)).toBe(540000);
+
+    const { data: alqDetalle, error: errAlq } = await admin
+      .from("alquileres")
+      .select("*")
+      .eq("servicio_id", itemAlquiler!.id)
+      .single();
+    expect(errAlq).toBeNull();
+    expect(alqDetalle.cantidad).toBe(3);
+    expect(Number(alqDetalle.precio_unidad)).toBe(180000);
+
+    // 9. Hacer clic en "Ver presupuesto" y verificar que abre su página
+    await linkVerPresupuesto.click();
+    await page.waitForURL((url) => url.pathname === `/presupuestos/${presCreado.id}`);
+    expect(page.url()).toContain(`/presupuestos/${presCreado.id}`);
+    await expect(page.getByText("Techint").first()).toBeVisible();
   });
 });
 

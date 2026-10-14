@@ -7,6 +7,7 @@ import { herramientaChoferesDisponibles } from "./choferes";
 import { herramientaCotizarTraslado } from "./cotizarTraslado";
 import { herramientaEstadoMaquina } from "./maquinas";
 import { herramientaProponerCambioEstado } from "./proponerCambioEstado";
+import { herramientaProponerPresupuesto } from "./proponerPresupuesto";
 import { herramientaProponerServicio } from "./proponerServicio";
 import { herramientaProponerServicioRealizado } from "./proponerServicioRealizado";
 import { herramientaResolverFecha } from "./resolverFecha";
@@ -25,6 +26,7 @@ export {
   herramientaEstadoMaquina,
   herramientaPendientesFacturar,
   herramientaProponerCambioEstado,
+  herramientaProponerPresupuesto,
   herramientaProponerServicio,
   herramientaProponerServicioRealizado,
   herramientaResolverFecha,
@@ -51,6 +53,7 @@ export const TODAS_LAS_HERRAMIENTAS: HerramientaAsistente[] = [
   herramientaProponerServicio,
   herramientaProponerServicioRealizado,
   herramientaProponerCambioEstado,
+  herramientaProponerPresupuesto,
 ];
 
 const MAPA_HERRAMIENTAS = new Map<string, HerramientaAsistente>(

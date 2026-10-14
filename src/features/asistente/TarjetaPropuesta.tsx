@@ -27,9 +27,11 @@ export function TarjetaPropuesta({
   const estado = prop.estado;
   const esCambioEstado = prop.accion === "cambiar_estado";
   const esServicioRealizado = prop.accion === "crear_servicio_realizado";
+  const esPresupuesto = prop.accion === "crear_presupuesto";
 
   const sinChofer =
     !esCambioEstado &&
+    !esPresupuesto &&
     (!datos.choferes ||
       !Array.isArray(datos.choferes) ||
       datos.choferes.length === 0);
@@ -136,7 +138,9 @@ export function TarjetaPropuesta({
               ? "Cambio de estado"
               : esServicioRealizado
                 ? "Servicio ya realizado"
-                : "Propuesta de servicio"}
+                : esPresupuesto
+                  ? "Presupuesto"
+                  : "Propuesta de servicio"}
           </span>
           {esServicioRealizado && (
             <span
@@ -144,6 +148,14 @@ export function TarjetaPropuesta({
               className="text-[10px] font-bold uppercase tracking-wider bg-alerta-suave text-alerta px-2 py-0.5 rounded border border-alerta/30"
             >
               Ya realizado
+            </span>
+          )}
+          {esPresupuesto && datos.es_prospecto && (
+            <span
+              data-testid="badge-prospecto"
+              className="text-[10px] font-bold uppercase tracking-wider bg-marca-suave text-marca px-2 py-0.5 rounded border border-marca/30"
+            >
+              Prospecto
             </span>
           )}
         </div>
@@ -174,7 +186,115 @@ export function TarjetaPropuesta({
 
       <div className="p-3.5 space-y-3 text-sm">
         {/* Pares etiqueta/valor según tipo de propuesta */}
-        {esCambioEstado ? (
+        {esPresupuesto ? (
+          <div className="space-y-2.5 text-xs">
+            {/* Cliente o Prospecto */}
+            <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
+              <span className="text-tinta-suave">
+                {datos.es_prospecto ? "Prospecto:" : "Cliente:"}
+              </span>
+              <span className="font-medium text-tinta text-right">
+                {datos.cliente || datos.presupuesto?.prospecto_nombre || "Sin cliente"}
+                {datos.es_prospecto && datos.presupuesto?.prospecto_telefono
+                  ? ` · Tel: ${datos.presupuesto.prospecto_telefono}`
+                  : ""}
+              </span>
+            </div>
+
+            {/* Tabla de ítems */}
+            {Array.isArray(datos.items) && datos.items.length > 0 && (
+              <div className="overflow-x-auto rounded border border-borde/60">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-fondo text-tinta-suave border-b border-borde/60">
+                    <tr>
+                      <th className="py-1 px-2 font-medium">Descripción</th>
+                      <th className="py-1 px-2 font-medium text-center">Cant.</th>
+                      <th className="py-1 px-2 font-medium text-right">Precio</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-borde/40 bg-superficie">
+                    {datos.items.map((it: any, idx: number) => {
+                      const cantTexto = it.alquiler?.cantidad
+                        ? `${it.alquiler.cantidad} ${
+                            it.alquiler.unidad === "dia"
+                              ? it.alquiler.cantidad === 1 ? "día" : "días"
+                              : it.alquiler.unidad === "mes"
+                                ? it.alquiler.cantidad === 1 ? "mes" : "meses"
+                                : it.alquiler.unidad || "u."
+                          }`
+                        : it.cantidad
+                          ? `${it.cantidad} ${it.unidad || "u."}`
+                          : "1";
+
+                      const precioItem =
+                        it.moneda === "USD"
+                          ? formatearDolares(it.monto_moneda ?? it.precio ?? it.monto)
+                          : formatearPesos(it.monto ?? it.precio);
+
+                      return (
+                        <tr key={idx} className="hover:bg-fondo/40">
+                          <td className="py-1.5 px-2 font-medium text-tinta">
+                            <div>{it.descripcion || it.tipo}</div>
+                            {it.tipo === "traslado" && (it.origen || it.destino) && (
+                              <div className="text-[11px] text-tinta-suave font-normal">
+                                {it.origen || "—"} → {it.destino || "—"}
+                                {it.ida_y_vuelta ? " (ida y vuelta)" : ""}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2 text-center text-tinta-suave whitespace-nowrap">
+                            {cantTexto}
+                          </td>
+                          <td className="py-1.5 px-2 text-right font-medium text-tinta whitespace-nowrap">
+                            {precioItem}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Totales por moneda */}
+            <div className="flex flex-col gap-1 pt-1 border-t border-borde/40">
+              {datos.totales?.ARS != null && (
+                <div className="flex justify-between items-baseline">
+                  <span className="font-semibold text-tinta-suave">Total ARS:</span>
+                  <span className="text-sm font-bold text-marca">
+                    {formatearPesos(datos.totales.ARS)}
+                  </span>
+                </div>
+              )}
+              {datos.totales?.USD != null && (
+                <div className="flex justify-between items-baseline">
+                  <span className="font-semibold text-tinta-suave">Total USD:</span>
+                  <span className="text-sm font-bold text-marca">
+                    {formatearDolares(datos.totales.USD)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Validez */}
+            <div className="flex justify-between items-baseline py-0.5 border-t border-borde/40 text-[11px]">
+              <span className="text-tinta-suave">Validez:</span>
+              <span className="font-medium text-tinta">
+                {datos.validez_dias || datos.presupuesto?.validez_dias || 15} días
+              </span>
+            </div>
+
+            {/* Condiciones si existen */}
+            {(datos.condiciones || datos.presupuesto?.condiciones) && (
+              <div className="flex justify-between items-baseline py-0.5 border-t border-borde/40 text-[11px]">
+                <span className="text-tinta-suave">Condiciones:</span>
+                <span className="font-medium text-tinta text-right">
+                  {datos.condiciones || datos.presupuesto?.condiciones}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : esCambioEstado ? (
           <div className="grid grid-cols-1 gap-1.5 text-xs">
             <div className="flex justify-between items-baseline py-0.5 border-b border-borde/40">
               <span className="text-tinta-suave">Servicio:</span>
@@ -294,8 +414,8 @@ export function TarjetaPropuesta({
           </div>
         )}
 
-        {/* Resumen textual si existe */}
-        {prop.resumen && (
+        {/* Resumen textual si existe (solo para servicios y cambios de estado) */}
+        {prop.resumen && !esPresupuesto && (
           <div className="rounded bg-fondo p-2 text-xs text-tinta whitespace-pre-line border border-borde/50">
             {prop.resumen}
           </div>
@@ -317,16 +437,25 @@ export function TarjetaPropuesta({
                 ? "¡Estado actualizado con éxito!"
                 : esServicioRealizado
                   ? "¡Servicio realizado registrado con éxito!"
-                  : "¡Servicio creado con éxito!"}
+                  : esPresupuesto
+                    ? "¡Presupuesto creado con éxito!"
+                    : "¡Servicio creado con éxito!"}
             </span>
-            {(prop.resultado_id || datos.servicio_id) && (
+            {esPresupuesto && prop.resultado_id ? (
+              <Link
+                to={`/presupuestos/${prop.resultado_id}`}
+                className="inline-flex items-center gap-1 font-semibold text-ok underline hover:opacity-80"
+              >
+                Ver presupuesto <ExternalLink className="size-3.5" />
+              </Link>
+            ) : (prop.resultado_id || datos.servicio_id) ? (
               <Link
                 to={`/servicios/${prop.resultado_id || datos.servicio_id}`}
                 className="inline-flex items-center gap-1 font-semibold text-ok underline hover:opacity-80"
               >
                 Ver servicio <ExternalLink className="size-3.5" />
               </Link>
-            )}
+            ) : null}
           </Aviso>
         )}
 
@@ -344,7 +473,9 @@ export function TarjetaPropuesta({
                 ? "Ocurrió un error al cambiar el estado del servicio."
                 : esServicioRealizado
                   ? "Ocurrió un error al registrar el servicio realizado."
-                  : "Ocurrió un error al crear el servicio.")}
+                  : esPresupuesto
+                    ? "Ocurrió un error al crear el presupuesto."
+                    : "Ocurrió un error al crear el servicio.")}
           </Aviso>
         )}
 
@@ -369,28 +500,30 @@ export function TarjetaPropuesta({
               {procesando ? "Confirmando…" : "Confirmar"}
             </Boton>
 
-            {esCambioEstado ? (
-              datos.servicio_id && (
-                <Link
-                  to={`/servicios/${datos.servicio_id}`}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-md border border-borde bg-superficie px-3 py-2 text-xs font-medium text-tinta hover:bg-fondo transition-colors flex-1"
+            {!esPresupuesto && (
+              esCambioEstado ? (
+                datos.servicio_id && (
+                  <Link
+                    to={`/servicios/${datos.servicio_id}`}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-borde bg-superficie px-3 py-2 text-xs font-medium text-tinta hover:bg-fondo transition-colors flex-1"
+                  >
+                    <ExternalLink className="size-4" />
+                    Ver servicio
+                  </Link>
+                )
+              ) : (
+                <Boton
+                  type="button"
+                  variante="secundario"
+                  tamano="md"
+                  className="flex-1 text-xs"
+                  onClick={handleRevisar}
+                  disabled={procesando}
                 >
-                  <ExternalLink className="size-4" />
-                  Ver servicio
-                </Link>
+                  <Edit3 className="size-4" />
+                  Revisar en el formulario
+                </Boton>
               )
-            ) : (
-              <Boton
-                type="button"
-                variante="secundario"
-                tamano="md"
-                className="flex-1 text-xs"
-                onClick={handleRevisar}
-                disabled={procesando}
-              >
-                <Edit3 className="size-4" />
-                Revisar en el formulario
-              </Boton>
             )}
 
             <Boton
