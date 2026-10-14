@@ -14,6 +14,7 @@ export interface RespuestaModelo {
   costoUsd?: number;
   modelo?: string;
   promptVersion?: string;
+  contenidoCrudo?: unknown;
 }
 
 export interface ItemContextoTurno {
@@ -24,6 +25,7 @@ export interface ItemContextoTurno {
   name?: string;
   arguments?: string;
   output?: string;
+  contenidoCrudo?: unknown;
 }
 
 export interface EntradaGeneracionModelo {

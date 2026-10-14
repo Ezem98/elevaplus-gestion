@@ -217,7 +217,7 @@ export const herramientaBuscarServicio: HerramientaAsistente = {
           "maquinas!servicios_maquina_id_fkey(id, codigo_interno, modelo), " +
           "servicio_choferes(chofer:perfiles!servicio_choferes_chofer_id_fkey(id, nombre)), " +
           "paradas(orden, direccion, localidad, carga, estado), " +
-          "alquileres(fecha_desde, fecha_hasta, unidad, cantidad, precio_unidad)",
+          "alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta, unidad, cantidad, precio_unidad)",
       );
 
     if (args.numero) {

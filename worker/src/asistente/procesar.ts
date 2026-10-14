@@ -137,6 +137,13 @@ export async function procesarTurno(
     const llamadas = respuesta.llamadasHerramientas || [];
 
     if (llamadas.length > 0) {
+      if (respuesta.contenidoCrudo) {
+        itemsTurno.push({
+          type: "message",
+          role: "assistant",
+          contenidoCrudo: respuesta.contenidoCrudo,
+        });
+      }
       for (const call of llamadas) {
         const herramienta = obtenerHerramientaPorNombre(call.nombre);
         let resultadoEjecucion: any = null;

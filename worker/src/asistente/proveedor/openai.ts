@@ -17,6 +17,16 @@ function sanitizarMensaje(mensaje: string, apiKey?: string): string {
  * Proveedor oficial para OpenAI utilizando el SDK oficial y la Responses API
  * (client.responses.create), con soporte para tool calling y prompts versionados.
  */
+// Precios estándar en US$ por 1M de tokens (página de precios de OpenAI, 14/10/2026). Modelo desconocido: el de GPT-5.6 Luna.
+const PRECIOS_OPENAI: Record<string, { entrada: number; cacheada: number; salida: number }> = {
+  "gpt-6-luna": { entrada: 0.1, cacheada: 0.01, salida: 0.5 },
+  "gpt-5.6-luna": { entrada: 0.2, cacheada: 0.2, salida: 1.2 },
+};
+
+export function precioModelo(modelo: string) {
+  return PRECIOS_OPENAI[modelo] ?? PRECIOS_OPENAI["gpt-5.6-luna"];
+}
+
 export class ProveedorOpenAI implements ProveedorModelo {
   private apiKey: string;
   private modelo: string;
@@ -197,15 +207,24 @@ export class ProveedorOpenAI implements ProveedorModelo {
       partesTexto.push(data.output_text);
     }
 
-    // 6. Tokens y cálculo de costos (GPT-5.6 Luna: $0.20 / $1.20 por 1M)
+    // 6. Tokens y cálculo de costos (precios estándar por 1M de tokens; los cacheados van aparte)
     const tokensEntrada = Number(
       data.usage?.input_tokens ?? data.usage?.prompt_tokens ?? 0,
+    );
+    const tokensCacheados = Number(
+      data.usage?.input_tokens_details?.cached_tokens ?? 0,
     );
     const tokensSalida = Number(
       data.usage?.output_tokens ?? data.usage?.completion_tokens ?? 0,
     );
+    const precio = precioModelo(this.modelo);
     const costoUsd = Number(
-      ((tokensEntrada * 0.20 + tokensSalida * 1.20) / 1_000_000).toFixed(6),
+      (
+        ((tokensEntrada - tokensCacheados) * precio.entrada +
+          tokensCacheados * precio.cacheada +
+          tokensSalida * precio.salida) /
+        1_000_000
+      ).toFixed(6),
     );
 
     return {

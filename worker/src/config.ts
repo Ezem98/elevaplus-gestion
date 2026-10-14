@@ -69,8 +69,13 @@ const esquemaConfig = z.object({
     .default("gpt-4o-mini-transcribe"),
   OPENAI_PROMPT_ID: z.string().optional(),
   OPENAI_PROMPT_VERSION: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional().default(""),
+  ANTHROPIC_MODELO: z.string().optional().default("claude-haiku-5-5"),
   ASISTENTE_TOPE_DIARIO_USD: z.coerce.number().optional().default(1),
-  ASISTENTE_MODELO: z.enum(["openai", "falso"]).optional().default("openai"),
+  ASISTENTE_MODELO: z
+    .enum(["openai", "claude", "falso"])
+    .optional()
+    .default("openai"),
 });
 
 export const config = esquemaConfig.parse(process.env);
