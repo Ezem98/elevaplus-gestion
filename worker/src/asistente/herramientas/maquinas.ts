@@ -64,7 +64,7 @@ export const herramientaEstadoMaquina: HerramientaAsistente = {
         .select(
           "id, maquina_id, estado, direccion_trabajo, localidad_trabajo, " +
             "clientes!servicios_cliente_id_fkey(id, nombre), " +
-            "alquileres(fecha_desde, fecha_hasta, unidad, cantidad)",
+            "alquileres!alquileres_servicio_id_fkey(fecha_desde, fecha_hasta, unidad, cantidad)",
         )
         .in("maquina_id", maquinaIds)
         .in("estado", ["programado", "en_curso"]);

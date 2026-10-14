@@ -1,0 +1,107 @@
+[
+  {
+    "id": "caso-01-servicios-hoy",
+    "titulo": "Servicios de hoy",
+    "categoria": "consulta",
+    "pedido": "¿Qué servicios tenemos programados para hoy en la empresa?",
+    "esperado": "Llama a servicios_del_dia y responde con la lista de servicios del día de hoy."
+  },
+  {
+    "id": "caso-02-deuda-cliente",
+    "titulo": "Deuda de un cliente",
+    "categoria": "consulta",
+    "pedido": "¿Cuánto nos debe Deza Test hasta el momento?",
+    "esperado": "Llama a saldo_cliente o buscar_cliente para Deza Test y devuelve el saldo adeudado."
+  },
+  {
+    "id": "caso-03-donde-esta-maquina",
+    "titulo": "Ubicación de una máquina",
+    "categoria": "consulta",
+    "pedido": "¿Dónde está la máquina AE-01 ahora y en qué estado se encuentra?",
+    "esperado": "Llama a estado_maquina con codigo 'AE-01' e informa ubicación y disponibilidad."
+  },
+  {
+    "id": "caso-04-cotizar-traslado",
+    "titulo": "Cotizar un traslado",
+    "categoria": "consulta",
+    "pedido": "Cotizame un traslado de 30 km en el Ford Cargo con carga pesada ida y vuelta.",
+    "esperado": "Llama a cotizar_traslado con km=30, vehiculo='Ford Cargo', carga='pesada' e ida_y_vuelta=true."
+  },
+  {
+    "id": "caso-05-proponer-servicio",
+    "titulo": "Proponer servicio completo",
+    "categoria": "propuesta",
+    "pedido": "Cargame un traslado para mañana para Deza Test desde Burzaco hasta Lanús con el Ford Cargo a las 09:00 con Chofer 1 Test.",
+    "esperado": "Resuelve fecha para mañana y llama a proponer_servicio sin confirmar."
+  },
+  {
+    "id": "caso-06-servicio-realizado",
+    "titulo": "Servicio ya realizado",
+    "categoria": "propuesta_realizado",
+    "pedido": "Ayer hicimos un traslado para Monotributo Test desde Lomas hasta Banfield con la Ranger, ya se realizó.",
+    "esperado": "Detecta fecha pasada y llama a proponer_servicio_realizado."
+  },
+  {
+    "id": "caso-07-cambio-estado",
+    "titulo": "Cambio de estado de servicio",
+    "categoria": "cambio_estado",
+    "pedido": "Por favor pasá el servicio de Deza Test a terminado.",
+    "esperado": "Busca el servicio y llama a proponer_cambio_estado con nuevo_estado='terminado'."
+  },
+  {
+    "id": "caso-08-presupuesto-con-precios",
+    "titulo": "Presupuesto con precios especificados",
+    "categoria": "presupuesto",
+    "pedido": "Armame un presupuesto para Deza Test por 2 días de alquiler de autoelevador a $150.000 por día y un traslado a $80.000.",
+    "esperado": "Llama a proponer_presupuesto con los ítems y precios informados por el usuario."
+  },
+  {
+    "id": "caso-09-pedido-ambiguo",
+    "titulo": "Pedido ambiguo que obliga a repreguntar",
+    "categoria": "ambiguo",
+    "pedido": "Necesito un autoelevador para el jueves.",
+    "esperado": "No inventa datos; repregunta en un solo mensaje cliente, máquina o dirección necesaria."
+  },
+  {
+    "id": "caso-10-falta-precio",
+    "titulo": "Presupuesto donde falta el precio",
+    "categoria": "falta_precio",
+    "pedido": "Haceme un presupuesto para Monotributo Test por un mantenimiento preventivo de autoelevador en su planta.",
+    "esperado": "No usa cotizador ni inventa precio; pregunta explícitamente el precio o monto del ítem."
+  },
+  {
+    "id": "caso-11-fuera-de-alcance",
+    "titulo": "Pedido fuera de alcance",
+    "categoria": "fuera_de_alcance",
+    "pedido": "¿Podés redactarme una carta documento para un chofer que no se presentó a trabajar?",
+    "esperado": "Indica amablemente que está fuera del alcance de sus funciones como asistente de la empresa."
+  },
+  {
+    "id": "caso-12-dolares-sin-cotizacion",
+    "titulo": "Alquiler en dólares sin cotización",
+    "categoria": "dolares",
+    "pedido": "Cargame un alquiler mensual para Deza Test de la máquina AE-01 por 1.200 dólares pero no tengo la cotización del dólar hoy.",
+    "esperado": "Procesa o aclara el valor en dólares o consulta la cotización sin inventar el tipo de cambio."
+  },
+  {
+    "id": "caso-13-cheques-proximos",
+    "titulo": "Cheques próximos por vencer",
+    "categoria": "consulta",
+    "pedido": "¿Qué cheques tenemos en cartera por vencer esta semana?",
+    "esperado": "Llama a cheques_proximos y devuelve la lista de cheques por cobrar."
+  },
+  {
+    "id": "caso-14-choferes-disponibles",
+    "titulo": "Choferes disponibles",
+    "categoria": "consulta",
+    "pedido": "¿Qué choferes tenemos disponibles para trabajar mañana?",
+    "esperado": "Resuelve la fecha de mañana y llama a choferes_disponibles."
+  },
+  {
+    "id": "caso-15-pendientes-facturar",
+    "titulo": "Servicios pendientes de facturar",
+    "categoria": "consulta",
+    "pedido": "¿Cuáles son los servicios que ya se realizaron y todavía quedan pendientes de facturar?",
+    "esperado": "Llama a pendientes_facturar y resume los servicios sin factura emitida."
+  }
+]

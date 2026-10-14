@@ -7,10 +7,12 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest run src"
+    "test": "vitest run src",
+    "comparar-modelos": "node scripts/correr-comparacion.mjs"
   },
   "dependencies": {
     "@afipsdk/afip.js": "^1.2.3",
+    "@anthropic-ai/sdk": "^0.133.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/supabase-js": "^2.117.3",

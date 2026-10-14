@@ -38,3 +38,7 @@ supabase/.temp
 test-results/
 playwright-report/
 tests/e2e/.auth/
+
+# asistente comparacion
+worker/comparacion/
+worker/.env.comparacion

@@ -11,6 +11,21 @@ describe("proponer_servicio_realizado", () => {
     conversacionId: "conv-456",
   };
 
+  it("traslado con monto y km en 0 → pide el precio en vez de proponer a $0", async () => {
+    const res = await herramientaProponerServicioRealizado.ejecutar(ctxBase, {
+      tipo: "traslado",
+      cliente: "Monotributo Test",
+      fecha: "ayer",
+      origen: "Lomas",
+      destino: "Banfield",
+      monto: 0,
+      km: 0,
+    });
+
+    expect(res.faltan).toContain("monto o km");
+    expect(res.propuesta_id).toBeUndefined();
+  });
+
   it("rechaza fecha futura con error claro", async () => {
     const res = await herramientaProponerServicioRealizado.ejecutar(ctxBase, {
       tipo: "traslado",
@@ -18,6 +33,7 @@ describe("proponer_servicio_realizado", () => {
       fecha: "mañana",
       origen: "Burzaco",
       destino: "Avellaneda",
+      monto: 100000,
     });
 
     expect(res.error).toBeDefined();
@@ -35,6 +51,7 @@ describe("proponer_servicio_realizado", () => {
       fecha: "2026-05-01",
       origen: "Burzaco",
       destino: "Avellaneda",
+      monto: 100000,
     });
 
     expect(res.error).toBeDefined();

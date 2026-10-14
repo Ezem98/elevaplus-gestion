@@ -79,6 +79,13 @@ export async function ejecutarPropuestaServicio(
 ) {
   const { esRealizado } = opciones;
 
+  // El modelo a veces manda 0 en vez de omitir el dato: un precio o km en 0 cuenta como faltante.
+  for (const campo of ["monto", "precio_usd", "km"] as const) {
+    if (args[campo] != null && !(Number(args[campo]) > 0)) {
+      args = { ...args, [campo]: undefined };
+    }
+  }
+
   if (!args.tipo) {
     return {
       faltan: ["tipo"],
@@ -124,6 +131,8 @@ export async function ejecutarPropuestaServicio(
       if (!tieneOrigen) faltan.push("origen");
       if (!tieneDestino) faltan.push("destino");
     }
+    // Sin precio hace falta el km para el cotizador (nunca se inventa la distancia).
+    if (args.monto == null && args.km == null) faltan.push("monto o km");
   } else if (tipoNormalizado === "alquiler_hora") {
     // alquiler por hora: cliente, fecha, máquina, dirección
     if (!args.fecha || args.fecha.trim() === "") faltan.push("fecha");
@@ -416,7 +425,7 @@ export async function ejecutarPropuestaServicio(
         };
         const desglose = cotizar(
           {
-            km: Number(args.km || 30),
+            km: Number(args.km),
             vehiculo: {
               coef_precio: Number(vCot.coef_precio || 1),
               coef_carga_menor_50: Number(vCot.coef_carga_menor_50 || 1),
