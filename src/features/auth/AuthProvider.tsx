@@ -29,23 +29,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Supabase vuelve a emitir SIGNED_IN / TOKEN_REFRESHED con un objeto de sesión
+  // nuevo cada vez que la pestaña recupera el foco. Si dependiéramos de `session`,
+  // `cargando` pasaría a true, RutaProtegida mostraría "Cargando…" y se desmontaría
+  // toda la pantalla (formularios a medio cargar, chat de Chimuelo). Por eso el
+  // perfil se busca solo cuando cambia el usuario.
+  const usuarioId = session?.user.id ?? null;
+
   useEffect(() => {
-    if (!session) {
+    if (!usuarioId) {
       setPerfil(null);
       setCargando(false);
       return;
     }
+    let vigente = true;
     setCargando(true);
     supabase
       .from("perfiles")
       .select("id, nombre, rol, telefono, activo")
-      .eq("id", session.user.id)
+      .eq("id", usuarioId)
       .single()
       .then(({ data }) => {
+        if (!vigente) return;
         setPerfil((data as Perfil) ?? null);
         setCargando(false);
       });
-  }, [session]);
+    return () => {
+      vigente = false;
+    };
+  }, [usuarioId]);
 
   const salir = async () => {
     limpiarTodosLosBorradores();

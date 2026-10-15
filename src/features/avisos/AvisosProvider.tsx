@@ -109,13 +109,16 @@ export function AvisosProvider({ children }: { children: ReactNode }) {
     [cerrarAviso]
   );
 
-  // Suscripción en tiempo real para admin y oficina
+  // Suscripción en tiempo real para admin y oficina. Depende del id y el rol, no
+  // de los objetos: la sesión cambia de identidad en cada renovación de token.
+  const userIdActual = session?.user?.id ?? perfil?.id ?? null;
+  const rolActual = perfil?.rol ?? null;
+
   useEffect(() => {
-    if (!perfil || (perfil.rol !== "admin" && perfil.rol !== "oficina")) {
+    if (!userIdActual || (rolActual !== "admin" && rolActual !== "oficina")) {
       return;
     }
 
-    const userIdActual = session?.user?.id ?? perfil.id;
     let activo = true;
     let canal: RealtimeChannel | null = null;
 
@@ -282,7 +285,7 @@ export function AvisosProvider({ children }: { children: ReactNode }) {
         supabase.removeChannel(canal);
       }
     };
-  }, [perfil, session, mostrarAviso]);
+  }, [userIdActual, rolActual, mostrarAviso]);
 
   return (
     <AvisosContext.Provider value={{ mostrarAviso }}>
