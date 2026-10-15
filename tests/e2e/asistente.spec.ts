@@ -196,7 +196,11 @@ test.describe("Asistente Chimuelo (E2E)", () => {
   }) => {
     // 1. Crear como admin un servicio programado de prueba para hoy
     const admin = await comoAdmin();
-    const hoyStr = new Date().toISOString().slice(0, 10);
+    // "Hoy" en Argentina, como lo calcula el worker: entre las 21 y las 24 hs
+    // la fecha UTC ya es mañana y Chimuelo no encontraría el servicio.
+    const hoyStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Argentina/Buenos_Aires",
+    }).format(new Date());
     const { data: servCreado, error: errCrea } = await admin
       .from("servicios")
       .insert({
