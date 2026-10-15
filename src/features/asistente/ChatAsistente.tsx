@@ -9,7 +9,9 @@ import type {
   AsistenteMensaje,
   AsistentePropuesta,
 } from "@/lib/tipos";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { NOMBRE_ASISTENTE } from "./constantes";
+import { leerEstadoChat, guardarEstadoChat } from "./estadoChat";
 import { TarjetaPropuesta } from "./TarjetaPropuesta";
 import { BotonMicrofono } from "./BotonMicrofono";
 import { Boton } from "@/components/ui/Boton";
@@ -29,18 +31,24 @@ interface ChatAsistenteProps {
 }
 
 export function ChatAsistente({ onCerrar }: ChatAsistenteProps) {
+  const { session } = useAuth();
+  const usuarioId = session?.user.id ?? "anon";
+  // Si la app se recarga (versión nueva, el celular descartó la pestaña), se
+  // retoma la conversación abierta y lo que se estaba escribiendo.
+  const [estadoInicial] = useState(() => leerEstadoChat(usuarioId));
+
   const [conversaciones, setConversaciones] = useState<AsistenteConversacion[]>(
     [],
   );
   const [conversacionActivaId, setConversacionActivaId] = useState<
     string | null
-  >(null);
+  >(estadoInicial.conversacionId);
   const [mensajes, setMensajes] = useState<AsistenteMensaje[]>([]);
   const [propuestasPorId, setPropuestasPorId] = useState<
     Record<string, AsistentePropuesta>
   >({});
 
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto] = useState(estadoInicial.texto);
   const [pensando, setPensando] = useState(false);
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
@@ -118,6 +126,10 @@ export function ChatAsistente({ onCerrar }: ChatAsistenteProps) {
       setPropuestasPorId({});
     }
   }, [conversacionActivaId, cargarMensajes]);
+
+  useEffect(() => {
+    guardarEstadoChat(usuarioId, { conversacionId: conversacionActivaId, texto });
+  }, [usuarioId, conversacionActivaId, texto]);
 
   const iniciarNuevaConversacion = () => {
     setConversacionActivaId(null);

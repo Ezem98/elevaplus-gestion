@@ -200,7 +200,7 @@ export function useBorrador<T extends Record<string, any>>(
     return () => clearTimeout(timer);
   }, [estado, storageKey, clave, opciones?.deshabilitado]);
 
-  // Guardar antes de recargar la página (beforeunload)
+  // Guardar antes de recargar la página o al irse a segundo plano
   useEffect(() => {
     if (opciones?.deshabilitado || !clave) return;
 
@@ -221,8 +221,20 @@ export function useBorrador<T extends Record<string, any>>(
       }
     };
 
+    // En el celular, el sistema puede descartar la app en segundo plano sin
+    // disparar beforeunload: guardamos también al ocultarse la pestaña.
+    const alOcultar = () => {
+      if (document.visibilityState === "hidden") alRecargar();
+    };
+
     window.addEventListener("beforeunload", alRecargar);
-    return () => window.removeEventListener("beforeunload", alRecargar);
+    window.addEventListener("pagehide", alRecargar);
+    document.addEventListener("visibilitychange", alOcultar);
+    return () => {
+      window.removeEventListener("beforeunload", alRecargar);
+      window.removeEventListener("pagehide", alRecargar);
+      document.removeEventListener("visibilitychange", alOcultar);
+    };
   }, [storageKey, clave, opciones?.deshabilitado]);
 
   // Descartar borrador

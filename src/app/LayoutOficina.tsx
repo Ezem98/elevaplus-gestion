@@ -57,7 +57,21 @@ const enlacesMovil = [
 
 export function LayoutOficina() {
   const { perfil, salir } = useAuth();
-  const [panelAsistenteAbierto, setPanelAsistenteAbierto] = useState(false);
+  // El panel de Chimuelo queda abierto si la app se recarga en esta pestaña.
+  const [panelAsistenteAbierto, setPanelAsistenteAbierto] = useState(() => {
+    try {
+      return sessionStorage.getItem("chimuelo_panel") === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("chimuelo_panel", panelAsistenteAbierto ? "1" : "0");
+    } catch {
+      // sin sessionStorage no se recuerda
+    }
+  }, [panelAsistenteAbierto]);
   const primerNombre = perfil?.nombre
     ? perfil.nombre.trim().split(/\s+/)[0]
     : "";
