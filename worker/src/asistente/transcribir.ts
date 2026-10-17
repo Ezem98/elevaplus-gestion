@@ -137,14 +137,21 @@ export async function transcribirAudio(
       file: archivo,
       model: modelo,
       language: "es",
-      response_format: "verbose_json",
+      // Los modelos gpt-4o-*-transcribe solo aceptan "json" o "text";
+      // "verbose_json" (que trae la duración) queda solo para whisper-1.
+      response_format: modelo.includes("whisper") ? "verbose_json" : "json",
     });
 
     const texto = (respuesta?.text || "").trim();
+    // Duración: la de whisper (verbose_json), la de usage si viene en
+    // segundos, o la que mandó el navegador en X-Duracion-Segundos.
     const duracion =
       typeof respuesta?.duration === "number"
         ? respuesta.duration
-        : duracionSegundosHeader;
+        : respuesta?.usage?.type === "duration" &&
+            typeof respuesta.usage.seconds === "number"
+          ? respuesta.usage.seconds
+          : duracionSegundosHeader;
 
     const costoUsd = duracion
       ? calcularCostoTranscripcion(duracion, modelo)

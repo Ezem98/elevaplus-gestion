@@ -137,12 +137,44 @@ describe("Módulo transcribirAudio y utilidades", () => {
       // Verificación de idioma español obligatorio
       expect(callArgs.language).toBe("es");
       expect(callArgs.model).toBe("gpt-4o-mini-transcribe");
-      expect(callArgs.response_format).toBe("verbose_json");
+      expect(callArgs.response_format).toBe("json");
       expect(callArgs.file).toBeDefined();
 
       expect(res.texto).toBe("Hola Chimuelo traslado para el viernes");
       expect(res.duracionSegundos).toBe(45.5);
       expect(res.costoUsd).toBeGreaterThan(0);
+    });
+
+    it("con gpt-4o-mini-transcribe usa la duración del navegador si la respuesta no la trae", async () => {
+      config.OPENAI_API_KEY = "sk-test-key-123";
+      const mockCreate = vi.fn().mockResolvedValue({ text: "hola" });
+      const res = await transcribirAudio({
+        buffer: Buffer.from("x"),
+        mimetype: "audio/webm",
+        duracionSegundosHeader: 20,
+        clienteOpenAI: {
+          audio: { transcriptions: { create: mockCreate } },
+        } as any,
+      });
+      expect(mockCreate.mock.calls[0][0].response_format).toBe("json");
+      expect(res.duracionSegundos).toBe(20);
+      expect(res.costoUsd).toBeGreaterThan(0);
+    });
+
+    it("con whisper-1 sigue pidiendo verbose_json", async () => {
+      config.OPENAI_API_KEY = "sk-test-key-123";
+      const mockCreate = vi
+        .fn()
+        .mockResolvedValue({ text: "hola", duration: 10 });
+      await transcribirAudio({
+        buffer: Buffer.from("x"),
+        mimetype: "audio/webm",
+        modelo: "whisper-1",
+        clienteOpenAI: {
+          audio: { transcriptions: { create: mockCreate } },
+        } as any,
+      });
+      expect(mockCreate.mock.calls[0][0].response_format).toBe("verbose_json");
     });
   });
 });
