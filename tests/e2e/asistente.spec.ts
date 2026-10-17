@@ -451,5 +451,29 @@ test.describe("Asistente Chimuelo (E2E)", () => {
     expect(page.url()).toContain(`/presupuestos/${presCreado.id}`);
     await expect(page.getByText("Techint").first()).toBeVisible();
   });
+
+  test("Pedir cotización de traslado de Burzaco a Campana sin km -> Chimuelo calcula distancia y responde con km y precio", async ({
+    page,
+  }) => {
+    // 1. Navegar a /asistente
+    await page.goto("/asistente");
+    const inputChat = page.getByPlaceholder(/Hablá con Chimuelo/i);
+    await expect(inputChat).toBeVisible();
+
+    // 2. Pedir la cotización del traslado sin indicar los km
+    await inputChat.fill(
+      "Cotizame un traslado de Burzaco a Campana con el Ford Cargo, solo ida",
+    );
+    await page.getByRole("button", { name: "Enviar mensaje" }).click();
+
+    // 3. Chimuelo responde calculando la distancia y cotizando:
+    // Debe mostrar los km (105.4 km) y el precio calculado ($ 451.534)
+    await expect(page.getByText(/105[.,]4\s*km/i)).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByText(/\$\s*451\.534/)).toBeVisible({
+      timeout: 15000,
+    });
+  });
 });
 

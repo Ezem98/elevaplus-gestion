@@ -76,6 +76,7 @@ const esquemaConfig = z.object({
     .enum(["openai", "claude", "falso"])
     .optional()
     .default("openai"),
+  GOOGLE_MAPS_API_KEY: z.string().optional().default(""),
 });
 
 export const config = esquemaConfig.parse(process.env);

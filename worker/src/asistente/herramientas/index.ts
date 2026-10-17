@@ -1,5 +1,6 @@
 import type { HerramientaAsistente, RolPermitidoAsistente } from "../tipos";
 import { herramientaAgendaProxima } from "./agenda";
+import { herramientaCalcularDistancia } from "./calcularDistancia";
 import { herramientaChequesProximos } from "./cheques";
 import { herramientaBuscarCliente, herramientaSaldoCliente } from "./clientes";
 import { herramientaPendientesFacturar, herramientaResumenCobranzas } from "./cobranzas";
@@ -21,6 +22,7 @@ export {
   herramientaAgendaProxima,
   herramientaBuscarCliente,
   herramientaBuscarServicio,
+  herramientaCalcularDistancia,
   herramientaChoferesDisponibles,
   herramientaCotizarTraslado,
   herramientaEstadoMaquina,
@@ -38,6 +40,7 @@ export {
 
 export const TODAS_LAS_HERRAMIENTAS: HerramientaAsistente[] = [
   herramientaResolverFecha,
+  herramientaCalcularDistancia,
   herramientaCotizarTraslado,
   herramientaBuscarCliente,
   herramientaSaldoCliente,
