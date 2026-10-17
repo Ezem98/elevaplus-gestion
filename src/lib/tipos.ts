@@ -373,6 +373,7 @@ export interface Presupuesto {
   prospecto_cuit: string | null;
   validez_dias: number;
   condiciones: string | null;
+  forma_pago?: string | null;
   pdf_path: string | null;
   generado_at: string | null;
   enviado_at: string | null;
@@ -407,6 +408,7 @@ export interface Empresa {
   presupuesto_espera_autoelevador: string;
   presupuesto_espera_camion: string | null;
   presupuesto_condiciones_extra: string | null;
+  presupuesto_forma_pago?: string | null;
   precio_hora_espera_camion?: number | null;
   precio_hora_espera_autoelevador?: number | null;
   punto_venta_ws?: number;

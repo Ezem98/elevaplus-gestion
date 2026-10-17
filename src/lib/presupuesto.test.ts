@@ -135,6 +135,49 @@ describe("presupuesto", () => {
         "Forma de pago: al finalizar el servicio.",
       ]);
     });
+
+    it("usa la forma de pago configurada en traslados y alquiler por hora", () => {
+      const empresa = {
+        ...empresaMock,
+        presupuesto_forma_pago: "50% adelantado y 50% al terminar el viaje.",
+      };
+      for (const tipo of ["traslado", "alquiler_hora"] as const) {
+        const lineas = armarCondiciones({
+          empresa,
+          servicio: { tipo, aplica_iva: true },
+          validezDias: 15,
+        });
+        expect(lineas).toContain("Forma de pago: 50% adelantado y 50% al terminar el viaje.");
+      }
+    });
+
+    it("mantiene según plazo acordado en alquiler por período aunque haya forma de pago configurada", () => {
+      const lineas = armarCondiciones({
+        empresa: { ...empresaMock, presupuesto_forma_pago: "50% adelantado" },
+        servicio: { tipo: "alquiler_periodo", aplica_iva: true },
+        validezDias: 15,
+      });
+      expect(lineas).toContain("Forma de pago: según plazo acordado.");
+    });
+
+    it("la forma de pago del presupuesto pisa la de empresa", () => {
+      const lineas = armarCondiciones({
+        empresa: { ...empresaMock, presupuesto_forma_pago: "50% adelantado" },
+        servicio: { tipo: "traslado", aplica_iva: true },
+        validezDias: 15,
+        formaPago: "Contado anticipado",
+      });
+      expect(lineas).toContain("Forma de pago: Contado anticipado.");
+    });
+
+    it("vuelve al texto por defecto si la forma de pago está vacía", () => {
+      const lineas = armarCondiciones({
+        empresa: { ...empresaMock, presupuesto_forma_pago: "   " },
+        servicio: { tipo: "traslado", aplica_iva: true },
+        validezDias: 15,
+      });
+      expect(lineas).toContain("Forma de pago: al finalizar el servicio.");
+    });
   });
 
   describe("armarItems", () => {
