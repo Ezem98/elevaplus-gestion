@@ -85,6 +85,59 @@ export class ProveedorFalso implements ProveedorModelo {
         }
       }
 
+      // Si fue cálculo de distancia y el usuario pidió cotizar traslado
+      if (
+        ultimaSalida.name === "calcular_distancia" &&
+        todoElTexto.includes("cotiz") &&
+        !itemsTurno.some((it) => it.name === "cotizar_traslado")
+      ) {
+        const kmCalculado = resultadoJson.km ?? 105.4;
+        let vehiculo = "Ford Cargo";
+        if (todoElTexto.includes("ranger")) vehiculo = "Ranger";
+
+        const idaYVuelta = todoElTexto.includes("ida y vuelta");
+        const cargaMayor50 =
+          todoElTexto.includes("carga mayor") ||
+          todoElTexto.includes("pesada") ||
+          todoElTexto.includes("> 50");
+        const nocturno = todoElTexto.includes("nocturno");
+
+        return {
+          llamadasHerramientas: [
+            {
+              id: `call_cotizar_${Date.now()}`,
+              nombre: "cotizar_traslado",
+              argumentos: {
+                km: kmCalculado,
+                vehiculo,
+                ida_y_vuelta: idaYVuelta,
+                carga_mayor_50: cargaMayor50,
+                nocturno,
+              },
+            },
+          ],
+          tokensEntrada: 50,
+          tokensSalida: 30,
+          costoUsd: 0.000045,
+          modelo: "falso",
+          promptVersion: "guion-test",
+        };
+      }
+
+      // Si fue una cotización de traslado
+      if (ultimaSalida.name === "cotizar_traslado") {
+        const kmUsados = resultadoJson.km;
+        const prefijoKm = kmUsados ? `Para ese traslado son ${kmUsados} km por ruta. ` : "";
+        return {
+          texto: `${prefijoKm}${resultadoJson.resumen || `El precio sugerido es ${resultadoJson.importe_formateado}.`}`,
+          tokensEntrada: 45,
+          tokensSalida: 35,
+          costoUsd: 0.000051,
+          modelo: "falso",
+          promptVersion: "guion-test",
+        };
+      }
+
       // Respuesta estándar a partir del resumen de la herramienta
       return {
         texto:
@@ -466,6 +519,41 @@ export class ProveedorFalso implements ProveedorModelo {
         tokensEntrada: 75,
         tokensSalida: 65,
         costoUsd: 0.000095,
+        modelo: "falso",
+        promptVersion: "guion-test",
+      };
+    }
+
+    // Caso M: Cotización de traslado con cálculo de distancia ("cotizame un traslado de X a Y...")
+    if (
+      limpio.includes("cotiz") &&
+      (limpio.includes("traslado") || limpio.includes("viaje") || limpio.includes(" de ") || limpio.includes(" a "))
+    ) {
+      let origen = "Burzaco";
+      let destino = "Campana";
+      const matchDeA = limpio.match(/de\s+(.+?)\s+a\s+(.+?)(?:\s+con|\s+en|\s+solo|\s+ida|\.|$)/i);
+      if (matchDeA) {
+        origen = matchDeA[1].trim();
+        destino = matchDeA[2].trim();
+      } else if (limpio.includes("burzaco") && limpio.includes("campana")) {
+        origen = "Burzaco";
+        destino = "Campana";
+      }
+
+      return {
+        llamadasHerramientas: [
+          {
+            id: `call_distancia_${Date.now()}`,
+            nombre: "calcular_distancia",
+            argumentos: {
+              origen,
+              destino,
+            },
+          },
+        ],
+        tokensEntrada: 50,
+        tokensSalida: 25,
+        costoUsd: 0.00004,
         modelo: "falso",
         promptVersion: "guion-test",
       };

@@ -103,5 +103,12 @@
     "categoria": "consulta",
     "pedido": "¿Cuáles son los servicios que ya se realizaron y todavía quedan pendientes de facturar?",
     "esperado": "Llama a pendientes_facturar y resume los servicios sin factura emitida."
+  },
+  {
+    "id": "caso-16-cotizar-con-distancia",
+    "titulo": "Cotizar traslado calculando distancia",
+    "categoria": "consulta",
+    "pedido": "Cotizame un traslado de Burzaco a Campana con el Ford Cargo, solo ida",
+    "esperado": "Llama a calcular_distancia para Burzaco y Campana y con los km resultantes cotiza el traslado con el Ford Cargo."
   }
 ]
