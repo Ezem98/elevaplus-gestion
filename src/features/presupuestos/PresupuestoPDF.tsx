@@ -317,6 +317,7 @@ export interface PresupuestoPDFProps {
   numero?: number | string | null;
   validezDias?: number;
   extra?: string | null;
+  formaPago?: string | null;
   fecha?: string | Date | null;
 }
 
@@ -330,6 +331,7 @@ export function PresupuestoPDF({
   numero,
   validezDias,
   extra,
+  formaPago,
   fecha,
 }: PresupuestoPDFProps) {
   const listaServicios: Servicio[] =
@@ -357,6 +359,7 @@ export function PresupuestoPDF({
     servicio: listaServicios[0],
     validezDias: diasValidez,
     extra: condicionesExtra,
+    formaPago: formaPago !== undefined ? formaPago : presupuesto?.forma_pago,
   });
 
   const items = listaServicios.flatMap((s) => armarItems(s));

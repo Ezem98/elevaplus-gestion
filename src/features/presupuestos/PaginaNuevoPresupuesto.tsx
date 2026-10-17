@@ -29,6 +29,7 @@ import {
 } from "@/lib/tipos";
 import {
   armarCondiciones,
+  FORMA_PAGO_POR_DEFECTO,
   calcularTotalesAgrupadosPorMoneda,
 } from "@/lib/presupuesto";
 import { formatearMontoEntrada, formatearPesos } from "@/lib/formato";
@@ -219,6 +220,7 @@ export function PaginaNuevoPresupuesto() {
   // Validez y condiciones
   const [validezDias, setValidezDias] = useState<number>(15);
   const [condiciones, setCondiciones] = useState<string>("");
+  const [formaPago, setFormaPago] = useState<string>("");
 
   // Estados de UI
   const [guardando, setGuardando] = useState(false);
@@ -237,6 +239,7 @@ export function PaginaNuevoPresupuesto() {
       items,
       validezDias,
       condiciones,
+      formaPago,
     }),
     [
       modoDestinatario,
@@ -249,6 +252,7 @@ export function PaginaNuevoPresupuesto() {
       items,
       validezDias,
       condiciones,
+      formaPago,
     ],
   );
 
@@ -276,6 +280,7 @@ export function PaginaNuevoPresupuesto() {
       if (Array.isArray(d.items) && d.items.length > 0) setItems(d.items);
       if (d.validezDias) setValidezDias(d.validezDias);
       if (d.condiciones !== undefined) setCondiciones(d.condiciones);
+      if (d.formaPago !== undefined) setFormaPago(d.formaPago);
     },
     onDescartar: () => {
       setClienteSeleccionado(null);
@@ -309,6 +314,7 @@ export function PaginaNuevoPresupuesto() {
         setEmpresa(empData as Empresa);
         setValidezDias(empData.presupuesto_validez_dias ?? 15);
         setCondiciones(empData.presupuesto_condiciones_extra ?? "");
+        setFormaPago(empData.presupuesto_forma_pago || FORMA_PAGO_POR_DEFECTO);
       }
 
       if (cliData) {
@@ -579,6 +585,7 @@ export function PaginaNuevoPresupuesto() {
         servicios: items as any[],
         validezDias,
         extra: condiciones,
+        formaPago,
       })
     : [];
 
@@ -624,6 +631,7 @@ export function PaginaNuevoPresupuesto() {
           modoDestinatario === "prospecto" ? prospectoCuit.trim() || null : null,
         validez_dias: validezDias,
         condiciones: condiciones.trim() || null,
+        forma_pago: formaPago.trim() || null,
       };
 
       const itemsPayload = items.map((it) => ({
@@ -727,6 +735,7 @@ export function PaginaNuevoPresupuesto() {
             servicios={servsFormateados}
             validezDias={validezDias}
             extra={condiciones}
+            formaPago={formaPago}
           />
         );
 
@@ -1616,6 +1625,16 @@ export function PaginaNuevoPresupuesto() {
                 value={condiciones}
                 onChange={(e) => setCondiciones(e.target.value)}
                 placeholder="Condiciones específicas para este presupuesto..."
+              />
+            </Campo>
+          </div>
+          <div className="sm:col-span-3">
+            <Campo etiqueta="Forma de pago" id="pres_forma_pago">
+              <Entrada
+                id="pres_forma_pago"
+                value={formaPago}
+                onChange={(e) => setFormaPago(e.target.value)}
+                placeholder={empresa?.presupuesto_forma_pago || FORMA_PAGO_POR_DEFECTO}
               />
             </Campo>
           </div>

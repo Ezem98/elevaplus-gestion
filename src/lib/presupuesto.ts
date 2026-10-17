@@ -11,6 +11,7 @@ export interface ArmarCondicionesParams {
         | "presupuesto_espera_camion"
         | "precio_hora_espera_camion"
         | "precio_hora_espera_autoelevador"
+        | "presupuesto_forma_pago"
       >
     | Partial<Empresa>;
   servicio?:
@@ -21,6 +22,8 @@ export interface ArmarCondicionesParams {
   >;
   validezDias: number;
   extra?: string | null;
+  /** Forma de pago de este presupuesto; si está vacía se usa la de empresa */
+  formaPago?: string | null;
 }
 
 export interface ItemPresupuesto {
@@ -31,6 +34,8 @@ export interface ItemPresupuesto {
   importe: number;
   moneda?: "ARS" | "USD";
 }
+
+export const FORMA_PAGO_POR_DEFECTO = "al finalizar el servicio";
 
 export function formatearNumeroPresupuesto(numero: number | string | null | undefined): string {
   const n = Math.max(0, Math.floor(Number(numero) || 0));
@@ -43,6 +48,7 @@ export function armarCondiciones({
   servicios,
   validezDias,
   extra,
+  formaPago: formaPagoPresupuesto,
 }: ArmarCondicionesParams): string[] {
   const listaServicios = servicios ?? (servicio ? [servicio] : []);
   const lineas: string[] = [];
@@ -79,7 +85,10 @@ export function armarCondiciones({
   if (tieneAlquilerPeriodo) {
     lineas.push("Forma de pago: según plazo acordado.");
   } else {
-    lineas.push("Forma de pago: al finalizar el servicio.");
+    const formaPago =
+      (formaPagoPresupuesto?.trim() || empresa.presupuesto_forma_pago?.trim())?.replace(/[.\s]+$/, "") ||
+      FORMA_PAGO_POR_DEFECTO;
+    lineas.push(`Forma de pago: ${formaPago}.`);
   }
 
   // Cláusula de espera según tipo

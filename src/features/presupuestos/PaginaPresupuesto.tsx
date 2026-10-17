@@ -40,6 +40,7 @@ import {
 } from "@/lib/tipos";
 import {
   calcularFechaVencimiento,
+  FORMA_PAGO_POR_DEFECTO,
   calcularEstadoPresupuesto,
   calcularTotalesAgrupadosPorMoneda,
   detectarCoincidenciasCliente,
@@ -84,6 +85,7 @@ export function PaginaPresupuesto() {
   // Edición de condiciones y validez
   const [validezDias, setValidezDias] = useState<number>(15);
   const [condiciones, setCondiciones] = useState<string>("");
+  const [formaPago, setFormaPago] = useState<string>("");
   const [guardandoCondiciones, setGuardandoCondiciones] = useState(false);
   const [exitoCondiciones, setExitoCondiciones] = useState(false);
 
@@ -260,6 +262,7 @@ export function PaginaPresupuesto() {
       setPresupuesto(presData as Presupuesto);
       setValidezDias(presData.validez_dias ?? 15);
       setCondiciones(presData.condiciones ?? "");
+      setFormaPago(presData.forma_pago ?? "");
 
       // Si tiene PDF generado, obtener URL firmada (solo para ver en la app)
       if (presData.pdf_path) {
@@ -356,6 +359,7 @@ export function PaginaPresupuesto() {
         servicios={serviciosActivos}
         validezDias={validezDias}
         extra={condiciones}
+        formaPago={formaPago}
       />
     );
 
@@ -376,13 +380,15 @@ export function PaginaPresupuesto() {
     // Actualizar condiciones si fueron modificadas
     if (
       validezDias !== presupuesto.validez_dias ||
-      condiciones.trim() !== (presupuesto.condiciones || "").trim()
+      condiciones.trim() !== (presupuesto.condiciones || "").trim() ||
+      formaPago.trim() !== (presupuesto.forma_pago || "").trim()
     ) {
       const { error: condError } = await supabase
         .from("presupuestos")
         .update({
           validez_dias: validezDias,
           condiciones: condiciones.trim() || null,
+          forma_pago: formaPago.trim() || null,
         })
         .eq("id", presupuesto.id);
 
@@ -489,6 +495,7 @@ export function PaginaPresupuesto() {
         .update({
           validez_dias: validezDias,
           condiciones: condiciones.trim() || null,
+          forma_pago: formaPago.trim() || null,
         })
         .eq("id", presupuesto.id);
 
@@ -1629,6 +1636,17 @@ export function PaginaPresupuesto() {
                 disabled={!puedeModificar}
                 value={condiciones}
                 onChange={(e) => setCondiciones(e.target.value)}
+              />
+            </Campo>
+          </div>
+          <div className="sm:col-span-3">
+            <Campo etiqueta="Forma de pago" id="cond_forma_pago">
+              <Entrada
+                id="cond_forma_pago"
+                disabled={!puedeModificar}
+                value={formaPago}
+                onChange={(e) => setFormaPago(e.target.value)}
+                placeholder={empresa?.presupuesto_forma_pago || FORMA_PAGO_POR_DEFECTO}
               />
             </Campo>
           </div>

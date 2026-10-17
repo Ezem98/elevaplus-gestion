@@ -12,7 +12,7 @@ import { EncabezadoPagina } from "@/components/ui/EncabezadoPagina";
 import { EntradaMonto } from "@/components/ui/EntradaMonto";
 import { Tarjeta } from "@/components/ui/Tarjeta";
 import { formatearFecha, formatearPesos } from "@/lib/formato";
-import { armarCondiciones } from "@/lib/presupuesto";
+import { armarCondiciones, FORMA_PAGO_POR_DEFECTO } from "@/lib/presupuesto";
 import { supabase } from "@/lib/supabase";
 import type {
   AmbienteArca,
@@ -88,6 +88,7 @@ export function PaginaConfiguracion() {
   >(null);
   const [textoEsperaAutoelevador, setTextoEsperaAutoelevador] = useState("");
   const [condicionesExtra, setCondicionesExtra] = useState("");
+  const [formaPago, setFormaPago] = useState(FORMA_PAGO_POR_DEFECTO);
   const [guardandoPresupuesto, setGuardandoPresupuesto] = useState(false);
   const [mensajePresupuesto, setMensajePresupuesto] = useState<string | null>(
     null,
@@ -163,6 +164,7 @@ export function PaginaConfiguracion() {
       setPrecioEsperaAutoelevador(emp.precio_hora_espera_autoelevador ?? null);
       setTextoEsperaAutoelevador(emp.presupuesto_espera_autoelevador || "");
       setCondicionesExtra(emp.presupuesto_condiciones_extra || "");
+      setFormaPago(emp.presupuesto_forma_pago || FORMA_PAGO_POR_DEFECTO);
 
       setArcaAmbiente(emp.arca_ambiente || "homologacion");
       setPuntoVentaWs(emp.punto_venta_ws ?? 3);
@@ -305,6 +307,7 @@ export function PaginaConfiguracion() {
         precio_hora_espera_autoelevador: precioEsperaAutoelevador,
         presupuesto_espera_autoelevador: textoEsperaAutoelevador.trim(),
         presupuesto_condiciones_extra: condicionesExtra.trim() || null,
+        presupuesto_forma_pago: formaPago.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", 1);
@@ -364,6 +367,7 @@ export function PaginaConfiguracion() {
     presupuesto_espera_camion: null,
     precio_hora_espera_camion: precioEsperaCamion,
     precio_hora_espera_autoelevador: precioEsperaAutoelevador,
+    presupuesto_forma_pago: formaPago,
   };
 
   const diasValidezPreview = Math.max(1, Math.floor(Number(validezDias) || 15));
@@ -817,6 +821,19 @@ export function PaginaConfiguracion() {
           className="space-y-4 pb-[72px] md:pb-0"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <Etiqueta htmlFor="pres-forma-pago">Forma de pago</Etiqueta>
+              <Entrada
+                id="pres-forma-pago"
+                placeholder={FORMA_PAGO_POR_DEFECTO}
+                value={formaPago}
+                onChange={(e) => setFormaPago(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-tinta-suave">
+                Va después de "Forma de pago:" en traslados y alquileres por hora. Los alquileres por período dicen "según plazo acordado"
+              </p>
+            </div>
+
             <Campo etiqueta="Validez por defecto (días)" id="pres-validez">
               <Entrada
                 id="pres-validez"
