@@ -5,6 +5,7 @@ import { compararSecretSeguro, requerirWorkerSecretOAdmin } from "./auth";
 import {
   autorizar,
   igualTiempoConstante,
+  leerSecretKey,
 } from "../../../supabase/functions/enviar-push/auth.ts";
 
 describe("Worker - Autenticación y comparación en tiempo constante", () => {
@@ -308,6 +309,25 @@ describe("Edge Function - enviar-push auth", () => {
         apiKeyHeader: null,
       });
       expect(res).toBe("no_autorizado");
+    });
+  });
+
+  describe("Edge Function - leerSecretKey", () => {
+    const entorno = (vars: Record<string, string>) => (n: string) => vars[n];
+
+    it("usa la secret key default de SUPABASE_SECRET_KEYS", () => {
+      const leer = entorno({
+        SUPABASE_SECRET_KEYS: JSON.stringify({ default: "sb_secret_nueva", otra: "x" }),
+        SUPABASE_SERVICE_ROLE_KEY: "legacy",
+      });
+      expect(leerSecretKey(leer)).toBe("sb_secret_nueva");
+    });
+
+    it("vuelve a la legacy si no hay secret keys o el JSON es inválido", () => {
+      expect(leerSecretKey(entorno({ SUPABASE_SERVICE_ROLE_KEY: "legacy" }))).toBe("legacy");
+      expect(
+        leerSecretKey(entorno({ SUPABASE_SECRET_KEYS: "{roto", SUPABASE_SERVICE_ROLE_KEY: "legacy" })),
+      ).toBe("legacy");
     });
   });
 });

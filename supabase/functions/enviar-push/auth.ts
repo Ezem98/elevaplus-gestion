@@ -75,3 +75,23 @@ export function autorizar({
 
   return "no_autorizado";
 }
+
+/**
+ * Secret key del proyecto para el cliente admin y para autorizar llamadas del backend.
+ * Supabase la publica en SUPABASE_SECRET_KEYS (JSON por nombre); se usa la "default".
+ * SUPABASE_SERVICE_ROLE_KEY (legacy) queda como respaldo mientras exista.
+ */
+export function leerSecretKey(
+  leer: (nombre: string) => string | undefined = (n) => Deno.env.get(n),
+): string | undefined {
+  const crudo = leer("SUPABASE_SECRET_KEYS");
+  if (crudo) {
+    try {
+      const clave = JSON.parse(crudo)?.default;
+      if (typeof clave === "string" && clave.length > 0) return clave;
+    } catch {
+      // JSON inválido: se sigue con el respaldo
+    }
+  }
+  return leer("SUPABASE_SERVICE_ROLE_KEY");
+}
