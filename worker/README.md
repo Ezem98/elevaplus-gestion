@@ -2,6 +2,16 @@
 
 Servicio en segundo plano para tareas asíncronas, emisión de comprobantes en ARCA, recordatorios push, resúmenes semanales y generación periódica de instancias de vencimientos.
 
+## Secretos en Infisical
+
+En producción el worker arranca por `dist/arranque.js`: lee los secretos de Infisical (proyecto elevaplus, entorno `prod`, carpeta `/worker`) y recién después carga el resto. En Railway quedan solo `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET` e `INFISICAL_PROJECT_ID` (identidad de máquina de solo lectura) y la configuración que no es secreta. Revocar la identidad en Infisical corta el acceso.
+
+- Sin `INFISICAL_CLIENT_ID` no hace nada: en desarrollo sigue valiendo `.env`.
+- Con la identidad configurada, si no puede leer, el worker no arranca (Railway deja la versión anterior).
+- Lo que viene de Infisical pisa cualquier variable vieja de Railway con el mismo nombre.
+- Opcionales: `INFISICAL_ENV` (default `prod`), `INFISICAL_SECRET_PATH` (default `/worker`), `INFISICAL_SITE_URL`.
+- `SUPABASE_SERVICE_ROLE_KEY` guarda una secret key nueva (`sb_secret_...`); las claves legacy están desactivadas.
+
 ## Variables de entorno
 
 | Variable                    | Descripción                                                              | Ejemplo / Valor                                                       |

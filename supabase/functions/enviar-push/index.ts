@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 import webpush from "npm:web-push@3.6.7";
-import { autorizar } from "./auth.ts";
+import { autorizar, leerSecretKey } from "./auth.ts";
 
 interface WebhookPayload {
   type: "INSERT" | "UPDATE" | "DELETE";
@@ -13,7 +13,8 @@ interface WebhookPayload {
 Deno.serve(async (req: Request) => {
   // 1. Verificación del header Authorization contra WEBHOOK_SECRET o SUPABASE_SERVICE_ROLE_KEY
   const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  // Las claves legacy (JWT) están desactivadas: se usa la secret key "default".
+  const serviceRoleKey = leerSecretKey();
   const authHeader = req.headers.get("Authorization");
   const apiKeyHeader = req.headers.get("apikey");
 
@@ -55,8 +56,7 @@ Deno.serve(async (req: Request) => {
     let destinatariosPersonalizados: any = null;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey =
-      serviceRoleKey || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseServiceKey = serviceRoleKey;
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error(
