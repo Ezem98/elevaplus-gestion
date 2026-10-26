@@ -59,7 +59,14 @@ import { ChipEstado, ChipEstadoPresupuesto, ChipNocturno } from "@/components/ui
 import { Boton } from "@/components/ui/Boton";
 import { Aviso } from "@/components/ui/Aviso";
 
+// Al pasar de un presupuesto a otro (por ejemplo desde Chimuelo) se remonta la página,
+// así no queda el PDF ni el estado del presupuesto anterior.
 export function PaginaPresupuesto() {
+  const { id } = useParams<{ id: string }>();
+  return <ContenidoPresupuesto key={id} />;
+}
+
+function ContenidoPresupuesto() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,7 +85,6 @@ export function PaginaPresupuesto() {
   const [procesando, setProcesando] = useState(false);
   const [errorGlobal, setErrorGlobal] = useState<string | null>(null);
   const [urlFirmada, setUrlFirmada] = useState<string | null>(null);
-  const [ultimoBlob, setUltimoBlob] = useState<Blob | null>(null);
   const [compartirNoSoportado, setCompartirNoSoportado] = useState(false);
   const [compartirReintentar, setCompartirReintentar] = useState(false);
 
@@ -419,17 +425,12 @@ export function PaginaPresupuesto() {
     }
 
     setUrlFirmada(signedData.signedUrl);
-    setUltimoBlob(blob);
     return { url: signedData.signedUrl, blob };
   };
 
-  // Obtener blob del PDF (reutiliza en memoria si no cambiaron los ítems, o genera y sube a Storage)
+  // Genera el PDF siempre con los datos actuales (precios, condiciones o ítems pudieron cambiar) y lo sube a Storage
   const obtenerBlobPDF = async (): Promise<Blob> => {
-    if (ultimoBlob && !itemsModificadosDespuesDeGenerar) {
-      return ultimoBlob;
-    }
     const { blob } = await generarYSubirPDF();
-    setUltimoBlob(blob);
     await cargarDatos();
     return blob;
   };
