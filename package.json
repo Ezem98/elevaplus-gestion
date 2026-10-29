@@ -21,30 +21,30 @@
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans": "^5.3.0",
-    "@radix-ui/react-context-menu": "^2.4.0",
-    "@radix-ui/react-dropdown-menu": "^2.2.0",
+    "@radix-ui/react-context-menu": "^2.4.1",
+    "@radix-ui/react-dropdown-menu": "^2.2.1",
     "@react-pdf/renderer": "^4.9.0",
-    "@supabase/supabase-js": "^2.117.3",
+    "@supabase/supabase-js": "^2.118.0",
     "@tailwindcss/vite": "^4.3.3",
-    "lucide-react": "^1.55.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.4",
     "serve": "^14.2.6",
     "tailwindcss": "^4.3.3",
     "vite-plugin-pwa": "^2.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
-    "oxlint": "^1.87.0",
-    "supabase": "^2.120.0",
+    "oxlint": "^1.89.0",
+    "supabase": "^2.122.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4",
-    "vitest": "^5.0.3"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "compression": "1.8.2"
